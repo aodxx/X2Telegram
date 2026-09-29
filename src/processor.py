@@ -18,6 +18,7 @@ class PostProcessor:
 
     def process(self, post: XPost) -> PostResult:
         result = PostResult(post.normalized_url, post.post_id, post.username, ResultStatus.ERROR)
+        stage = "metadata"
         try:
             metadata = self.metadata.get(post)
             result.media_count = len(metadata.media)
@@ -29,8 +30,10 @@ class PostProcessor:
             caption = f"@{post.username}\n{post.normalized_url}"
             with tempfile.TemporaryDirectory(prefix="x2telegram-") as temp_dir:
                 for item in selected:
+                    stage = "download"
                     path = self.downloader.download(item.url, item.kind)
                     try:
+                        stage = "telegram"
                         if item.kind == "video":
                             message_id = self.telegram.send_video(str(path), caption)
                         elif item.kind == "photo":
@@ -43,8 +46,10 @@ class PostProcessor:
             result.status = ResultStatus.SENT
         except Exception as exc:
             result.error = str(exc)[:500]
-            if result.media_count == 0:
+            if stage == "metadata":
                 result.status = ResultStatus.METADATA_ERROR
-            else:
+            elif stage == "download":
                 result.status = ResultStatus.DOWNLOAD_ERROR
+            else:
+                result.status = ResultStatus.TELEGRAM_ERROR
         return result

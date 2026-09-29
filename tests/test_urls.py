@@ -13,3 +13,7 @@ def test_batch_deduplicates():
 def test_batch_accepts_space_separated_urls():
     raw="https://x.com/a/status/1 https://x.com/a/status/2 https://x.com/a/status/1"
     assert [p.post_id for p in parse_batch(raw)] == ["1", "2"]
+
+def test_batch_normalizes_query_parameters():
+    posts = parse_batch("https://x.com/a/status/1?s=20&utm_source=test")
+    assert posts[0].normalized_url == "https://x.com/a/status/1"
