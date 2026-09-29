@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>X2Telegram</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#18212f;--muted:#6b7280;--line:#e5e7eb;--primary:#111827;--accent:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,textarea{font:inherit}.app{max-width:760px;margin:auto;padding:16px 14px 36px}.top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 18px}.brand{font-size:22px;font-weight:800}.sub{color:var(--muted);font-size:12px}.icon{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 11px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 3px 14px rgba(15,23,42,.04)}h1{font-size:21px;margin:0 0 5px}h2{font-size:16px;margin:0 0 12px}.hint{color:var(--muted);margin:0 0 14px}
+textarea{width:100%;min-height:180px;border:1px solid #d7dce3;border-radius:14px;padding:13px;resize:vertical;outline:none}textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.actions{display:flex;gap:9px;margin-top:12px}.btn{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.primary{background:var(--primary);color:#fff;flex:1}.secondary{background:#eef2f7;color:var(--text)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#f8fafc;border-radius:13px;padding:11px}.num{font-size:20px;font-weight:800}.label{font-size:12px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex:none}.ok{background:#22c55e}.warn{background:#f59e0b}.bad{background:#ef4444}.grow{flex:1}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted);word-break:break-all}.tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:700}
+.progress{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden}.bar{height:100%;width:50%;background:#2563eb}.footer{text-align:center;color:var(--muted);font-size:11px;margin-top:20px}
+@media(max-width:520px){.app{padding:12px 10px 28px}.card{padding:15px;border-radius:16px}.actions{flex-direction:column}.btn{width:100%}.stats{grid-template-columns:1fr 1fr}.stats .stat:last-child{grid-column:span 2}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div><div class="brand">X2Telegram</div><div class="sub">X → Telegram Media Bridge</div></div>
+    <button class="icon" aria-label="Settings">⚙️</button>
+  </header>
+
+  <section class="card">
+    <h1>ส่ง Media จาก X</h1>
+    <p class="hint">วางลิงก์ X ได้หลายรายการ — 1 ลิงก์ต่อ 1 บรรทัด</p>
+    <textarea id="urls" placeholder="https://x.com/ninmopmn/status/2099828300118167587?s=20&#10;https://x.com/ninmopmn/status/2099821309253574697?s=20&#10;https://x.com/ninmopmn/status/2099546072427409518?s=20"></textarea>
+    <div class="actions"><button class="btn secondary" onclick="demoParse()">ตรวจสอบรายการ</button><button class="btn primary" onclick="demoRun()">🚀 เริ่มส่งเข้า Telegram</button></div>
+  </section>
+
+  <section class="card" id="review">
+    <h2>รายการนี้</h2>
+    <div class="stats"><div class="stat"><div class="num" id="count">0</div><div class="label">Posts</div></div><div class="stat"><div class="num">—</div><div class="label">Media</div></div><div class="stat"><div class="num">พร้อม</div><div class="label">สถานะ</div></div></div>
+    <div id="list"></div>
+  </section>
+
+  <section class="card" id="running">
+    <h2>ความคืบหน้า</h2>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <p class="hint" id="progressText">ยังไม่ได้เริ่มงาน</p>
+    <div id="results"></div>
+  </section>
+
+  <section class="card">
+    <h2>หลักการทำงาน</h2>
+    <div class="row"><span class="dot ok"></span><div class="grow">ตรวจ Metadata ก่อนดาวน์โหลด</div><span class="tag">เร็ว</span></div>
+    <div class="row"><span class="dot"></span><div class="grow">แต่ละโพสต์แยกจากกัน</div><span class="tag">ปลอดภัย</span></div>
+    <div class="row"><span class="dot"></span><div class="grow">ไฟล์ชั่วคราวถูกลบหลังส่ง</div><span class="tag">ไม่เก็บถาวร</span></div>
+  </section>
+  <div class="footer">UI Prototype — ยังไม่เชื่อม GitHub Actions / Telegram</div>
+</main>
+<script>
+function parse(){return document.getElementById('urls').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
+function demoParse(){const u=parse(),list=document.getElementById('list');document.getElementById('count').textContent=u.length;list.innerHTML=u.map((x,i)=>{let m=x.match(/x\.com\/([^/]+)\/status\/(\d+)/i);return '<div class="row"><span class="dot '+(m?'ok':'bad')+'"></span><div class="grow"><b>'+(m?'@'+m[1]:'URL ไม่ถูกต้อง')+'</b><div class="mono">'+x+'</div></div><span class="tag">'+(m?'รอตรวจ':'ข้าม')+'</span></div>'}).join('')}
+function demoRun(){demoParse();const u=parse(),r=document.getElementById('results');r.innerHTML=u.map((x,i)=>'<div class="row"><span class="dot '+(i<1?'ok':'')+'"></span><div class="grow"><b>'+((x.match(/x\.com\/([^/]+)\/status\//i)||[])[1]||'unknown')+'</b><div class="mono">'+(i?'กำลังรอคิว':'ตรวจสอบ Metadata…')+'</div></div><span class="tag">'+(i?'Queued':'Checking')+'</span></div>').join('');document.getElementById('bar').style.width=u.length?'25%':'0%';document.getElementById('progressText').textContent='กำลังทำงาน 1 / '+u.length}
+demoParse();
+</script>
+</body>
+</html>
