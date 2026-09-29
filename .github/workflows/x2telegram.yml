@@ -12,9 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  parse-input:
+  send-media:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,8 +24,26 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Parse batch input
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Run automated tests
+        run: python -m pip install pytest && pytest -q
+
+      - name: Process posts and send media
         env:
           INPUT_URLS: ${{ inputs.urls }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          printf '%s\n' "$INPUT_URLS" | python -m src.cli
+          test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN secret" >&2; exit 1)
+          test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID secret" >&2; exit 1)
+          printf '%s\n' "$INPUT_URLS" | python -m src.cli --report report.json | tee report-output.json
+
+      - name: Publish run report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x2telegram-report-${{ github.run_id }}
+          path: report.json
+          if-no-files-found: warn
