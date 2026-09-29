@@ -30,8 +30,10 @@ def parse_x_url(value: str) -> XPost | None:
 
 def parse_batch(text: str) -> list[XPost]:
     seen=set(); posts=[]
-    for line in text.splitlines():
-        post=parse_x_url(line)
+    # workflow_dispatch may normalize pasted newlines to spaces.
+    tokens = re.findall(r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/[^\s<>'\"]+", text, re.IGNORECASE)
+    for token in tokens:
+        post=parse_x_url(token.rstrip(".,);]"))
         if post and post.normalized_url not in seen:
             posts.append(post); seen.add(post.normalized_url)
     return posts

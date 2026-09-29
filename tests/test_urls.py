@@ -9,3 +9,7 @@ def test_parse_query_string():
 def test_batch_deduplicates():
     raw="https://x.com/a/status/1?s=20\nhttps://x.com/a/status/2\nhttps://x.com/a/status/1"
     assert [p.post_id for p in parse_batch(raw)] == ["1","2"]
+
+def test_batch_accepts_space_separated_urls():
+    raw="https://x.com/a/status/1 https://x.com/a/status/2 https://x.com/a/status/1"
+    assert [p.post_id for p in parse_batch(raw)] == ["1", "2"]
