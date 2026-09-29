@@ -1,0 +1,31 @@
+name: X2Telegram
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "Paste one or more X post URLs, one per line"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  parse-input:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Parse batch input
+        env:
+          INPUT_URLS: ${{ inputs.urls }}
+        run: |
+          printf '%s\n' "$INPUT_URLS" | python -m src.cli
