@@ -22,7 +22,7 @@ class FakeTelegram:
 
 
 def test_worker_sends_and_cleans_download(tmp_path):
-    config = Config("token", "chat", max_file_size_mb=1)
+    config = Config("token", "-1003906817580", max_file_size_mb=1)
     processor = PostProcessor(config, FakeMetadata(), FakeTelegram())
     fake = tmp_path / "video.mp4"
     fake.write_bytes(b"not-html-media")

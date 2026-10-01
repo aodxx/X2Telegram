@@ -7,14 +7,23 @@ on:
         description: "Paste one or more X post URLs, one per line"
         required: true
         type: string
+      large_file_mode:
+        description: "Use a Telegram Local Bot API Server for files above 50 MB"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: x2telegram-production
+  cancel-in-progress: false
 
 jobs:
   send-media:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,20 +39,65 @@ jobs:
       - name: Run automated tests
         run: python -m pip install pytest && pytest -q
 
+      - name: Start Telegram Local Bot API Server
+        if: ${{ inputs.large_file_mode }}
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          test -n "$TELEGRAM_API_ID" || (echo "Missing TELEGRAM_API_ID secret for large-file mode" >&2; exit 1)
+          test -n "$TELEGRAM_API_HASH" || (echo "Missing TELEGRAM_API_HASH secret for large-file mode" >&2; exit 1)
+          docker run --detach --name x2telegram-local-bot-api \
+            --publish 127.0.0.1:8081:8081 \
+            --env TELEGRAM_API_ID \
+            --env TELEGRAM_API_HASH \
+            --env TELEGRAM_LOCAL=1 \
+            aiogram/telegram-bot-api:latest
+          for i in $(seq 1 60); do
+            curl --fail --silent "http://127.0.0.1:8081/bot${TELEGRAM_BOT_TOKEN}/getMe" >/dev/null && exit 0
+            sleep 2
+          done
+          docker logs x2telegram-local-bot-api
+          exit 1
+
       - name: Process posts and send media
         env:
           INPUT_URLS: ${{ inputs.urls }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: "-1003906817580"
+          LARGE_FILE_MODE: ${{ inputs.large_file_mode }}
+          MAX_FILE_SIZE_MB: ${{ inputs.large_file_mode && '2000' || '50' }}
+          TELEGRAM_API_BASE_URL: ${{ inputs.large_file_mode && 'http://127.0.0.1:8081' || 'https://api.telegram.org' }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          DEDUPE_STATE_PATH: state/dedupe.json
         run: |
           test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN secret" >&2; exit 1)
-          test -n "$TELEGRAM_CHAT_ID" || (echo "Missing TELEGRAM_CHAT_ID secret" >&2; exit 1)
-          printf '%s\n' "$INPUT_URLS" | python -m src.cli --report report.json | tee report-output.json
+          mkdir -p state
+          printf '%s\n' "$INPUT_URLS" | python -m src.cli --report report.json --log run.jsonl --dedupe-state "$DEDUPE_STATE_PATH" | tee report-output.json
+
+      - name: Stop Telegram Local Bot API Server
+        if: ${{ always() && inputs.large_file_mode }}
+        run: docker rm --force x2telegram-local-bot-api || true
+
+      - name: Persist duplicate prevention state
+        if: always()
+        run: |
+          if [ ! -f state/dedupe.json ] || [ -z "$(git status --porcelain -- state/dedupe.json)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/dedupe.json
+          git commit -m "chore: persist X2Telegram delivery state [skip ci]"
+          git push
 
       - name: Publish run report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: x2telegram-report-${{ github.run_id }}
-          path: report.json
+          path: |
+            report.json
+            run.jsonl
           if-no-files-found: warn

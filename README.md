@@ -25,9 +25,15 @@ docs/
 
 ## Setup and real usage
 1. Create a Telegram bot with `@BotFather`, add it to the target chat, and obtain the bot token.
-2. Add repository Actions secrets named `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+2. Add the repository Actions secret `TELEGRAM_BOT_TOKEN`. The workflow is locked to chat `-1003906817580`.
 3. Open **Actions → X2Telegram → Run workflow**, then paste one public X URL per line.
-4. The workflow extracts metadata, selects the highest-bitrate video (or photos), downloads to temporary storage, sends to Telegram, deletes the temporary file, and uploads a JSON report as a workflow artifact.
+4. The workflow runs a Telegram preflight, extracts metadata, selects the highest-bitrate video (or photos), downloads to temporary storage, sends to Telegram, deletes the temporary file, and uploads a JSON report plus JSONL execution log as workflow artifacts.
+
+The default workflow uses the standard Telegram Bot API and limits media to 50 MB. For larger media, enable the manual `large_file_mode` input. That mode requires repository secrets `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`, starts a Telegram Local Bot API Server for the job, and allows up to 2000 MB. The large-file path is intentionally opt-in.
+
+If the optional `ALERT_WEBHOOK_URL` repository secret is configured with an HTTPS webhook, each run sends a redacted summary containing only run status, counts, and duration. The webhook never receives bot tokens, media URLs, captions, or per-post error text.
+
+The workflow also enables duplicate prevention with `state/dedupe.json`. A post is recorded only after Telegram confirms a successful send; later runs skip that post before metadata lookup or download. Runs are serialized with GitHub Actions concurrency to avoid two jobs racing on the same state file.
 
 For local URL validation without sending anything:
 
@@ -35,6 +41,6 @@ For local URL validation without sending anything:
 printf '%s\n' 'https://x.com/user/status/123' | python -m src.cli --parse-only
 ```
 
-The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
+Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 
 Only use media you are authorized to download and redistribute, and comply with applicable platform terms. X availability and rate limits can change; unresolved public posts are reported as errors rather than retried indefinitely.

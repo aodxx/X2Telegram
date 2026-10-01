@@ -8,6 +8,7 @@ class ResultStatus(str, Enum):
     DOWNLOAD_ERROR = "download_error"
     TELEGRAM_ERROR = "telegram_error"
     SKIPPED = "skipped"
+    SKIPPED_DUPLICATE = "skipped_duplicate"
     ERROR = "error"
 
 @dataclass
@@ -29,3 +30,5 @@ class PostResult:
     media_count: int = 0
     message_ids: list[int] = field(default_factory=list)
     error: str | None = None
+    stage: str | None = None
+    error_code: str | None = None
