@@ -61,6 +61,7 @@
     textarea::placeholder { color: #66809b; }
     textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(105,184,255,.12); }
     .under-input { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; color: var(--muted); font-size: 12px; }
+    .review-state { color: var(--cyan); font-size: 12px; }
     .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 17px; }
     .btn { border: 0; border-radius: 13px; padding: 12px 16px; color: var(--text); font-weight: 800; transition: transform .16s ease, filter .16s ease, border-color .16s ease; }
     .btn:active { transform: scale(.97); }
@@ -143,7 +144,7 @@
         <h2>สร้างรายการส่งใหม่</h2>
         <p class="card-intro">วาง public X post URL — หนึ่งลิงก์ต่อหนึ่งบรรทัด</p>
         <div class="input-wrap"><textarea id="urls" aria-label="X post URLs" placeholder="https://x.com/username/status/1234567890?s=20&#10;https://x.com/username/status/1234567891"></textarea></div>
-        <div class="under-input"><span id="lineHint">ยังไม่มีรายการ</span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
+        <div class="under-input"><span><span id="lineHint">ยังไม่มีรายการ</span> · <span class="review-state" id="reviewState">พร้อมตรวจสอบ</span></span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
         <div class="toggle-row"><div><b>Large-file mode</b><span>เปิดเมื่อไฟล์มีขนาดมากกว่า 50 MB</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
         <div class="target"><div class="target-icon">✓</div><div><small>ส่งไปยัง Telegram เท่านั้น</small><code>-1003906817580</code></div></div>
         <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button">เริ่มส่งเข้า Telegram</button></div>
@@ -203,6 +204,7 @@
       }).join('') : '<div class="empty">วางลิงก์ด้านซ้าย แล้วกด<br><b>ตรวจสอบรายการ</b></div>';
       $('reviewList').innerHTML = html; $('validCount').textContent = valid; $('invalidCount').textContent = invalid;
       $('lineHint').textContent = lines.length ? `${lines.length} รายการ · พร้อมใช้ ${valid}` : 'ยังไม่มีรายการ';
+      $('reviewState').textContent = lines.length ? (valid ? `ตรวจแล้ว · ${valid} พร้อมใช้` : 'ตรวจแล้ว · ต้องแก้ไข') : 'พร้อมตรวจสอบ';
       if (!activeRun) { $('progressText').textContent = lines.length ? 'ตรวจสอบแล้ว' : 'พร้อมเริ่ม'; $('progressBar').style.width = lines.length ? '18%' : '0%'; }
       return { lines, validLines, valid, invalid };
     }
@@ -282,8 +284,8 @@
       } catch (error) { setBusy(false); $('progressText').textContent = 'พร้อมเริ่ม'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
     }
     urls.addEventListener('input', review);
-    $('reviewBtn').addEventListener('click', () => { const r = review(); showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
-    $('clearBtn').addEventListener('click', () => { urls.value = ''; activeRun = null; clearTimeout(pollTimer); $('resultList').innerHTML = ''; $('runMeta').innerHTML = '<strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span>'; review(); urls.focus(); });
+    $('reviewBtn').addEventListener('click', () => { const r = review(); $('reviewBtn').textContent = r.valid ? `ตรวจแล้ว · ${r.valid} รายการ` : 'ตรวจสอบรายการ'; showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
+    $('clearBtn').addEventListener('click', () => { urls.value = ''; activeRun = null; clearTimeout(pollTimer); $('resultList').innerHTML = ''; $('runMeta').innerHTML = '<strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span>'; $('reviewBtn').textContent = 'ตรวจสอบรายการ'; review(); urls.focus(); });
     $('runBtn').addEventListener('click', startJob);
     review();
     checkBackend();
