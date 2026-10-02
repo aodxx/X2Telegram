@@ -35,11 +35,28 @@ If the optional `ALERT_WEBHOOK_URL` repository secret is configured with an HTTP
 
 The workflow also enables duplicate prevention with `state/dedupe.json`. A post is recorded only after Telegram confirms a successful send; later runs skip that post before metadata lookup or download. Runs are serialized with GitHub Actions concurrency to avoid two jobs racing on the same state file.
 
+Metadata fallback order is `yt-dlp` → X syndication → public FxTwitter API (`https://api.fxtwitter.com/2/status/{post_id}`). The fallback accepts only MP4 variants from the API and preserves required query parameters such as `?tag=12` on direct `video.twimg.com` URLs. Query parameters are stripped only from the source post URL used for lookup.
+
 For local URL validation without sending anything:
 
 ```bash
 printf '%s\n' 'https://x.com/user/status/123' | python -m src.cli --parse-only
 ```
+
+For a complete local dry-run before GitHub Actions:
+
+```bash
+scripts/local_test.sh
+scripts/local_test.sh --urls-file urls.txt
+```
+
+To verify the Telegram token, target group, bot membership, and permissions without sending a message or media, use:
+
+```bash
+TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --preflight
+```
+
+The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

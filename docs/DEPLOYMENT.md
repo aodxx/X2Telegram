@@ -170,7 +170,7 @@ workflow จะทำตามลำดับนี้:
 4. รัน automated tests
 5. ตรวจว่า `TELEGRAM_BOT_TOKEN` มีค่า และตรวจ Telegram preflight ผ่าน
 6. ประมวลผล URL แต่ละรายการ
-7. เลือกวิดีโอ bitrate สูงสุด หรือใช้ fallback ของ X สำหรับรูปภาพ/วิดีโอที่ yt-dlp มองไม่เห็น
+7. เลือกวิดีโอ bitrate สูงสุด โดยลองตามลำดับ `yt-dlp` → X syndication → public FxTwitter API
 8. ส่งเข้า Telegram
 9. สร้าง `report.json` พร้อมสถานะรายขั้นตอน
 10. สร้าง `run.jsonl` เป็น structured execution log และเขียน GitHub Step Summary
@@ -235,6 +235,16 @@ Log จะปกปิด bot token, API key, authorization และ query secr
 
 ระบบประมวลผลแยกต่อโพสต์ ดังนั้น error ของ URL หนึ่งไม่ควรหยุด URL อื่น
 
+### Metadata fallback สำหรับวิดีโอ
+
+เมื่อ `yt-dlp` ไม่พบ media ระบบจะลอง X syndication ก่อน แล้วจึงเรียก public FxTwitter API ที่ endpoint:
+
+```text
+https://api.fxtwitter.com/2/status/{post_id}
+```
+
+ระบบเลือกเฉพาะ variants ที่เป็น MP4 และคง query parameter ของ direct media URL เช่น `?tag=12` ไว้ เพราะพารามิเตอร์เหล่านี้อาจจำเป็นต่อการดาวน์โหลด CDN media ส่วน query parameter ของ URL โพสต์ เช่น `?s=20` จะถูกตัดเฉพาะตอน normalize source URL เท่านั้น
+
 ## 10. ตรวจ URL ในเครื่องโดยไม่ส่ง Telegram
 
 ไม่จำเป็นต้องตั้ง Telegram secret หากต้องการตรวจรูปแบบ URL อย่างเดียว:
@@ -250,6 +260,37 @@ python -m pip install -r requirements.txt
 python -m pip install pytest
 pytest -q
 ```
+
+### 10.1 Local test runner
+
+ก่อนรัน GitHub Actions ให้ใช้สคริปต์ที่ repository จัดเตรียมไว้:
+
+```bash
+scripts/local_test.sh
+```
+
+สคริปต์จะทำตามลำดับนี้:
+
+1. รัน automated tests
+2. ตรวจ Python syntax ด้วย `compileall`
+3. parse URL แบบ `--parse-only`
+4. ไม่เรียก Telegram และไม่ส่ง media โดยค่าเริ่มต้น
+
+ใช้ไฟล์ URL ของคุณเองได้:
+
+```bash
+scripts/local_test.sh --urls-file urls.txt
+```
+
+หากต้องการตรวจ token, กลุ่ม, membership และสิทธิ์ของ bot โดยไม่ส่งข้อความหรือไฟล์:
+
+```bash
+export TELEGRAM_BOT_TOKEN='ใส่เฉพาะใน terminal เครื่องตัวเอง'
+scripts/local_test.sh --preflight
+unset TELEGRAM_BOT_TOKEN
+```
+
+โหมด `--preflight` เรียกเฉพาะ `getMe`, `getChat` และ `getChatMember`; ไม่เรียก `sendVideo`, `sendPhoto` หรือ `sendDocument` และสคริปต์ไม่พิมพ์ token ออกมา
 
 ## 11. แก้ปัญหาที่พบบ่อย
 

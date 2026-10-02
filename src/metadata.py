@@ -21,30 +21,33 @@ class MetadataProvider:
 
 
 class YtDlpMetadataProvider(MetadataProvider):
-    """Extract public X media, with a syndication fallback for photo posts."""
+    """Extract public X media through yt-dlp and public metadata fallbacks."""
 
     def __init__(self, timeout_seconds: int = 60):
         self.timeout_seconds = timeout_seconds
 
     def get(self, post: XPost) -> Metadata:
-        ytdlp_error: Exception | None = None
+        errors: list[str] = []
         try:
             metadata = self._from_ytdlp(post)
             if metadata.media:
                 return metadata
         except Exception as exc:
-            ytdlp_error = exc
+            errors.append(f"yt-dlp: {exc}")
 
-        try:
-            fallback = self._from_syndication(post)
-            if fallback.media or not ytdlp_error:
-                return fallback
-            # A tombstone/empty public response is a valid no-media result.
-            return fallback
-        except Exception as fallback_error:
-            if ytdlp_error:
-                raise RuntimeError(f"yt-dlp: {ytdlp_error}; syndication: {fallback_error}") from fallback_error
-            raise
+        for name, provider in (("syndication", self._from_syndication), ("fxtwitter", self._from_fxtwitter)):
+            try:
+                fallback = provider(post)
+                if fallback.media:
+                    return fallback
+                # An empty public response is a valid no-media result; continue
+                # to the next provider before declaring no media.
+            except Exception as exc:
+                errors.append(f"{name}: {exc}")
+
+        if errors and len(errors) == 3:
+            raise RuntimeError("; ".join(errors))
+        return Metadata(post, [])
 
     def _from_ytdlp(self, post: XPost) -> Metadata:
         from yt_dlp import YoutubeDL
@@ -101,3 +104,49 @@ class YtDlpMetadataProvider(MetadataProvider):
                     media.append(MediaItem("video", url, index, bitrate=variant.get("bitrate"),
                                            width=width, height=height, mime_type="mp4"))
         return Metadata(post, media, payload.get("text") or "")
+
+    def _from_fxtwitter(self, post: XPost) -> Metadata:
+        """Use FxTwitter's public status API when other metadata sources are empty."""
+        endpoint = f"https://api.fxtwitter.com/2/status/{post.post_id}"
+        response = requests.get(
+            endpoint,
+            timeout=self.timeout_seconds,
+            headers={"User-Agent": "X2Telegram/1.0", "Accept": "application/json"},
+        )
+        response.raise_for_status()
+        payload: dict[str, Any] = response.json()
+        if payload.get("code") not in (None, 200):
+            raise RuntimeError(f"FxTwitter API returned code {payload.get('code')}")
+        status = payload.get("status") or {}
+        media = status.get("media") or {}
+        items = media.get("all") or media.get("videos") or []
+        results: list[MediaItem] = []
+        seen: set[str] = set()
+        for index, item in enumerate(items):
+            kind = item.get("type")
+            if kind == "video":
+                variants = [
+                    variant for variant in (item.get("formats") or [])
+                    if variant.get("url") and variant.get("container") == "mp4"
+                ]
+                for variant in variants:
+                    url = variant["url"]
+                    if url in seen:
+                        continue
+                    seen.add(url)
+                    results.append(MediaItem(
+                        "video", url, index,
+                        bitrate=variant.get("bitrate"),
+                        width=variant.get("width") or item.get("width"),
+                        height=variant.get("height") or item.get("height"),
+                        mime_type="mp4",
+                    ))
+            elif kind == "photo" and item.get("url"):
+                url = item["url"]
+                if url not in seen:
+                    seen.add(url)
+                    results.append(MediaItem(
+                        "photo", url, index,
+                        width=item.get("width"), height=item.get("height"), mime_type="jpg",
+                    ))
+        return Metadata(post, results, status.get("text") or "")
