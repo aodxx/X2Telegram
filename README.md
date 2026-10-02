@@ -3,8 +3,11 @@
 X media to Telegram automation running on GitHub Actions.
 
 ## Goal
-
 Paste one or many public X post URLs into one GitHub Actions run. The system parses each URL, processes each post independently, and reports results.
+
+## Project status
+
+See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and the Phase 6.1 private dashboard plan.
 
 ## Principles
 - Simple setup: configure secrets once.
