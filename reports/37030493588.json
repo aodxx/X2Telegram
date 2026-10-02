@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "37030493588",
+  "request_id": "test-6-1b-001",
+  "status": "completed",
+  "started_at": "2026-10-02T15:56:47.807762+00:00",
+  "finished_at": "2026-10-02T15:56:49.229996+00:00",
+  "duration_seconds": 1.422,
+  "large_file_mode": false,
+  "input_count": 1,
+  "valid_unique_posts": 1,
+  "summary": {
+    "total": 1,
+    "sent": 0,
+    "skipped_duplicate": 1,
+    "no_media": 0,
+    "failed": 0
+  },
+  "results": [
+    {
+      "post_id": "2105840724075798807",
+      "username": "i",
+      "source_url": "https://x.com/i/status/2105840724075798807",
+      "status": "skipped_duplicate",
+      "stage": "dedupe",
+      "error_code": "already_sent",
+      "media_count": 0,
+      "message_ids": [],
+      "filenames": []
+    }
+  ]
+}
