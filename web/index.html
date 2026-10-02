@@ -109,6 +109,16 @@
     .footer a { color: var(--blue); }
     .toast { position: fixed; right: 22px; bottom: 22px; max-width: min(380px, calc(100vw - 44px)); padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: #10243b; box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
     .toast.show { opacity: 1; transform: translateY(0); }
+    .run-meta { display: grid; gap: 6px; margin-top: 16px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.03); color: var(--muted); font-size: 12px; }
+    .run-meta strong { color: var(--text); }
+    .run-meta a { color: var(--blue); }
+    .result-list { display: grid; gap: 8px; max-height: 260px; margin-top: 12px; overflow: auto; }
+    .result-row { display: flex; gap: 10px; align-items: flex-start; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.025); font-size: 12px; }
+    .result-row .status-dot { margin-top: 5px; }
+    .result-row b { display: block; color: var(--text); }
+    .result-row span { color: var(--muted); }
+    .result-ok { color: var(--green) !important; }
+    .result-bad { color: var(--red) !important; }
     @media (max-width: 820px) { .hero, .grid { grid-template-columns: 1fr; } .hero { gap: 18px; margin-bottom: 20px; } }
     @media (max-width: 560px) { .shell { padding: 18px 14px 46px; } .topbar { margin-bottom: 30px; } .top-actions .pill { display: none; } .card { padding: 17px; border-radius: 18px; } h1 { font-size: 39px; } .stats { gap: 7px; } .stat { padding: 11px; } .footer { flex-direction: column; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
@@ -134,8 +144,8 @@
         <div class="under-input"><span id="lineHint">ยังไม่มีรายการ</span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
         <div class="toggle-row"><div><b>Large-file mode</b><span>เปิดเมื่อไฟล์มีขนาดมากกว่า 50 MB</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
         <div class="target"><div class="target-icon">✓</div><div><small>ส่งไปยัง Telegram เท่านั้น</small><code>-1003906817580</code></div></div>
-        <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button">เปิดหน้า Run workflow ↗</button></div>
-        <div class="notice">หน้านี้เป็น GitHub Pages แบบ Static จึงไม่เก็บ GitHub หรือ Telegram token ไว้ใน browser ปุ่มเริ่มงานจะเปิด GitHub Actions เพื่อให้กด Run workflow อย่างปลอดภัย</div>
+        <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button">เริ่มส่งเข้า Telegram</button></div>
+        <div class="notice">หน้าเว็บนี้ไม่เก็บ GitHub หรือ Telegram token การเริ่มงานจะส่งคำขอผ่าน Google Apps Script ที่ตรวจสิทธิ์ แล้วให้ GitHub Actions ประมวลผลต่อ</div>
       </div>
 
       <div class="card">
@@ -149,7 +159,7 @@
         <h2>ขั้นตอนการทำงาน</h2>
         <p class="card-intro">ระบบหลักยังประมวลผลบน GitHub Actions</p>
         <div class="flow"><div class="flow-item"><div class="flow-icon">1</div><div><b>ตรวจ URL และ Telegram preflight</b><span>ตรวจสิทธิ์ bot ก่อนดาวน์โหลด</span></div></div><div class="flow-item"><div class="flow-icon">2</div><div><b>ดึง metadata และ media</b><span>yt-dlp → syndication → FxTwitter</span></div></div><div class="flow-item"><div class="flow-icon">3</div><div><b>ส่งและป้องกันซ้ำ</b><span>บันทึก message ID หลังส่งสำเร็จ</span></div></div></div>
-        <div class="progress-wrap"><div class="progress-label"><span>สถานะหน้า Dashboard</span><span id="progressText">พร้อมเริ่ม</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
+        <div class="progress-wrap"><div class="progress-label"><span>สถานะการทำงาน</span><span id="progressText">พร้อมเริ่ม</span></div><div class="progress"><div class="bar" id="progressBar"></div></div><div class="run-meta" id="runMeta"><strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span></div><div class="result-list" id="resultList"></div></div>
       </div>
 
       <div class="card">
@@ -159,13 +169,15 @@
         <div class="notice">ใช้เฉพาะ media ที่คุณมีสิทธิ์ดาวน์โหลดและเผยแพร่ และปฏิบัติตามกฎหมายกับเงื่อนไขของแพลตฟอร์ม</div>
       </div>
     </section>
-    <footer class="footer"><span>X2Telegram · Phase 6.1 Static Dashboard</span><a href="https://github.com/aodxx/X2Telegram/blob/main/docs/PROJECT_STATUS.md" target="_blank" rel="noreferrer">ดูสถานะโครงการ ↗</a></footer>
+    <footer class="footer"><span>X2Telegram · Private Dashboard</span><a href="https://github.com/aodxx/X2Telegram/blob/main/docs/PROJECT_STATUS.md" target="_blank" rel="noreferrer">ดูสถานะโครงการ ↗</a></footer>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script>
     const $ = (id) => document.getElementById(id);
     const urls = $('urls');
-    const workflowUrl = 'https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxTOxxR2Q8MSUWBmRehlRc5Brf4CecrERtQ9d167GyD0SsAC8aBUPrKM9NCgq9nuZje/exec';
+    let activeRun = null;
+    let pollTimer = null;
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
     function parseUrl(value) {
       try {
@@ -175,33 +187,79 @@
         return (host === 'x.com' || host === 'twitter.com') && match ? { user: match[1], id: match[2] } : null;
       } catch (_) { return null; }
     }
-    function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => t.classList.remove('show'), 3600); }
+    function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => t.classList.remove('show'), 4200); }
+    function setBusy(value) { $('runBtn').disabled = value; $('runBtn').style.opacity = value ? '.6' : '1'; }
     function review() {
-      const lines = getLines(); const seen = new Set(); let valid = 0; let invalid = 0;
+      const lines = getLines(); const seen = new Set(); const validLines = []; let valid = 0; let invalid = 0;
       $('totalCount').textContent = lines.length;
       const html = lines.length ? lines.map((line) => {
         const parsed = parseUrl(line); const key = parsed ? parsed.id : line.toLowerCase();
         const duplicate = parsed && seen.has(key); if (parsed) seen.add(key);
-        const good = Boolean(parsed) && !duplicate; if (good) valid++; else invalid++;
+        const good = Boolean(parsed) && !duplicate; if (good) { valid++; validLines.push(`https://x.com/${parsed.user}/status/${parsed.id}`); } else invalid++;
         const label = !parsed ? 'URL ไม่ถูกต้อง' : duplicate ? 'ซ้ำในชุดนี้' : 'พร้อมใช้';
         return `<div class="url-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div style="min-width:0;flex:1"><b>@${parsed ? parsed.user : 'ตรวจสอบไม่ได้'}</b><code title="${escapeHtml(line)}">${escapeHtml(line)}</code></div><span class="badge ${good ? 'good' : 'bad'}">${label}</span></div>`;
       }).join('') : '<div class="empty">วางลิงก์ด้านซ้าย แล้วกด<br><b>ตรวจสอบรายการ</b></div>';
       $('reviewList').innerHTML = html; $('validCount').textContent = valid; $('invalidCount').textContent = invalid;
       $('lineHint').textContent = lines.length ? `${lines.length} รายการ · พร้อมใช้ ${valid}` : 'ยังไม่มีรายการ';
-      $('progressText').textContent = lines.length ? 'ตรวจสอบแล้ว' : 'พร้อมเริ่ม'; $('progressBar').style.width = lines.length ? '18%' : '0%';
-      return { lines, valid, invalid };
+      if (!activeRun) { $('progressText').textContent = lines.length ? 'ตรวจสอบแล้ว' : 'พร้อมเริ่ม'; $('progressBar').style.width = lines.length ? '18%' : '0%'; }
+      return { lines, validLines, valid, invalid };
     }
-    function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
-    urls.addEventListener('input', review);
-    $('reviewBtn').addEventListener('click', () => { const r = review(); showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
-    $('clearBtn').addEventListener('click', () => { urls.value = ''; review(); urls.focus(); });
-    $('runBtn').addEventListener('click', () => {
+    function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+    async function api(path, options = {}) {
+      const response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) } });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
+      return data.data;
+    }
+    function makeId(prefix) { const random = window.crypto?.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random().toString(16).slice(2)}`; return `${prefix}-${random.slice(0, 24)}`; }
+    function renderRun(data) {
+      activeRun = data;
+      const status = data.status || 'queued';
+      const percent = status === 'queued' ? 28 : status === 'in_progress' ? 62 : (status === 'success' ? 100 : 92);
+      $('progressText').textContent = status === 'queued' ? 'เข้าคิวแล้ว' : status === 'in_progress' ? 'กำลังประมวลผล' : status === 'success' ? 'เสร็จสิ้น' : `จบด้วย ${status}`;
+      $('progressBar').style.width = `${percent}%`;
+      $('runMeta').innerHTML = `<strong>Run ID: ${escapeHtml(data.run_id || 'กำลังค้นหา...')}</strong><span>Request: ${escapeHtml(data.request_id || '—')} · สถานะ: ${escapeHtml(status)}</span>${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">เปิดรายละเอียดบน GitHub ↗</a>` : ''}`;
+    }
+    function renderReport(report) {
+      const rows = (report.results || []).map((item) => {
+        const good = item.status === 'sent' || item.status === 'skipped_duplicate';
+        const detail = item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} media · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (item.error_code || item.status || 'ไม่ทราบสถานะ');
+        return `<div class="result-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
+      }).join('');
+      $('resultList').innerHTML = rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>';
+      const summary = report.summary || {};
+      showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0}`);
+    }
+    async function pollRun() {
+      if (!activeRun) return;
+      try {
+        const query = activeRun.run_id ? `run_id=${encodeURIComponent(activeRun.run_id)}` : `request_id=${encodeURIComponent(activeRun.request_id)}`;
+        const status = await api(`/exec?action=status&${query}`);
+        renderRun(status);
+        if (status.completed) {
+          if (status.conclusion === 'success') {
+            const result = await api(`/exec?action=report&run_id=${encodeURIComponent(status.run_id)}`);
+            if (result.report) renderReport(result.report);
+          } else showToast(`Workflow จบด้วยสถานะ ${status.conclusion || status.status}`);
+          setBusy(false); clearTimeout(pollTimer); return;
+        }
+        pollTimer = setTimeout(pollRun, status.status === 'queued' ? 10000 : 7000);
+      } catch (error) { setBusy(false); showToast(error.message); clearTimeout(pollTimer); }
+    }
+    async function startJob() {
       const r = review();
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
-      if (r.invalid) { showToast('มี URL ที่ต้องแก้ไข — ระบบจะเปิด Actions ให้ตรวจอีกครั้ง'); }
-      $('progressText').textContent = 'กำลังเปิด GitHub Actions'; $('progressBar').style.width = '42%';
-      window.open(workflowUrl, '_blank', 'noopener,noreferrer');
-    });
+      setBusy(true); $('progressText').textContent = 'กำลังส่งคำขอ'; $('progressBar').style.width = '22%'; $('resultList').innerHTML = '';
+      const requestId = makeId('dashboard');
+      try {
+        const data = await api('', { method: 'POST', body: JSON.stringify({ action: 'start', urls: r.validLines, large_file_mode: $('largeMode').checked, request_id: requestId, idempotency_key: requestId }) });
+        renderRun(data); showToast('รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
+      } catch (error) { setBusy(false); $('progressText').textContent = 'พร้อมเริ่ม'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
+    }
+    urls.addEventListener('input', review);
+    $('reviewBtn').addEventListener('click', () => { const r = review(); showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
+    $('clearBtn').addEventListener('click', () => { urls.value = ''; activeRun = null; clearTimeout(pollTimer); $('resultList').innerHTML = ''; $('runMeta').innerHTML = '<strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span>'; review(); urls.focus(); });
+    $('runBtn').addEventListener('click', startJob);
     review();
   </script>
 </body>

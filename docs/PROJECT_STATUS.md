@@ -136,6 +136,17 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 > ยังต้องทดสอบ deployment จริงเรื่อง Google account access และ CORS ระหว่าง GitHub Pages กับ Apps Script ก่อนเปิดใช้งาน production
 
+### Dashboard integration: เชื่อมต่อ API แล้ว
+
+- หน้า `web/index.html` เรียก Google Apps Script Web App โดยตรง
+- รองรับการเริ่มงานจากหน้า Dashboard โดยไม่ต้องเปิด GitHub Actions เอง
+- แสดง request ID, run ID, สถานะ queued/in progress/completed และลิงก์ workflow
+- polling สถานะทุก 7–10 วินาที และหยุดเมื่อ workflow จบ
+- อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
+- ปุ่มเริ่มงานส่งเฉพาะ URL ที่ผ่านการตรวจฝั่ง browser และส่ง `idempotency_key`
+
+> การใช้งานจริงต้องเปิด Dashboard ด้วย Google account ที่อยู่ใน `ALLOWED_EMAILS` และต้องยืนยันการเรียกข้าม origin ระหว่าง GitHub Pages กับ Apps Script ใน browser จริง
+
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
