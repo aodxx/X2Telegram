@@ -27,7 +27,7 @@ function doGet(e) {
     if (action === 'start') return start_(parseGetStartPayload_(params));
     if (action === 'status') return status_(params);
     if (action === 'report') return report_(params);
-    throw apiError_('unknown_action', 'Supported actions: health, status, report');
+    throw apiError_('unknown_action', 'Supported actions: health, start, status, report');
   });
 }
 

@@ -212,7 +212,10 @@
       const raw = await response.text();
       let data;
       try { data = JSON.parse(raw); } catch (_) { throw new Error(`Google Apps Script ตอบกลับไม่ถูกต้อง (HTTP ${response.status}) กรุณาตรวจ Deployment และสิทธิ์การเข้าถึง`); }
-      if (!data.ok) throw new Error(data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
+      if (!data.ok) {
+        const messages = { unauthorized: 'ไม่มีสิทธิ์ใช้งาน กรุณาเปิดด้วย Google account ที่ได้รับอนุญาต', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
+        throw new Error(messages[data.error?.code] || data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
+      }
       return data.data;
     }
     function makeId(prefix) { const random = window.crypto?.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random().toString(16).slice(2)}`; return `${prefix}-${random.slice(0, 24)}`; }
@@ -228,7 +231,8 @@
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
         const good = item.status === 'sent' || item.status === 'skipped_duplicate';
-        const detail = item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} media · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (item.error_code || item.status || 'ไม่ทราบสถานะ');
+        const labels = { no_media: 'ไม่พบ media', download_error: 'ดาวน์โหลด media ไม่สำเร็จ', metadata_error: 'อ่าน metadata ไม่สำเร็จ', telegram_error: 'ส่ง Telegram ไม่สำเร็จ', invalid_url: 'URL ไม่ถูกต้อง' };
+        const detail = item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} media · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ');
         return `<div class="result-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
       }).join('');
       $('resultList').innerHTML = rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>';
@@ -258,7 +262,7 @@
       const requestId = makeId('dashboard');
       try {
         const payload = { action: 'start', urls: r.validLines, large_file_mode: $('largeMode').checked, request_id: requestId, idempotency_key: requestId };
-        const data = await api(`/exec?action=start&payload=${encodeURIComponent(encodePayload(payload))}`);
+        const data = await api(`?action=start&payload=${encodeURIComponent(encodePayload(payload))}`);
         renderRun(data); showToast('รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
       } catch (error) { setBusy(false); $('progressText').textContent = 'พร้อมเริ่ม'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
     }
