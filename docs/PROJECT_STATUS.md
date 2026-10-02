@@ -147,6 +147,14 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 > การใช้งานจริงต้องเปิด Dashboard ด้วย Google account ที่อยู่ใน `ALLOWED_EMAILS` และต้องยืนยันการเรียกข้าม origin ระหว่าง GitHub Pages กับ Apps Script ใน browser จริง
 
+### Dashboard troubleshooting: Apps Script POST redirect
+
+- ตรวจพบว่า Apps Script Web App ตอบ `health` แบบ GET ได้ แต่ POST ที่ตาม redirect อาจจบด้วย HTTP 405 ใน browser
+- เพิ่ม `GET action=start` ที่รับ JSON แบบ base64url เป็น fallback สำหรับเริ่ม workflow
+- Dashboard เปลี่ยนการเริ่มงานมาใช้ GET fallback เพื่อลดปัญหา POST redirect
+- Dashboard อ่าน response แบบ text ก่อน parse JSON และแสดงข้อความภาษาไทยเมื่อพบ CORS, 405 หรือ response ที่ไม่ใช่ JSON
+- ต้องนำ `gas/Code.gs` รุ่นล่าสุดไปวางใน Apps Script และสร้าง deployment version ใหม่ก่อนทดสอบอีกครั้ง
+
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ

@@ -206,12 +206,17 @@
     }
     function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
     async function api(path, options = {}) {
-      const response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) } });
-      const data = await response.json();
+      let response;
+      try { response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) } }); }
+      catch (_) { throw new Error('เชื่อมต่อ Google Apps Script ไม่สำเร็จ กรุณาเปิด Dashboard ด้วยบัญชี Google ที่ได้รับอนุญาต'); }
+      const raw = await response.text();
+      let data;
+      try { data = JSON.parse(raw); } catch (_) { throw new Error(`Google Apps Script ตอบกลับไม่ถูกต้อง (HTTP ${response.status}) กรุณาตรวจ Deployment และสิทธิ์การเข้าถึง`); }
       if (!data.ok) throw new Error(data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
       return data.data;
     }
     function makeId(prefix) { const random = window.crypto?.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random().toString(16).slice(2)}`; return `${prefix}-${random.slice(0, 24)}`; }
+    function encodePayload(value) { return btoa(unescape(encodeURIComponent(JSON.stringify(value)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
     function renderRun(data) {
       activeRun = data;
       const status = data.status || 'queued';
@@ -234,11 +239,11 @@
       if (!activeRun) return;
       try {
         const query = activeRun.run_id ? `run_id=${encodeURIComponent(activeRun.run_id)}` : `request_id=${encodeURIComponent(activeRun.request_id)}`;
-        const status = await api(`/exec?action=status&${query}`);
+        const status = await api(`?action=status&${query}`);
         renderRun(status);
         if (status.completed) {
           if (status.conclusion === 'success') {
-            const result = await api(`/exec?action=report&run_id=${encodeURIComponent(status.run_id)}`);
+            const result = await api(`?action=report&run_id=${encodeURIComponent(status.run_id)}`);
             if (result.report) renderReport(result.report);
           } else showToast(`Workflow จบด้วยสถานะ ${status.conclusion || status.status}`);
           setBusy(false); clearTimeout(pollTimer); return;
@@ -252,7 +257,8 @@
       setBusy(true); $('progressText').textContent = 'กำลังส่งคำขอ'; $('progressBar').style.width = '22%'; $('resultList').innerHTML = '';
       const requestId = makeId('dashboard');
       try {
-        const data = await api('', { method: 'POST', body: JSON.stringify({ action: 'start', urls: r.validLines, large_file_mode: $('largeMode').checked, request_id: requestId, idempotency_key: requestId }) });
+        const payload = { action: 'start', urls: r.validLines, large_file_mode: $('largeMode').checked, request_id: requestId, idempotency_key: requestId };
+        const data = await api(`/exec?action=start&payload=${encodeURIComponent(encodePayload(payload))}`);
         renderRun(data); showToast('รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
       } catch (error) { setBusy(false); $('progressText').textContent = 'พร้อมเริ่ม'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
     }

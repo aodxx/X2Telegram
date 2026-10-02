@@ -24,6 +24,7 @@ function doGet(e) {
     const params = (e && e.parameter) || {};
     const action = String(params.action || 'health').toLowerCase();
     if (action === 'health') return health_();
+    if (action === 'start') return start_(parseGetStartPayload_(params));
     if (action === 'status') return status_(params);
     if (action === 'report') return report_(params);
     throw apiError_('unknown_action', 'Supported actions: health, status, report');
@@ -335,6 +336,19 @@ function currentUser_() {
 function parseJsonBody_(e) {
   if (!e || !e.postData || !e.postData.contents) throw apiError_('invalid_json', 'A JSON request body is required');
   try { return JSON.parse(e.postData.contents); } catch (err) { throw apiError_('invalid_json', 'Request body must be valid JSON'); }
+}
+
+function parseGetStartPayload_(params) {
+  if (!params.payload) throw apiError_('invalid_json', 'Start payload is missing');
+  if (String(params.payload).length > 12000) throw apiError_('request_too_large', 'Start payload is too large');
+  try {
+    const bytes = Utilities.base64DecodeWebSafe(String(params.payload));
+    const body = JSON.parse(Utilities.newBlob(bytes).getDataAsString('UTF-8'));
+    if (!body || typeof body !== 'object') throw new Error('not an object');
+    return body;
+  } catch (err) {
+    throw apiError_('invalid_json', 'Start payload must be valid base64 JSON');
+  }
 }
 
 function makeRequestId_() {
