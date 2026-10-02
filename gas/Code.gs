@@ -260,7 +260,7 @@ function githubRawRequest_(config, url, method, isArtifactDownload, payload) {
 
 function validateUrls_(value, maxUrls) {
   if (!Array.isArray(value)) throw apiError_('invalid_urls', 'urls must be an array');
-  const lines = value.map(function (item) { return String(item || '').trim().replace(/[<>"'`.,;\]}]+$/, ''); }).filter(Boolean);
+  const lines = value.map(function (item) { return String(item || '').trim().replace(/^[<("'`\[]+|[>)"'`,;\]}]+$/g, ''); }).filter(Boolean);
   if (!lines.length) throw apiError_('invalid_urls', 'At least one X URL is required');
   if (lines.length > maxUrls) throw apiError_('too_many_urls', 'Maximum URLs per request: ' + maxUrls);
   const seen = {};

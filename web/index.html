@@ -184,7 +184,7 @@
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
     function parseUrl(value) {
       try {
-        const cleaned = String(value).trim().replace(/[<>"'`.,;\]}]+$/, '').replace(/\u200b/g, '');
+        const cleaned = String(value).trim().replace(/^[<("'`\[]+|[>)"'`,;\]}]+$/g, '').replace(/\u200b/g, '');
         const u = new URL(cleaned.includes('://') ? cleaned : `https://${cleaned}`);
         const host = u.hostname.toLowerCase().replace(/^www\./, '');
         const match = u.pathname.match(/\/([^/]+)\/status\/(\d+)/i);
