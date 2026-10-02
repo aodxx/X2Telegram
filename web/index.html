@@ -40,6 +40,8 @@
     .brand span { display: block; color: var(--muted); font-size: 12px; }
     .top-actions { display: flex; gap: 10px; align-items: center; }
     .pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--muted); font-size: 12px; background: rgba(255,255,255,.035); }
+    .version-pill { color: var(--blue); }
+    .backend-pill { max-width: 310px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 5px rgba(98, 212, 155, .1); }
     .ghost { color: var(--text); border: 1px solid var(--line); background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px 14px; text-decoration: none; transition: .18s ease; }
     .ghost:hover { border-color: rgba(105,184,255,.65); transform: translateY(-1px); }
@@ -120,7 +122,7 @@
     .result-ok { color: var(--green) !important; }
     .result-bad { color: var(--red) !important; }
     @media (max-width: 820px) { .hero, .grid { grid-template-columns: 1fr; } .hero { gap: 18px; margin-bottom: 20px; } }
-    @media (max-width: 560px) { .shell { padding: 18px 14px 46px; } .topbar { margin-bottom: 30px; } .top-actions .pill { display: none; } .card { padding: 17px; border-radius: 18px; } h1 { font-size: 39px; } .stats { gap: 7px; } .stat { padding: 11px; } .footer { flex-direction: column; } }
+    @media (max-width: 560px) { .shell { padding: 18px 14px 46px; } .topbar { margin-bottom: 30px; } .top-actions .backend-pill { display: none; } .version-pill { font-size: 10px; padding: 7px 9px; } .card { padding: 17px; border-radius: 18px; } h1 { font-size: 39px; } .stats { gap: 7px; } .stat { padding: 11px; } .footer { flex-direction: column; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
 </head>
@@ -128,11 +130,11 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="mark">X→T</div><div><strong>X2Telegram</strong><span>Private media bridge</span></div></div>
-      <div class="top-actions"><span class="pill"><i class="pulse"></i>ระบบพร้อมใช้งาน</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
+      <div class="top-actions"><span class="pill version-pill">Dashboard v1.2.1 · build 2026-10-03</span><span class="pill backend-pill" id="backendPill"><i class="pulse"></i>กำลังตรวจ Backend...</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
     </header>
 
     <section class="hero">
-      <div><div class="eyebrow">Phase 6.1 · Dashboard MVP</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
+      <div><div class="eyebrow">Phase 6.1 · Dashboard v1.2.1</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
       <aside class="hero-note"><b>ปลายทางที่ล็อกไว้</b><span>Telegram Supergroup · <code>-1003906817580</code></span></aside>
     </section>
 
@@ -220,6 +222,19 @@
     }
     function makeId(prefix) { const random = window.crypto?.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random().toString(16).slice(2)}`; return `${prefix}-${random.slice(0, 24)}`; }
     function encodePayload(value) { return btoa(unescape(encodeURIComponent(JSON.stringify(value)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+    async function checkBackend() {
+      const pill = $('backendPill');
+      try {
+        const data = await api('?action=health');
+        const current = data.backend_revision === 'get-start-fallback-2026-10-03';
+        pill.innerHTML = `<i class="pulse"></i>${current ? 'Backend ใหม่พร้อมใช้' : 'Backend รุ่นเก่า · กรุณา Deploy ใหม่'}`;
+        pill.title = `Apps Script: ${data.backend_revision || 'ไม่ระบุ revision'}`;
+        if (!current) showToast('พบ Apps Script รุ่นเก่า กรุณา Deploy เป็น New version ก่อนเริ่มงาน');
+      } catch (error) {
+        pill.innerHTML = '<i class="pulse"></i>ตรวจ Backend ไม่สำเร็จ';
+        pill.title = error.message;
+      }
+    }
     function renderRun(data) {
       activeRun = data;
       const status = data.status || 'queued';
@@ -271,6 +286,7 @@
     $('clearBtn').addEventListener('click', () => { urls.value = ''; activeRun = null; clearTimeout(pollTimer); $('resultList').innerHTML = ''; $('runMeta').innerHTML = '<strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span>'; review(); urls.focus(); });
     $('runBtn').addEventListener('click', startJob);
     review();
+    checkBackend();
   </script>
 </body>
 </html>
