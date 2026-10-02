@@ -1,62 +1,208 @@
 <!doctype html>
 <html lang="th">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>X2Telegram</title>
-<style>
-:root{--bg:#f5f7fb;--card:#fff;--text:#18212f;--muted:#6b7280;--line:#e5e7eb;--primary:#111827;--accent:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#dc2626}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,textarea{font:inherit}.app{max-width:760px;margin:auto;padding:16px 14px 36px}.top{display:flex;justify-content:space-between;align-items:center;margin:4px 0 18px}.brand{font-size:22px;font-weight:800}.sub{color:var(--muted);font-size:12px}.icon{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 11px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 3px 14px rgba(15,23,42,.04)}h1{font-size:21px;margin:0 0 5px}h2{font-size:16px;margin:0 0 12px}.hint{color:var(--muted);margin:0 0 14px}
-textarea{width:100%;min-height:180px;border:1px solid #d7dce3;border-radius:14px;padding:13px;resize:vertical;outline:none}textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.actions{display:flex;gap:9px;margin-top:12px}.btn{border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.primary{background:var(--primary);color:#fff;flex:1}.secondary{background:#eef2f7;color:var(--text)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#f8fafc;border-radius:13px;padding:11px}.num{font-size:20px;font-weight:800}.label{font-size:12px;color:var(--muted)}
-.row{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex:none}.ok{background:#22c55e}.warn{background:#f59e0b}.bad{background:#ef4444}.grow{flex:1}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted);word-break:break-all}.tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:700}
-.progress{height:8px;background:#e5e7eb;border-radius:99px;overflow:hidden}.bar{height:100%;width:50%;background:#2563eb}.footer{text-align:center;color:var(--muted);font-size:11px;margin-top:20px}
-@media(max-width:520px){.app{padding:12px 10px 28px}.card{padding:15px;border-radius:16px}.actions{flex-direction:column}.btn{width:100%}.stats{grid-template-columns:1fr 1fr}.stats .stat:last-child{grid-column:span 2}}
-@media(min-width:761px){body:before{content:'X2Telegram • UX Prototype';display:block;text-align:center;color:#94a3b8;font-size:12px;padding:10px 0 0}}\n</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08111f">
+  <meta name="description" content="Private dashboard สำหรับส่ง media จาก X เข้า Telegram ผ่าน GitHub Actions">
+  <title>X2Telegram Dashboard</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --panel: rgba(15, 29, 48, .84);
+      --panel-strong: #10233a;
+      --line: rgba(159, 183, 211, .18);
+      --text: #edf6ff;
+      --muted: #91a8c0;
+      --blue: #69b8ff;
+      --cyan: #5de0d0;
+      --green: #62d49b;
+      --amber: #ffc66d;
+      --red: #ff8c9b;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .25);
+      --radius: 22px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; min-width: 320px; color: var(--text);
+      background: radial-gradient(circle at 10% 0%, #173558 0, transparent 34%),
+        radial-gradient(circle at 100% 15%, #123e4c 0, transparent 30%), var(--bg);
+      font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, textarea, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1180px; margin: 0 auto; padding: 28px 22px 64px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 42px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; color: #061321; background: linear-gradient(135deg, var(--cyan), var(--blue)); font-weight: 900; box-shadow: 0 10px 30px rgba(93, 224, 208, .2); }
+    .brand strong { display: block; font-size: 16px; letter-spacing: .02em; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; }
+    .top-actions { display: flex; gap: 10px; align-items: center; }
+    .pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--muted); font-size: 12px; background: rgba(255,255,255,.035); }
+    .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 5px rgba(98, 212, 155, .1); }
+    .ghost { color: var(--text); border: 1px solid var(--line); background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px 14px; text-decoration: none; transition: .18s ease; }
+    .ghost:hover { border-color: rgba(105,184,255,.65); transform: translateY(-1px); }
+    .hero { display: grid; grid-template-columns: 1.25fr .75fr; gap: 28px; align-items: end; margin-bottom: 28px; }
+    .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { max-width: 700px; margin: 10px 0 12px; font-size: clamp(34px, 5vw, 62px); line-height: 1.04; letter-spacing: -.045em; }
+    .hero p { max-width: 640px; margin: 0; color: var(--muted); font-size: 17px; }
+    .hero-note { border: 1px solid var(--line); border-radius: var(--radius); padding: 19px; background: linear-gradient(145deg, rgba(105,184,255,.12), rgba(93,224,208,.04)); box-shadow: var(--shadow); }
+    .hero-note b { display: block; margin-bottom: 5px; }
+    .hero-note span { color: var(--muted); font-size: 13px; }
+    .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(14px); }
+    .card h2 { margin: 0 0 5px; font-size: 18px; letter-spacing: -.02em; }
+    .card-intro { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+    .input-wrap { position: relative; }
+    textarea { width: 100%; min-height: 204px; resize: vertical; padding: 16px; color: var(--text); border: 1px solid var(--line); border-radius: 16px; outline: none; background: rgba(3, 11, 21, .62); line-height: 1.7; }
+    textarea::placeholder { color: #66809b; }
+    textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 4px rgba(105,184,255,.12); }
+    .under-input { display: flex; justify-content: space-between; gap: 10px; margin-top: 9px; color: var(--muted); font-size: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 17px; }
+    .btn { border: 0; border-radius: 13px; padding: 12px 16px; color: var(--text); font-weight: 800; transition: transform .16s ease, filter .16s ease, border-color .16s ease; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { color: #061321; background: linear-gradient(135deg, var(--cyan), var(--blue)); box-shadow: 0 10px 28px rgba(105,184,255,.18); }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-secondary { border: 1px solid var(--line); background: rgba(255,255,255,.05); }
+    .btn-secondary:hover { border-color: rgba(105,184,255,.65); }
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 14px 0 0; }
+    .toggle-row b { display: block; font-size: 13px; }
+    .toggle-row span { color: var(--muted); font-size: 12px; }
+    .switch { position: relative; width: 48px; height: 27px; flex: none; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; border-radius: 99px; background: #30455e; transition: .2s; }
+    .slider:before { content: ""; position: absolute; width: 21px; height: 21px; left: 3px; top: 3px; border-radius: 50%; background: #dcecff; transition: .2s; }
+    input:checked + .slider { background: linear-gradient(90deg, #3cb6ad, #549fe4); }
+    input:checked + .slider:before { transform: translateX(21px); }
+    .target { display: flex; align-items: center; gap: 11px; margin-top: 18px; padding: 12px; border: 1px solid rgba(98,212,155,.23); border-radius: 14px; background: rgba(98,212,155,.06); }
+    .target-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: rgba(98,212,155,.14); color: var(--green); }
+    .target small { display: block; color: var(--muted); font-size: 11px; }
+    .target code { color: var(--text); font-size: 12px; }
+    .review-list { display: grid; gap: 9px; max-height: 335px; overflow: auto; }
+    .empty { display: grid; place-items: center; min-height: 210px; color: var(--muted); border: 1px dashed var(--line); border-radius: 16px; text-align: center; padding: 20px; }
+    .url-row { display: flex; gap: 11px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.025); }
+    .status-dot { width: 9px; height: 9px; flex: none; margin-top: 7px; border-radius: 50%; background: var(--amber); }
+    .status-dot.good { background: var(--green); box-shadow: 0 0 0 4px rgba(98,212,155,.1); }
+    .status-dot.bad { background: var(--red); }
+    .url-row b { display: block; font-size: 13px; }
+    .url-row code { display: block; max-width: 100%; overflow: hidden; color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
+    .badge { margin-left: auto; flex: none; padding: 4px 8px; border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.07); font-size: 10px; font-weight: 800; }
+    .badge.good { color: var(--green); background: rgba(98,212,155,.1); }
+    .badge.bad { color: var(--red); background: rgba(255,140,155,.1); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+    .stat { padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: rgba(255,255,255,.03); }
+    .stat strong { display: block; font-size: 24px; letter-spacing: -.04em; }
+    .stat span { color: var(--muted); font-size: 11px; }
+    .flow { display: grid; gap: 0; }
+    .flow-item { display: flex; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+    .flow-item:last-child { border: 0; }
+    .flow-icon { display: grid; place-items: center; width: 27px; height: 27px; flex: none; border-radius: 9px; color: var(--cyan); background: rgba(93,224,208,.11); font-size: 12px; font-weight: 900; }
+    .flow-item b { display: block; font-size: 13px; }
+    .flow-item span { color: var(--muted); font-size: 12px; }
+    .progress-wrap { margin-top: 15px; }
+    .progress-label { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .progress { height: 7px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: #1a3049; }
+    .bar { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--blue)); transition: width .28s ease; }
+    .notice { margin-top: 18px; padding: 13px 14px; border-left: 3px solid var(--amber); border-radius: 10px; color: #e7d2a8; background: rgba(255,198,109,.07); font-size: 12px; }
+    .footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 22px; color: var(--muted); font-size: 12px; }
+    .footer a { color: var(--blue); }
+    .toast { position: fixed; right: 22px; bottom: 22px; max-width: min(380px, calc(100vw - 44px)); padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; color: var(--text); background: #10243b; box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 820px) { .hero, .grid { grid-template-columns: 1fr; } .hero { gap: 18px; margin-bottom: 20px; } }
+    @media (max-width: 560px) { .shell { padding: 18px 14px 46px; } .topbar { margin-bottom: 30px; } .top-actions .pill { display: none; } .card { padding: 17px; border-radius: 18px; } h1 { font-size: 39px; } .stats { gap: 7px; } .stat { padding: 11px; } .footer { flex-direction: column; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
 </head>
 <body>
-<main class="app">
-  <header class="top">
-    <div><div class="brand">X2Telegram</div><div class="sub">X → Telegram Media Bridge</div></div>
-    <button class="icon" aria-label="Settings">⚙️</button>
-  </header>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="mark">X→T</div><div><strong>X2Telegram</strong><span>Private media bridge</span></div></div>
+      <div class="top-actions"><span class="pill"><i class="pulse"></i>ระบบพร้อมใช้งาน</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
+    </header>
 
-  <section class="card">
-    <h1>ส่ง Media จาก X</h1>
-    <p class="hint">วางลิงก์ X ได้หลายรายการ — 1 ลิงก์ต่อ 1 บรรทัด</p>
-    <textarea id="urls" placeholder="https://x.com/ninmopmn/status/2099828300118167587?s=20&#10;https://x.com/ninmopmn/status/2099821309253574697?s=20&#10;https://x.com/ninmopmn/status/2099546072427409518?s=20"></textarea>
-    <div class="actions"><button class="btn secondary" onclick="demoParse()">ตรวจสอบรายการ</button><button class="btn primary" onclick="demoRun()">🚀 เริ่มส่งเข้า Telegram</button></div>
-  </section>
+    <section class="hero">
+      <div><div class="eyebrow">Phase 6.1 · Dashboard MVP</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
+      <aside class="hero-note"><b>ปลายทางที่ล็อกไว้</b><span>Telegram Supergroup · <code>-1003906817580</code></span></aside>
+    </section>
 
-  <section class="card" id="review">
-    <h2>รายการนี้</h2>
-    <div class="stats"><div class="stat"><div class="num" id="count">0</div><div class="label">Posts</div></div><div class="stat"><div class="num">—</div><div class="label">Media</div></div><div class="stat"><div class="num">พร้อม</div><div class="label">สถานะ</div></div></div>
-    <div id="list"></div>
-  </section>
+    <section class="grid">
+      <div class="card">
+        <h2>สร้างรายการส่งใหม่</h2>
+        <p class="card-intro">วาง public X post URL — หนึ่งลิงก์ต่อหนึ่งบรรทัด</p>
+        <div class="input-wrap"><textarea id="urls" aria-label="X post URLs" placeholder="https://x.com/username/status/1234567890?s=20&#10;https://x.com/username/status/1234567891"></textarea></div>
+        <div class="under-input"><span id="lineHint">ยังไม่มีรายการ</span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
+        <div class="toggle-row"><div><b>Large-file mode</b><span>เปิดเมื่อไฟล์มีขนาดมากกว่า 50 MB</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
+        <div class="target"><div class="target-icon">✓</div><div><small>ส่งไปยัง Telegram เท่านั้น</small><code>-1003906817580</code></div></div>
+        <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button">เปิดหน้า Run workflow ↗</button></div>
+        <div class="notice">หน้านี้เป็น GitHub Pages แบบ Static จึงไม่เก็บ GitHub หรือ Telegram token ไว้ใน browser ปุ่มเริ่มงานจะเปิด GitHub Actions เพื่อให้กด Run workflow อย่างปลอดภัย</div>
+      </div>
 
-  <section class="card" id="running">
-    <h2>ความคืบหน้า</h2>
-    <div class="progress"><div class="bar" id="bar"></div></div>
-    <p class="hint" id="progressText">ยังไม่ได้เริ่มงาน</p>
-    <div id="results"></div>
-  </section>
+      <div class="card">
+        <h2>ตรวจสอบรายการ</h2>
+        <p class="card-intro">ตรวจรูปแบบ URL และรายการซ้ำก่อนนำไปใช้ใน workflow</p>
+        <div class="stats"><div class="stat"><strong id="totalCount">0</strong><span>ทั้งหมด</span></div><div class="stat"><strong id="validCount">0</strong><span>พร้อมใช้</span></div><div class="stat"><strong id="invalidCount">0</strong><span>ต้องแก้ไข</span></div></div>
+        <div class="review-list" id="reviewList"><div class="empty">วางลิงก์ด้านซ้าย แล้วกด<br><b>ตรวจสอบรายการ</b></div></div>
+      </div>
 
-  <section class="card">
-    <h2>หลักการทำงาน</h2>
-    <div class="row"><span class="dot ok"></span><div class="grow">ตรวจ Metadata ก่อนดาวน์โหลด</div><span class="tag">เร็ว</span></div>
-    <div class="row"><span class="dot"></span><div class="grow">แต่ละโพสต์แยกจากกัน</div><span class="tag">ปลอดภัย</span></div>
-    <div class="row"><span class="dot"></span><div class="grow">ไฟล์ชั่วคราวถูกลบหลังส่ง</div><span class="tag">ไม่เก็บถาวร</span></div>
-  </section>
-  <div class="footer">ใช้งานจริง: เปิด GitHub Actions → X2Telegram → Run workflow เพื่อส่งเข้า Telegram</div>
-</main>
-<script>
-function parse(){return document.getElementById('urls').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
-function demoParse(){const u=parse(),list=document.getElementById('list');document.getElementById('count').textContent=u.length;list.innerHTML=u.map((x,i)=>{let m=x.match(/x\.com\/([^/]+)\/status\/(\d+)/i);return '<div class="row"><span class="dot '+(m?'ok':'bad')+'"></span><div class="grow"><b>'+(m?'@'+m[1]:'URL ไม่ถูกต้อง')+'</b><div class="mono">'+x+'</div></div><span class="tag">'+(m?'รอตรวจ':'ข้าม')+'</span></div>'}).join('')}
-function demoRun(){demoParse();const u=parse(),r=document.getElementById('results');r.innerHTML=u.map((x,i)=>'<div class="row"><span class="dot '+(i<1?'ok':'')+'"></span><div class="grow"><b>'+((x.match(/x\.com\/([^/]+)\/status\//i)||[])[1]||'unknown')+'</b><div class="mono">'+(i?'กำลังรอคิว':'ตรวจสอบ Metadata…')+'</div></div><span class="tag">'+(i?'Queued':'Checking')+'</span></div>').join('');document.getElementById('bar').style.width=u.length?'25%':'0%';document.getElementById('progressText').textContent='กำลังทำงาน 1 / '+u.length}
-demoParse();
-</script>
+      <div class="card">
+        <h2>ขั้นตอนการทำงาน</h2>
+        <p class="card-intro">ระบบหลักยังประมวลผลบน GitHub Actions</p>
+        <div class="flow"><div class="flow-item"><div class="flow-icon">1</div><div><b>ตรวจ URL และ Telegram preflight</b><span>ตรวจสิทธิ์ bot ก่อนดาวน์โหลด</span></div></div><div class="flow-item"><div class="flow-icon">2</div><div><b>ดึง metadata และ media</b><span>yt-dlp → syndication → FxTwitter</span></div></div><div class="flow-item"><div class="flow-icon">3</div><div><b>ส่งและป้องกันซ้ำ</b><span>บันทึก message ID หลังส่งสำเร็จ</span></div></div></div>
+        <div class="progress-wrap"><div class="progress-label"><span>สถานะหน้า Dashboard</span><span id="progressText">พร้อมเริ่ม</span></div><div class="progress"><div class="bar" id="progressBar"></div></div></div>
+      </div>
+
+      <div class="card">
+        <h2>หลักการระบบ</h2>
+        <p class="card-intro">สิ่งที่ได้รับจาก workflow รุ่น production-ready</p>
+        <div class="flow"><div class="flow-item"><div class="flow-icon">✓</div><div><b>ปลายทางถูกล็อก</b><span>ส่งเฉพาะกลุ่ม Telegram ที่กำหนด</span></div></div><div class="flow-item"><div class="flow-icon">✓</div><div><b>ไม่เก็บไฟล์ถาวร</b><span>ไฟล์ชั่วคราวถูกลบหลังการส่ง</span></div></div><div class="flow-item"><div class="flow-icon">✓</div><div><b>รายงานตรวจสอบได้</b><span>มี report.json และ message ID ต่อรายการ</span></div></div></div>
+        <div class="notice">ใช้เฉพาะ media ที่คุณมีสิทธิ์ดาวน์โหลดและเผยแพร่ และปฏิบัติตามกฎหมายกับเงื่อนไขของแพลตฟอร์ม</div>
+      </div>
+    </section>
+    <footer class="footer"><span>X2Telegram · Phase 6.1 Static Dashboard</span><a href="https://github.com/aodxx/X2Telegram/blob/main/docs/PROJECT_STATUS.md" target="_blank" rel="noreferrer">ดูสถานะโครงการ ↗</a></footer>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const urls = $('urls');
+    const workflowUrl = 'https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml';
+    function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
+    function parseUrl(value) {
+      try {
+        const u = new URL(value);
+        const host = u.hostname.toLowerCase().replace(/^www\./, '');
+        const match = u.pathname.match(/^\/([^/]+)\/status\/(\d+)/i);
+        return (host === 'x.com' || host === 'twitter.com') && match ? { user: match[1], id: match[2] } : null;
+      } catch (_) { return null; }
+    }
+    function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => t.classList.remove('show'), 3600); }
+    function review() {
+      const lines = getLines(); const seen = new Set(); let valid = 0; let invalid = 0;
+      $('totalCount').textContent = lines.length;
+      const html = lines.length ? lines.map((line) => {
+        const parsed = parseUrl(line); const key = parsed ? parsed.id : line.toLowerCase();
+        const duplicate = parsed && seen.has(key); if (parsed) seen.add(key);
+        const good = Boolean(parsed) && !duplicate; if (good) valid++; else invalid++;
+        const label = !parsed ? 'URL ไม่ถูกต้อง' : duplicate ? 'ซ้ำในชุดนี้' : 'พร้อมใช้';
+        return `<div class="url-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div style="min-width:0;flex:1"><b>@${parsed ? parsed.user : 'ตรวจสอบไม่ได้'}</b><code title="${escapeHtml(line)}">${escapeHtml(line)}</code></div><span class="badge ${good ? 'good' : 'bad'}">${label}</span></div>`;
+      }).join('') : '<div class="empty">วางลิงก์ด้านซ้าย แล้วกด<br><b>ตรวจสอบรายการ</b></div>';
+      $('reviewList').innerHTML = html; $('validCount').textContent = valid; $('invalidCount').textContent = invalid;
+      $('lineHint').textContent = lines.length ? `${lines.length} รายการ · พร้อมใช้ ${valid}` : 'ยังไม่มีรายการ';
+      $('progressText').textContent = lines.length ? 'ตรวจสอบแล้ว' : 'พร้อมเริ่ม'; $('progressBar').style.width = lines.length ? '18%' : '0%';
+      return { lines, valid, invalid };
+    }
+    function escapeHtml(value) { return value.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+    urls.addEventListener('input', review);
+    $('reviewBtn').addEventListener('click', () => { const r = review(); showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
+    $('clearBtn').addEventListener('click', () => { urls.value = ''; review(); urls.focus(); });
+    $('runBtn').addEventListener('click', () => {
+      const r = review();
+      if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
+      if (r.invalid) { showToast('มี URL ที่ต้องแก้ไข — ระบบจะเปิด Actions ให้ตรวจอีกครั้ง'); }
+      $('progressText').textContent = 'กำลังเปิด GitHub Actions'; $('progressBar').style.width = '42%';
+      window.open(workflowUrl, '_blank', 'noopener,noreferrer');
+    });
+    review();
+  </script>
 </body>
 </html>

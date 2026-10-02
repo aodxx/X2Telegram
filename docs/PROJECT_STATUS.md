@@ -104,6 +104,16 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 เป้าหมายคือให้ผู้ใช้วางลิงก์และกด Run ผ่านหน้าจอที่ใช้งานง่าย โดยยังคงใช้ workflow และระบบความปลอดภัยเดิมเป็น backend หลัก
 
+### ความคืบหน้าล่าสุด: Phase 6.1A เสร็จแล้ว
+
+- สร้าง Static Dashboard ที่ `web/index.html` ด้วย responsive UI สำหรับ desktop และมือถือ
+- เพิ่มการตรวจ X URL ฝั่ง browser, การนับ valid/invalid/duplicate และหน้าสรุปรายการก่อนส่ง
+- เพิ่มตัวเลือก `large_file_mode` และแสดงปลายทาง Telegram ที่ล็อกไว้
+- เพิ่มปุ่มเปิด GitHub Actions workflow โดยไม่ฝัง GitHub หรือ Telegram token ในหน้าเว็บ
+- เพิ่ม `.github/workflows/pages.yml` สำหรับ deploy โฟลเดอร์ `web/` ไปยัง GitHub Pages อัตโนมัติเมื่อ push เข้า `main`
+
+> Phase 6.1A เป็น Static UI ที่ปลอดภัย ปุ่ม Run จะเปิดหน้า GitHub Actions ให้ผู้ใช้กด `Run workflow` ต่อเอง การเรียก workflow จากหน้าเว็บโดยตรงยังไม่เปิดใช้งานจนกว่าจะมี backend/serverless API ที่เก็บ credential อย่างปลอดภัยใน Phase 6.1B
+
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
