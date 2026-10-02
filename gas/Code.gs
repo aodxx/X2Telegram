@@ -10,6 +10,7 @@
  */
 
 const API_VERSION = '1';
+const BACKEND_REVISION = 'get-start-fallback-2026-10-03';
 const DEFAULT_OWNER = 'aodxx';
 const DEFAULT_REPO = 'X2Telegram';
 const DEFAULT_WORKFLOW_ID = 'x2telegram.yml';
@@ -61,6 +62,7 @@ function health_() {
   return {
     service: 'x2telegram-gas-backend',
     status: 'ok',
+    backend_revision: BACKEND_REVISION,
     github_repository: config.owner + '/' + config.repo,
     workflow_id: config.workflowId,
     ref: config.ref
