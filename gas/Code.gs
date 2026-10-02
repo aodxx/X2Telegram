@@ -3,14 +3,14 @@
  *
  * Deploy this project as a Web app. Keep all Script Properties private:
  * GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_WORKFLOW_ID,
- * GITHUB_REF, ALLOWED_EMAILS, and MAX_URLS.
+ * GITHUB_REF and MAX_URLS.
  *
  * The script starts GitHub Actions, polls workflow status, and reads only the
  * sanitized dashboard artifact. Telegram credentials remain in GitHub Actions.
  */
 
 const API_VERSION = '1';
-const BACKEND_REVISION = 'identity-fix-2026-10-03';
+const BACKEND_REVISION = 'public-api-2026-10-03';
 const DEFAULT_OWNER = 'aodxx';
 const DEFAULT_REPO = 'X2Telegram';
 const DEFAULT_WORKFLOW_ID = 'x2telegram.yml';
@@ -21,7 +21,6 @@ const REPORT_CACHE_TTL_SECONDS = 300; // 5 minutes
 
 function doGet(e) {
   return handleRequest_(function () {
-    requireAuthorizedUser_();
     const params = (e && e.parameter) || {};
     const action = String(params.action || 'health').toLowerCase();
     if (action === 'health') return health_();
@@ -34,7 +33,6 @@ function doGet(e) {
 
 function doPost(e) {
   return handleRequest_(function () {
-    requireAuthorizedUser_();
     const body = parseJsonBody_(e);
     const action = String(body.action || 'start').toLowerCase();
     if (action === 'start') return start_(body);
@@ -76,7 +74,7 @@ function start_(body) {
   const idempotencyKey = validateIdempotencyKey_(body.idempotency_key);
   const requestId = validateRequestId_(body.request_id) || makeRequestId_();
   const cache = CacheService.getScriptCache();
-  const cacheKey = idempotencyKey ? 'idem:' + hash_(currentUser_() + ':' + idempotencyKey) : '';
+  const cacheKey = idempotencyKey ? 'idem:' + hash_(idempotencyKey) : '';
 
   if (cacheKey) {
     const previous = cache.get(cacheKey);
@@ -320,19 +318,6 @@ function getConfig_() {
     maxUrls: Math.floor(maxUrls),
     apiBase: 'https://api.github.com'
   };
-}
-
-function requireAuthorizedUser_() {
-  const allowed = (PropertiesService.getScriptProperties().getProperty('ALLOWED_EMAILS') || '')
-    .split(/[\s,;]+/).map(function (email) { return email.trim().toLowerCase(); }).filter(Boolean);
-  const email = currentUser_();
-  if (!allowed.length) throw apiError_('backend_not_configured', 'ALLOWED_EMAILS is missing');
-  if (!email) throw apiError_('google_identity_unavailable', 'Google ไม่ส่งอีเมลของบัญชีมายัง Web App คำขอนี้ ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version');
-  if (allowed.indexOf(email) === -1) throw apiError_('unauthorized', 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS กรุณาตรวจตัวสะกด โดย Gmail ต้องเป็น gmail.com (มีตัว a) ไม่ใช่ gmil.com');
-}
-
-function currentUser_() {
-  return String(Session.getActiveUser().getEmail() || '').trim().toLowerCase();
 }
 
 function parseJsonBody_(e) {
