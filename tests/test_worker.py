@@ -30,6 +30,7 @@ def test_worker_sends_and_cleans_download(tmp_path):
         result = processor.process(parse_x_url("https://x.com/user/status/123"))
     assert result.status == ResultStatus.SENT
     assert result.message_ids == [42]
+    assert result.filenames == ["user_123_01.mp4"]
     assert not fake.exists()
 
 

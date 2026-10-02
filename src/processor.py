@@ -83,6 +83,7 @@ class PostProcessor:
                         else:
                             message_id = self.telegram.send_document(str(path), caption)
                         result.message_ids.append(message_id)
+                        result.filenames.append(f"{post.username}_{post.post_id}_{len(result.filenames) + 1:02d}{Path(path).suffix}")
                     finally:
                         Path(path).unlink(missing_ok=True)
             result.status = ResultStatus.SENT

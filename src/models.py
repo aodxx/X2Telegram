@@ -32,3 +32,4 @@ class PostResult:
     error: str | None = None
     stage: str | None = None
     error_code: str | None = None
+    filenames: list[str] = field(default_factory=list)

@@ -27,6 +27,19 @@ def _write_report(payload: dict, path: str) -> str:
     return output
 
 
+def build_summary(results: list[dict]) -> dict:
+    """Aggregate per-post statuses for dashboards. Pure and additive."""
+    failed = {"metadata_error", "download_error", "telegram_error", "error"}
+    statuses = [item.get("status") for item in results]
+    return {
+        "total": len(results),
+        "sent": statuses.count("sent"),
+        "skipped_duplicate": statuses.count("skipped_duplicate"),
+        "no_media": statuses.count("no_media"),
+        "failed": sum(1 for status in statuses if status in failed),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Send public X post media to Telegram")
     parser.add_argument("--parse-only", action="store_true")
@@ -43,6 +56,8 @@ def main() -> int:
     payload = {
         "schema_version": 1,
         "run_id": os.getenv("GITHUB_RUN_ID"),
+        "request_id": os.getenv("REQUEST_ID") or None,
+        "large_file_mode": os.getenv("LARGE_FILE_MODE", "").lower() == "true",
         "started_at": started_at,
         "status": "completed",
         "input_count": len(raw.splitlines()),
@@ -96,6 +111,7 @@ def main() -> int:
             log_event(logger, logging.ERROR, "run_failed", "run_failed", error=payload["error"])
             exit_code = 1
 
+    payload["summary"] = build_summary(payload["results"])
     payload["duration_seconds"] = round(time.monotonic() - started, 3)
     payload["finished_at"] = datetime.now(timezone.utc).isoformat()
     _write_report(payload, args.report)
