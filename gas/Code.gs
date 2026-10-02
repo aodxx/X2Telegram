@@ -260,13 +260,13 @@ function githubRawRequest_(config, url, method, isArtifactDownload, payload) {
 
 function validateUrls_(value, maxUrls) {
   if (!Array.isArray(value)) throw apiError_('invalid_urls', 'urls must be an array');
-  const lines = value.map(function (item) { return String(item || '').trim(); }).filter(Boolean);
+  const lines = value.map(function (item) { return String(item || '').trim().replace(/[<>"'`.,;\]}]+$/, ''); }).filter(Boolean);
   if (!lines.length) throw apiError_('invalid_urls', 'At least one X URL is required');
   if (lines.length > maxUrls) throw apiError_('too_many_urls', 'Maximum URLs per request: ' + maxUrls);
   const seen = {};
   const normalizedUrls = [];
   lines.forEach(function (line) {
-    const match = line.match(/^(?:https?:\/\/)?(?:www\.)?(x\.com|twitter\.com)\/([^\/]+)\/status\/(\d+)(?:[/?#].*)?$/i);
+    const match = line.match(/^(?:https?:\/\/)?(?:www\.)?(?:mobile\.)?(x\.com|twitter\.com)\/(.+)\/status\/(\d+)(?:[/?#].*)?$/i);
     if (!match) throw apiError_('invalid_url', 'Every URL must be a public x.com or twitter.com status URL');
     const normalized = 'https://x.com/' + match[2] + '/status/' + match[3];
     if (!seen[match[3]]) { seen[match[3]] = true; normalizedUrls.push(normalized); }

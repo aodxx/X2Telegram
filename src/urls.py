@@ -9,10 +9,10 @@ class XPost:
     username: str
     post_id: str
 
-_STATUS_RE = re.compile(r"^/([^/]+)/status/(\d+)$")
+_STATUS_RE = re.compile(r"^/(.+)/status/(\d+)$")
 
 def parse_x_url(value: str) -> XPost | None:
-    value = value.strip()
+    value = value.strip().strip("<>\"'`.,;)]}").replace("\u200b", "")
     if not value:
         return None
     candidate = value if "://" in value else f"https://{value}"
@@ -20,18 +20,19 @@ def parse_x_url(value: str) -> XPost | None:
     if parts.scheme not in {"http", "https"}:
         return None
     host = parts.netloc.lower().split(":")[0]
-    if host not in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}:
+    if host not in {"x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}:
         return None
     match = _STATUS_RE.match(parts.path.rstrip("/"))
     if not match:
         return None
-    username, post_id = match.groups()
+    path_prefix, post_id = match.groups()
+    username = path_prefix.split("/")[-1] or "unknown"
     return XPost(value, f"https://x.com/{username}/status/{post_id}", username, post_id)
 
 def parse_batch(text: str) -> list[XPost]:
     seen=set(); posts=[]
     # workflow_dispatch may normalize pasted newlines to spaces.
-    tokens = re.findall(r"(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com)/[^\s<>'\"]+", text, re.IGNORECASE)
+    tokens = re.findall(r"(?:https?://)?(?:www\.)?(?:mobile\.)?(?:x\.com|twitter\.com)/[^\s<>'\"]+", text, re.IGNORECASE)
     for token in tokens:
         post=parse_x_url(token.rstrip(".,);]"))
         if post and post.normalized_url not in seen:

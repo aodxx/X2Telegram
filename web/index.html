@@ -184,10 +184,11 @@
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
     function parseUrl(value) {
       try {
-        const u = new URL(value);
+        const cleaned = String(value).trim().replace(/[<>"'`.,;\]}]+$/, '').replace(/\u200b/g, '');
+        const u = new URL(cleaned.includes('://') ? cleaned : `https://${cleaned}`);
         const host = u.hostname.toLowerCase().replace(/^www\./, '');
-        const match = u.pathname.match(/^\/([^/]+)\/status\/(\d+)/i);
-        return (host === 'x.com' || host === 'twitter.com') && match ? { user: match[1], id: match[2] } : null;
+        const match = u.pathname.match(/\/([^/]+)\/status\/(\d+)/i);
+        return (['x.com', 'mobile.x.com', 'twitter.com', 'mobile.twitter.com'].includes(host) && match) ? { user: match[1], id: match[2] } : null;
       } catch (_) { return null; }
     }
     function showToast(message) { const t = $('toast'); t.textContent = message; t.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => t.classList.remove('show'), 4200); }
