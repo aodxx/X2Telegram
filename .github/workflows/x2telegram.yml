@@ -100,32 +100,21 @@ jobs:
           git commit -m "chore: persist X2Telegram delivery state [skip ci]"
           git push
 
-      - name: Publish dashboard report
+      - name: Build private dashboard report
         if: always()
-        continue-on-error: true
         run: |
           test -f report.json || exit 0
           python -m src.dashboard_report report.json /tmp/dashboard-report.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git ls-remote --exit-code --heads origin dashboard-data >/dev/null 2>&1; then
-            git fetch origin dashboard-data
-            git worktree add -B dashboard-data /tmp/dashboard-data FETCH_HEAD
-          else
-            git worktree add --detach /tmp/dashboard-data HEAD
-            git -C /tmp/dashboard-data checkout --orphan dashboard-data
-            git -C /tmp/dashboard-data rm -rf --quiet .
-          fi
-          mkdir -p /tmp/dashboard-data/reports
-          cp /tmp/dashboard-report.json "/tmp/dashboard-data/reports/${GITHUB_RUN_ID}.json"
-          cd /tmp/dashboard-data
-          git add reports
-          git commit -m "chore: dashboard report ${GITHUB_RUN_ID} [skip ci]"
-          for attempt in 1 2 3; do
-            git push origin HEAD:dashboard-data && exit 0
-            git pull --rebase origin dashboard-data || true
-          done
-          exit 1
+          test -s /tmp/dashboard-report.json
+
+      - name: Upload private dashboard report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x2telegram-dashboard-report-${{ github.run_id }}
+          path: /tmp/dashboard-report.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Publish run report
         if: always()

@@ -114,6 +114,16 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 > Phase 6.1A เป็น Static UI ที่ปลอดภัย ปุ่ม Run จะเปิดหน้า GitHub Actions ให้ผู้ใช้กด `Run workflow` ต่อเอง การเรียก workflow จากหน้าเว็บโดยตรงยังไม่เปิดใช้งานจนกว่าจะมี backend/serverless API ที่เก็บ credential อย่างปลอดภัยใน Phase 6.1B
 
+### Phase 6.1B: เตรียม report contract สำหรับ Google Apps Script
+
+- เพิ่ม `request_id`, summary และ filenames ใน workflow report
+- เพิ่ม `src/dashboard_report.py` เพื่อสร้าง report แบบ allow-list สำหรับ Backend
+- ไม่ push report ไปยัง public branch `dashboard-data`
+- อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
+- Google Apps Script สามารถใช้ GitHub API ที่มี credential ฝั่ง server เพื่อดาวน์โหลด artifact หลัง workflow เสร็จ
+
+> Phase 6.1B ส่วนนี้เป็น data contract และการจัดเก็บ report ฝั่ง private เท่านั้น ยังไม่ใช่ Apps Script API หรือการเชื่อม Dashboard แบบ end-to-end
+
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
