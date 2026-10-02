@@ -130,11 +130,11 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="mark">X→T</div><div><strong>X2Telegram</strong><span>Private media bridge</span></div></div>
-      <div class="top-actions"><span class="pill version-pill">Dashboard v1.2.1 · build 2026-10-03</span><span class="pill backend-pill" id="backendPill"><i class="pulse"></i>กำลังตรวจ Backend...</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
+      <div class="top-actions"><span class="pill version-pill">Dashboard v1.2.2 · build 2026-10-03</span><span class="pill backend-pill" id="backendPill"><i class="pulse"></i>กำลังตรวจ Backend...</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
     </header>
 
     <section class="hero">
-      <div><div class="eyebrow">Phase 6.1 · Dashboard v1.2.1</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
+      <div><div class="eyebrow">Phase 6.1 · Dashboard v1.2.2</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
       <aside class="hero-note"><b>ปลายทางที่ล็อกไว้</b><span>Telegram Supergroup · <code>-1003906817580</code></span></aside>
     </section>
 
@@ -215,7 +215,7 @@
       let data;
       try { data = JSON.parse(raw); } catch (_) { throw new Error(`Google Apps Script ตอบกลับไม่ถูกต้อง (HTTP ${response.status}) กรุณาตรวจ Deployment และสิทธิ์การเข้าถึง`); }
       if (!data.ok) {
-        const messages = { unauthorized: 'ไม่มีสิทธิ์ใช้งาน กรุณาเปิดด้วย Google account ที่ได้รับอนุญาต', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
+        const messages = { unauthorized: 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS ของ Apps Script', google_identity_unavailable: 'Google ไม่ส่งอีเมลบัญชีมายัง Web App ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
         throw new Error(messages[data.error?.code] || data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
       }
       return data.data;
@@ -226,7 +226,7 @@
       const pill = $('backendPill');
       try {
         const data = await api('?action=health');
-        const current = data.backend_revision === 'get-start-fallback-2026-10-03';
+        const current = data.backend_revision === 'identity-fix-2026-10-03';
         pill.innerHTML = `<i class="pulse"></i>${current ? 'Backend ใหม่พร้อมใช้' : 'Backend รุ่นเก่า · กรุณา Deploy ใหม่'}`;
         pill.title = `Apps Script: ${data.backend_revision || 'ไม่ระบุ revision'}`;
         if (!current) showToast('พบ Apps Script รุ่นเก่า กรุณา Deploy เป็น New version ก่อนเริ่มงาน');

@@ -10,7 +10,7 @@
  */
 
 const API_VERSION = '1';
-const BACKEND_REVISION = 'get-start-fallback-2026-10-03';
+const BACKEND_REVISION = 'identity-fix-2026-10-03';
 const DEFAULT_OWNER = 'aodxx';
 const DEFAULT_REPO = 'X2Telegram';
 const DEFAULT_WORKFLOW_ID = 'x2telegram.yml';
@@ -324,11 +324,11 @@ function getConfig_() {
 
 function requireAuthorizedUser_() {
   const allowed = (PropertiesService.getScriptProperties().getProperty('ALLOWED_EMAILS') || '')
-    .split(',').map(function (email) { return email.trim().toLowerCase(); }).filter(Boolean);
+    .split(/[\s,;]+/).map(function (email) { return email.trim().toLowerCase(); }).filter(Boolean);
   const email = currentUser_();
-  if (!allowed.length || !email || allowed.indexOf(email) === -1) {
-    throw apiError_('unauthorized', 'This private backend is not available to this user');
-  }
+  if (!allowed.length) throw apiError_('backend_not_configured', 'ALLOWED_EMAILS is missing');
+  if (!email) throw apiError_('google_identity_unavailable', 'Google ไม่ส่งอีเมลของบัญชีมายัง Web App คำขอนี้ ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version');
+  if (allowed.indexOf(email) === -1) throw apiError_('unauthorized', 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS ของ Apps Script');
 }
 
 function currentUser_() {

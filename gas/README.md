@@ -30,7 +30,7 @@ GitHub Pages → Apps Script Web App → GitHub Actions → Telegram
 | `GITHUB_REPO` | `X2Telegram` | ชื่อ repository |
 | `GITHUB_WORKFLOW_ID` | `x2telegram.yml` | workflow file หรือ workflow ID |
 | `GITHUB_REF` | `main` | branch ที่จะ dispatch |
-| `ALLOWED_EMAILS` | `your@gmail.com` | รายชื่อ Google account ที่อนุญาต คั่นด้วย comma |
+| `ALLOWED_EMAILS` | `your@gmail.com` | รายชื่อ Google account ที่อนุญาต คั่นด้วย comma, space, semicolon หรือขึ้นบรรทัดใหม่ได้ |
 | `MAX_URLS` | `20` | จำนวน URL สูงสุดต่อ request |
 
 ### GitHub token permissions
@@ -47,11 +47,11 @@ GitHub Pages → Apps Script Web App → GitHub Actions → Telegram
 
 1. เปิด Apps Script project
 2. Deploy → New deployment → Web app
-3. ตั้ง **Execute as** เป็นเจ้าของ script
+3. ตั้ง **Execute as** เป็น **User accessing the web app** เพื่อให้ Apps Script อ่าน Google account ของผู้เรียกและตรวจ `ALLOWED_EMAILS` ได้
 4. ตั้งผู้มีสิทธิ์เข้าถึงให้สอดคล้องกับ Google account ที่อยู่ใน `ALLOWED_EMAILS`
 5. คัดลอก Web app URL ไปใช้ใน frontend
 
-> ไม่ควร deploy เป็น anonymous ถ้าต้องการ private dashboard เพราะ `Session.getActiveUser().getEmail()` อาจว่างและไม่สามารถตรวจสิทธิ์ได้
+> ไม่ควร deploy เป็น anonymous ถ้าต้องการ private dashboard เพราะ `Session.getActiveUser().getEmail()` อาจว่างและไม่สามารถตรวจสิทธิ์ได้ หาก Web App ตอบ `google_identity_unavailable` ให้ตั้ง **Execute as: User accessing the web app** แล้วสร้าง deployment version ใหม่ จากนั้นให้ผู้ใช้ authorize scopes ที่จำเป็นอีกครั้ง
 
 ## API examples
 
