@@ -10,6 +10,8 @@
  */
 
 const API_VERSION = '1';
+const DEFAULT_OWNER = 'aodxx';
+const DEFAULT_REPO = 'X2Telegram';
 const DEFAULT_WORKFLOW_ID = 'x2telegram.yml';
 const DEFAULT_REF = 'main';
 const DEFAULT_MAX_URLS = 20;
@@ -301,9 +303,9 @@ function normalizeRunStatus_(run) {
 function getConfig_() {
   const props = PropertiesService.getScriptProperties();
   const token = props.getProperty('GITHUB_TOKEN');
-  const owner = props.getProperty('GITHUB_OWNER');
-  const repo = props.getProperty('GITHUB_REPO');
-  if (!token || !owner || !repo) throw apiError_('backend_not_configured', 'GitHub backend properties are missing');
+  const owner = props.getProperty('GITHUB_OWNER') || DEFAULT_OWNER;
+  const repo = props.getProperty('GITHUB_REPO') || DEFAULT_REPO;
+  if (!token) throw apiError_('backend_not_configured', 'GITHUB_TOKEN is missing');
   const maxUrls = Number(props.getProperty('MAX_URLS') || DEFAULT_MAX_URLS);
   if (!isFinite(maxUrls) || maxUrls < 1 || maxUrls > 100) throw apiError_('backend_not_configured', 'MAX_URLS must be between 1 and 100');
   return {
