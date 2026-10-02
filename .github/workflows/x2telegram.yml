@@ -1,5 +1,7 @@
 name: X2Telegram
 
+run-name: ${{ inputs.request_id && format('X2Telegram {0}', inputs.request_id) || 'X2Telegram' }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -12,6 +14,11 @@ on:
         required: true
         default: false
         type: boolean
+      request_id:
+        description: "Optional dashboard correlation ID (leave empty when running manually)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -71,6 +78,7 @@ jobs:
           TELEGRAM_API_BASE_URL: ${{ inputs.large_file_mode && 'http://127.0.0.1:8081' || 'https://api.telegram.org' }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           DEDUPE_STATE_PATH: state/dedupe.json
+          REQUEST_ID: ${{ inputs.request_id }}
         run: |
           test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN secret" >&2; exit 1)
           mkdir -p state
@@ -91,6 +99,22 @@ jobs:
           git add state/dedupe.json
           git commit -m "chore: persist X2Telegram delivery state [skip ci]"
           git push
+
+      - name: Build private dashboard report
+        if: always()
+        run: |
+          test -f report.json || exit 0
+          python -m src.dashboard_report report.json /tmp/dashboard-report.json
+          test -s /tmp/dashboard-report.json
+
+      - name: Upload private dashboard report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x2telegram-dashboard-report-${{ github.run_id }}
+          path: /tmp/dashboard-report.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Publish run report
         if: always()
