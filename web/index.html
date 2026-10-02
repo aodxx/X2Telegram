@@ -213,12 +213,12 @@
     async function api(path, options = {}) {
       let response;
       try { response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'include', headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) } }); }
-      catch (_) { throw new Error('เชื่อมต่อ Google Apps Script ไม่สำเร็จ กรุณาเปิด Dashboard ด้วยบัญชี Google ที่ได้รับอนุญาต'); }
+      catch (_) { throw new Error('เชื่อมต่อ Google Apps Script ไม่ได้: browser ไม่ส่ง Google session ให้คำขอข้ามเว็บไซต์ กรุณาเปิด Web App URL ด้วยบัญชีที่อนุญาตหนึ่งครั้ง แล้วกลับมาโหลด Dashboard ใหม่'); }
       const raw = await response.text();
       let data;
       try { data = JSON.parse(raw); } catch (_) { throw new Error(`Google Apps Script ตอบกลับไม่ถูกต้อง (HTTP ${response.status}) กรุณาตรวจ Deployment และสิทธิ์การเข้าถึง`); }
       if (!data.ok) {
-        const messages = { unauthorized: 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS ของ Apps Script', google_identity_unavailable: 'Google ไม่ส่งอีเมลบัญชีมายัง Web App ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
+        const messages = { unauthorized: 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS กรุณาตรวจว่า Gmail เป็น gmail.com (มีตัว a) ไม่ใช่ gmil.com', google_identity_unavailable: 'Google ไม่ส่งอีเมลบัญชีมายัง Web App ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
         throw new Error(messages[data.error?.code] || data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
       }
       return data.data;

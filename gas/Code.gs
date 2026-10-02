@@ -328,7 +328,7 @@ function requireAuthorizedUser_() {
   const email = currentUser_();
   if (!allowed.length) throw apiError_('backend_not_configured', 'ALLOWED_EMAILS is missing');
   if (!email) throw apiError_('google_identity_unavailable', 'Google ไม่ส่งอีเมลของบัญชีมายัง Web App คำขอนี้ ให้ตั้ง Execute as เป็น User accessing the web app แล้ว Deploy เป็น New version');
-  if (allowed.indexOf(email) === -1) throw apiError_('unauthorized', 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS ของ Apps Script');
+  if (allowed.indexOf(email) === -1) throw apiError_('unauthorized', 'บัญชี Google นี้ไม่ได้อยู่ใน ALLOWED_EMAILS กรุณาตรวจตัวสะกด โดย Gmail ต้องเป็น gmail.com (มีตัว a) ไม่ใช่ gmil.com');
 }
 
 function currentUser_() {
