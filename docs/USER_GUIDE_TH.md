@@ -63,7 +63,7 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 - **ยังไม่ได้ยืนยัน Access**: กด **ลงชื่อเข้าใช้**, ทำ OTP แล้วกลับมา Dashboard/refresh
 - **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ URL ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 50 และเลือกอย่างน้อยหนึ่งปลายทาง
 - **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
-- **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน หรือ TOTP setting ใน GitHub Secrets; ห้ามใส่ค่า credential ใน report
+- **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
 - **Download `download_expired`**: artifact หมดอายุหลัง 7 วัน ให้เริ่ม job ใหม่
 - **Download `download_artifact_size_limit`**: รวมไฟล์เกิน 8 GiB ต่อ job; แบ่ง URL เป็นหลายชุด
 - **Telegram `telegram_file_too_large`**: เปิด Large-file mode เฉพาะเมื่อ Local Bot API credentials ถูกตั้งแล้ว
@@ -76,4 +76,4 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 
 ## ขอบเขตการทดสอบ
 
-ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend และ Download-only 2 URLs; run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) สร้าง ZIP 2 ไฟล์และทดสอบดาวน์โหลดผ่าน Access/Worker สำเร็จ. **การเชื่อมบัญชี MEGA จริงยังต้องใช้ Actions Secrets ของเจ้าของและยังไม่ผ่าน live verification**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
+ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend, Download-only 2 URLs และ MEGA-only upload; run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) สร้าง ZIP 2 ไฟล์และทดสอบดาวน์โหลดผ่าน Access/Worker สำเร็จ ส่วน run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ยืนยัน MEGA upload สำเร็จ. **ยังไม่ได้ทดสอบการส่ง Telegram+MEGA พร้อมกันแบบ live**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
