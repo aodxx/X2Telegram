@@ -1,0 +1,11 @@
+{
+  "name": "x2telegram-control-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2"
+  }
+}

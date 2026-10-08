@@ -1,8 +1,8 @@
 # X2Telegram — Project Status
 
-**สถานะเอกสาร:** อัปเดตล่าสุด 2026-10-02  
-**Branch:** `main`  
-**อ้างอิงโค้ด:** `a2dd320` (`feat: add FxTwitter metadata fallback and local runner`)
+**สถานะเอกสาร:** อัปเดตล่าสุด 2026-10-08
+**Branch:** `migration/zone-1-5-cloudflare-control-plane` (PR #2)
+**อ้างอิงโค้ด:** baseline `a2dd320`; ดู implementation ปัจจุบันใน PR #2
 
 ## สรุปผู้บริหาร
 
@@ -104,27 +104,31 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 เป้าหมายคือให้ผู้ใช้วางลิงก์และกด Run ผ่านหน้าจอที่ใช้งานง่าย โดยยังคงใช้ workflow และระบบความปลอดภัยเดิมเป็น backend หลัก
 
-### ความคืบหน้าล่าสุด: Phase 6.1A เสร็จแล้ว
+### ความคืบหน้าล่าสุด: Phase 6.1A–1E implementation เสร็จใน repository
 
 - สร้าง Static Dashboard ที่ `web/index.html` ด้วย responsive UI สำหรับ desktop และมือถือ
 - เพิ่มการตรวจ X URL ฝั่ง browser, การนับ valid/invalid/duplicate และหน้าสรุปรายการก่อนส่ง
 - เพิ่มตัวเลือก `large_file_mode` และแสดงปลายทาง Telegram ที่ล็อกไว้
-- เพิ่มปุ่มเปิด GitHub Actions workflow โดยไม่ฝัง GitHub หรือ Telegram token ในหน้าเว็บ
+- เพิ่มปุ่มเปิด GitHub Actions workflow และลิงก์ลงชื่อเข้าใช้ Cloudflare Access โดยไม่ฝัง GitHub หรือ Telegram token ในหน้าเว็บ
 - เพิ่ม `.github/workflows/pages.yml` สำหรับ deploy โฟลเดอร์ `web/` ไปยัง GitHub Pages อัตโนมัติเมื่อ push เข้า `main`
+- เพิ่ม `docs/CONTROL_PLANE_CONTRACT.md` เป็น API/state/idempotency contract ของ Control Plane
+- เพิ่ม `control-worker/` สำหรับ Cloudflare Worker ที่ตรวจ Access JWT, validate URL, dispatch/read GitHub Actions, อ่าน sanitized report artifact และบังคับ exact-origin CORS
+- เพิ่ม offline Worker tests สำหรับ auth, invalid input, duplicate/conflict, GitHub failure, status/report และ CORS
+- Workflow เพิ่ม `url`, `request_id`, `job_id` โดยยังรองรับ `urls` แบบ manual เดิม; Python report และ sanitized projection เพิ่ม `job_id`
 
-> Phase 6.1A เป็น Static UI ที่ปลอดภัย ปุ่ม Run จะเปิดหน้า GitHub Actions ให้ผู้ใช้กด `Run workflow` ต่อเอง การเรียก workflow จากหน้าเว็บโดยตรงยังไม่เปิดใช้งานจนกว่าจะมี backend/serverless API ที่เก็บ credential อย่างปลอดภัยใน Phase 6.1B
+> Static UI ใน branch migration ถูกปรับเป็น Dashboard client ของ Cloudflare Control Worker; Worker, owner-only Access และ `GH_TOKEN` secret ตั้งแล้ว. Authenticated health ผ่านและ read-only status lookup ยืนยัน GitHub Actions read ได้; credential ต้อง rotate ก่อน production. GitHub Pages บน `main` ยังเป็นหน้าเดิม เนื่องจาก PR #2 ยังไม่ merge
 
-### Phase 6.1B: เตรียม report contract สำหรับ Google Apps Script
+### Phase 6.1B: Report contract สำหรับ private control plane
 
 - เพิ่ม `request_id`, summary และ filenames ใน workflow report
 - เพิ่ม `src/dashboard_report.py` เพื่อสร้าง report แบบ allow-list สำหรับ Backend
 - ไม่ push report ไปยัง public branch `dashboard-data`
 - อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
-- Google Apps Script สามารถใช้ GitHub API ที่มี credential ฝั่ง server เพื่อดาวน์โหลด artifact หลัง workflow เสร็จ
+- Cloudflare Control Worker ใช้ GitHub API credential ฝั่ง server เพื่ออ่าน artifact หลัง workflow เสร็จ
 
-> Phase 6.1B ส่วนนี้เป็น data contract และการจัดเก็บ report ฝั่ง private เท่านั้น ยังไม่ใช่ Apps Script API หรือการเชื่อม Dashboard แบบ end-to-end
+> Data contract และ private artifact เสร็จแล้ว; authenticated GitHub read-only lookup ผ่าน แต่ยังไม่มี dispatch/report/Telegram E2E. ไม่มีการส่ง Telegram ระหว่าง migration นี้
 
-### Google Apps Script Backend: โครงร่าง API พร้อมพัฒนา
+### Google Apps Script Backend: legacy/reference (ไม่ใช่เส้นทางใหม่)
 
 - เพิ่ม `gas/Code.gs` สำหรับ `doGet`/`doPost`
 - รองรับ `health`, `start`, `status` และ `report`
@@ -134,32 +138,44 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - เรียก GitHub Actions API และดาวน์โหลด sanitized dashboard artifact แบบ authenticated
 - เพิ่ม `gas/README.md` และ `gas/appsscript.json` สำหรับ deployment/configuration
 
-> ยังต้องทดสอบ deployment จริงเรื่อง Google account access และ CORS ระหว่าง GitHub Pages กับ Apps Script ก่อนเปิดใช้งาน production
+> `gas/` คงไว้เพื่อ reference/rollback เท่านั้น Dashboard ใหม่ไม่เรียก GAS แล้ว; ไม่ควร deploy เป็น production endpoint คู่ขนานโดยไม่มีเหตุผล
 
-### Dashboard integration: เชื่อมต่อ API แล้ว
+### Dashboard integration: เชื่อมต่อ Control Worker แล้วใน source
 
-- หน้า `web/index.html` เรียก Google Apps Script Web App โดยตรง
+- หน้า `web/index.html` เรียก Cloudflare Control Worker REST API โดยตรงผ่าน `web/config.js`
 - รองรับการเริ่มงานจากหน้า Dashboard โดยไม่ต้องเปิด GitHub Actions เอง
 - แสดง request ID, run ID, สถานะ queued/in progress/completed และลิงก์ workflow
-- polling สถานะทุก 7–10 วินาที และหยุดเมื่อ workflow จบ
+- polling สถานะทุก 5–7 วินาทีและหยุดเมื่อ workflow จบ; current job/recent jobs เก็บใน browser localStorage
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
-- ปุ่มเริ่มงานส่งเฉพาะ URL ที่ผ่านการตรวจฝั่ง browser และส่ง `idempotency_key`
+- ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> การใช้งานจริงต้องเปิด Dashboard ด้วย Google account ที่อยู่ใน `ALLOWED_EMAILS` และต้องยืนยันการเรียกข้าม origin ระหว่าง GitHub Pages กับ Apps Script ใน browser จริง
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in, read-only lookup และ normal-path E2E หนึ่งรายการผ่านแล้ว (run `37807253687`, ส่งหนึ่ง MP4, message ID `347`). `GH_TOKEN` ยังไม่ได้ rotate ตามคำสั่งเจ้าของ; Dashboard บน `main` ยังไม่เปลี่ยน
 
-### Dashboard troubleshooting: Apps Script POST redirect
+### Zone 7/8 hardening (source complete; production gates remain)
+
+- `src/dedupe.py` state v2 เพิ่ม SHA-256 content fingerprint ต่อ media และ migration path อ่าน completed-post records แบบ v1
+- `src/processor.py` ข้าม media ที่ส่งสำเร็จแล้วและ retry เฉพาะชิ้นที่ยังไม่สำเร็จ; tests ครอบ first/middle/last failure และ temporary URL rotation
+- `src/telegram_api.py`, `src/logging_utils.py`, `src/cli.py` ไม่ serialize Telegram token/raw response ใน errors และ redact ก่อน report/stdout
+- `src/downloader.py` ปิด auto-redirect และ validate HTTPS/host ทุก hop; Worker body cap อ่าน stream แบบ bounded; tests ครอบ oversized body และ per-isolate rate cap
+- Local validation ล่าสุด: Python **47 passed**, Worker **15 passed**, syntax/compile/diff checks ผ่าน
+- Worker security-hardening source ถูก deploy แล้ว (version ปัจจุบัน `29a2c667-cce4-4da9-8bff-d93b89490e0f`, `GH_REF=main`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
+- Zone 9 normal-path E2E: run `37807253687` บน migration branch สำเร็จ; report ยืนยัน `sent=1`, `failed=0`, Telegram message ID `347`. Run แรก `37806865130` ล้มก่อน process เพราะ Worker ส่ง `url`/`urls` ซ้ำ; แก้ mapping และเพิ่ม regression test แล้ว. Worker ถูกคืน `GH_REF=main` หลังทดสอบ
+- ยังไม่พร้อม production: `GH_TOKEN` ค่าแรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติ rotate/revoke; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
+- E2E scenarios ที่เหลือ: duplicate/no-resend live, multi-photo/multiple distinct media, partial-failure live recovery, large-file, browser refresh/UI และ mobile
+
+### Historical legacy note: Apps Script POST redirect
 
 - ตรวจพบว่า Apps Script Web App ตอบ `health` แบบ GET ได้ แต่ POST ที่ตาม redirect อาจจบด้วย HTTP 405 ใน browser
 - เพิ่ม `GET action=start` ที่รับ JSON แบบ base64url เป็น fallback สำหรับเริ่ม workflow
 - Dashboard เปลี่ยนการเริ่มงานมาใช้ GET fallback เพื่อลดปัญหา POST redirect
 - Dashboard อ่าน response แบบ text ก่อน parse JSON และแสดงข้อความภาษาไทยเมื่อพบ CORS, 405 หรือ response ที่ไม่ใช่ JSON
-- ต้องนำ `gas/Code.gs` รุ่นล่าสุดไปวางใน Apps Script และสร้าง deployment version ใหม่ก่อนทดสอบอีกครั้ง
+- ข้อควรจำ: รายการนี้เป็น history ของ GAS path เดิม ไม่ใช่ขั้นตอน deploy Dashboard/Control Worker รุ่นปัจจุบัน
 
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
-2. textarea สำหรับวาง X URL หลายรายการ หนึ่ง URL ต่อบรรทัด
-3. ตรวจและนับ URL ที่ valid / duplicate / invalid ก่อนเริ่ม
+2. รับ X URL หนึ่งรายการต่อหนึ่ง job ผ่าน Dashboard; manual GitHub workflow ยังคงรับ batch URLs ได้
+3. ตรวจ X URL ก่อนเริ่ม และให้ Worker ตรวจซ้ำฝั่ง server
 4. หน้าสรุปให้ review รายการก่อนกดส่ง
 5. ปุ่มเริ่ม workflow ผ่าน backend ที่ปลอดภัย
 6. ตัวเลือก `large_file_mode` พร้อมคำเตือนเรื่อง credentials/ขนาดไฟล์
@@ -188,7 +204,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-เริ่ม Phase 6.1 เป็น **private dashboard MVP** โดยให้ GitHub Actions เป็น execution backend ต่อไปก่อน วิธีนี้ลดการเปลี่ยนแปลงในแกนที่ผ่านการทดสอบแล้ว และทำให้สามารถ rollback กลับไปใช้ GitHub Actions UI ได้ง่ายหาก dashboard มีปัญหา
+คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Normal-path E2E ด้วย URL ที่เจ้าของอนุมัติผ่านแล้วหนึ่งครั้งและส่งหนึ่ง MP4 ไป Telegram; Worker ถูกคืน `GH_REF=main` หลังทดสอบ. อย่าใช้ Dashboard path ก่อน merge เพราะหน้า Pages บน `main` และ workflow interface ยังเป็น legacy. Production ยังถูกบล็อกโดย `GH_TOKEN` ที่เปิดเผยและยังไม่ได้ rotate (เจ้าของยังไม่อนุมัติ), รวมถึง scenarios ที่เหลือและ residual security findings. GitHub Actions manual UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 

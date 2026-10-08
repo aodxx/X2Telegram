@@ -7,7 +7,7 @@ Paste one or many public X post URLs into one GitHub Actions run. The system par
 
 ## Project status
 
-See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and the Phase 6.1 private dashboard plan.
+See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and private Dashboard migration status.
 
 ## Principles
 - Simple setup: configure secrets once.
@@ -36,7 +36,7 @@ The default workflow uses the standard Telegram Bot API and limits media to 50 M
 
 If the optional `ALERT_WEBHOOK_URL` repository secret is configured with an HTTPS webhook, each run sends a redacted summary containing only run status, counts, and duration. The webhook never receives bot tokens, media URLs, captions, or per-post error text.
 
-The workflow also enables duplicate prevention with `state/dedupe.json`. A post is recorded only after Telegram confirms a successful send; later runs skip that post before metadata lookup or download. Runs are serialized with GitHub Actions concurrency to avoid two jobs racing on the same state file.
+The workflow also enables duplicate prevention with `state/dedupe.json` v2. Each successfully delivered media item is checkpointed by content fingerprint and Telegram message ID, so a retry after partial failure can skip completed items even when temporary media URLs change. Existing v1 completed-post records remain readable. GitHub Actions concurrency serializes runs that share the state file. Exactly-once delivery is not guaranteed if Telegram accepts a send but the response is lost before the checkpoint is persisted.
 
 Metadata fallback order is `yt-dlp` → X syndication → public FxTwitter API (`https://api.fxtwitter.com/2/status/{post_id}`). The fallback accepts only MP4 variants from the API and preserves required query parameters such as `?tag=12` on direct `video.twimg.com` URLs. Query parameters are stripped only from the source post URL used for lookup.
 
@@ -60,6 +60,12 @@ TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --prefl
 ```
 
 The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
+
+## Private Dashboard migration (in progress)
+
+The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The new Dashboard path submits one post per job through a Cloudflare Control Worker; GitHub Actions remains the execution plane. The source implementation and offline tests are in `control-worker/`, with the API contract and setup steps in [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), [`docs/CLOUDFLARE_WORKER.md`](docs/CLOUDFLARE_WORKER.md), and [`docs/CLOUDFLARE_ACCESS.md`](docs/CLOUDFLARE_ACCESS.md).
+
+**Normal-path E2E passed once, but migration is not production-ready.** The owner-approved X URL completed on the migration branch and delivered one MP4 to the locked Telegram group; see [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md). The first `GH_TOKEN` value was exposed during setup and the owner declined rotation; rotate/revoke it before production. The Worker has been restored to `GH_REF=main`, but GitHub Pages `main` still uses the legacy dashboard and PR #2 is unmerged; do not rely on the new Dashboard path until the credential risk and remaining release gates are addressed. The manual Actions flow remains available. See [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md).
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

@@ -1,3 +1,4 @@
+from hashlib import sha256
 from pathlib import Path
 import logging
 import tempfile
@@ -9,6 +10,16 @@ from .metadata import MetadataProvider
 from .models import PostResult, ResultStatus
 from .telegram_api import TelegramClient
 from .urls import XPost
+
+
+def _media_fingerprint(path: str | Path, kind: str) -> str:
+    digest = sha256()
+    digest.update(kind.encode("utf-8"))
+    digest.update(b"\0")
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 class PostProcessor:
@@ -37,10 +48,12 @@ class PostProcessor:
         stage = "metadata"
         result.stage = stage
         dedupe_key = post.post_id or post.normalized_url
-        if self.dedupe and self.dedupe.get(dedupe_key):
+        existing_post = self.dedupe.get(dedupe_key) if self.dedupe else None
+        if existing_post and existing_post.get("legacy_complete"):
             result.status = ResultStatus.SKIPPED_DUPLICATE
             result.stage = "dedupe"
             result.error_code = "already_sent"
+            result.message_ids = list(existing_post.get("message_ids") or [])
             self.logger.info(
                 "post_skipped_duplicate",
                 extra={"event": "post_skipped_duplicate", "context": {"post_id": post.post_id}},
@@ -68,12 +81,23 @@ class PostProcessor:
                 else metadata.media
             )
             caption = f"@{post.username}\n{post.normalized_url}"
+            sent_this_run = 0
             with tempfile.TemporaryDirectory(prefix="x2telegram-"):
                 for item in selected:
                     stage = "download"
                     result.stage = stage
                     path = self.downloader.download(item.url, item.kind)
                     try:
+                        fingerprint = _media_fingerprint(path, item.kind)
+                        already_sent = self.dedupe.get_media(dedupe_key, fingerprint) if self.dedupe else None
+                        fallback_name = f"{post.username}_{post.post_id}_{len(result.filenames) + 1:02d}{Path(path).suffix}"
+                        if already_sent:
+                            saved_id = already_sent.get("message_id")
+                            if isinstance(saved_id, int):
+                                result.message_ids.append(saved_id)
+                            result.filenames.append(str(already_sent.get("filename") or fallback_name))
+                            continue
+
                         stage = "telegram"
                         result.stage = stage
                         if item.kind == "video":
@@ -82,27 +106,48 @@ class PostProcessor:
                             message_id = self.telegram.send_photo(str(path), caption)
                         else:
                             message_id = self.telegram.send_document(str(path), caption)
+                        filename = f"{post.username}_{post.post_id}_{len(result.filenames) + 1:02d}{Path(path).suffix}"
                         result.message_ids.append(message_id)
-                        result.filenames.append(f"{post.username}_{post.post_id}_{len(result.filenames) + 1:02d}{Path(path).suffix}")
+                        result.filenames.append(filename)
+                        sent_this_run += 1
+                        if self.dedupe:
+                            stage = "dedupe"
+                            result.stage = stage
+                            self.dedupe.mark_media_sent(
+                                dedupe_key,
+                                fingerprint,
+                                post_id=post.post_id,
+                                username=post.username,
+                                source_url=post.normalized_url,
+                                kind=item.kind,
+                                message_id=message_id,
+                                filename=filename,
+                            )
                     finally:
                         Path(path).unlink(missing_ok=True)
-            result.status = ResultStatus.SENT
-            result.stage = "completed"
+
             if self.dedupe:
-                self.dedupe.mark_sent(
-                    dedupe_key,
-                    post_id=post.post_id,
-                    username=post.username,
-                    source_url=post.normalized_url,
-                    message_ids=result.message_ids,
+                stage = "dedupe"
+                result.stage = stage
+                self.dedupe.mark_complete(dedupe_key)
+            if sent_this_run:
+                result.status = ResultStatus.SENT
+                result.stage = "completed"
+                self.logger.info(
+                    "post_sent",
+                    extra={
+                        "event": "post_sent",
+                        "context": {"post_id": post.post_id, "message_ids": result.message_ids},
+                    },
                 )
-            self.logger.info(
-                "post_sent",
-                extra={
-                    "event": "post_sent",
-                    "context": {"post_id": post.post_id, "message_ids": result.message_ids},
-                },
-            )
+            else:
+                result.status = ResultStatus.SKIPPED_DUPLICATE
+                result.stage = "dedupe"
+                result.error_code = "already_sent"
+                self.logger.info(
+                    "post_skipped_duplicate",
+                    extra={"event": "post_skipped_duplicate", "context": {"post_id": post.post_id}},
+                )
         except Exception as exc:
             result.error = str(exc)[:500]
             result.error_code = f"{stage}_error"
@@ -110,8 +155,10 @@ class PostProcessor:
                 result.status = ResultStatus.METADATA_ERROR
             elif stage == "download":
                 result.status = ResultStatus.DOWNLOAD_ERROR
-            else:
+            elif stage == "telegram":
                 result.status = ResultStatus.TELEGRAM_ERROR
+            else:
+                result.status = ResultStatus.ERROR
             self.logger.error(
                 "post_failed",
                 extra={
