@@ -149,7 +149,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
 - ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in และ authenticated GitHub read-only lookup ผ่านแล้ว. `GH_TOKEN` ควร rotate ก่อน production; Dashboard บน `main` ยังไม่เปลี่ยน
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in, read-only lookup และ normal-path E2E หนึ่งรายการผ่านแล้ว (run `37807253687`, ส่งหนึ่ง MP4, message ID `347`). `GH_TOKEN` ยังไม่ได้ rotate ตามคำสั่งเจ้าของ; Dashboard บน `main` ยังไม่เปลี่ยน
 
 ### Zone 7/8 hardening (source complete; production gates remain)
 
@@ -158,9 +158,10 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - `src/telegram_api.py`, `src/logging_utils.py`, `src/cli.py` ไม่ serialize Telegram token/raw response ใน errors และ redact ก่อน report/stdout
 - `src/downloader.py` ปิด auto-redirect และ validate HTTPS/host ทุก hop; Worker body cap อ่าน stream แบบ bounded; tests ครอบ oversized body และ per-isolate rate cap
 - Local validation ล่าสุด: Python **47 passed**, Worker **15 passed**, syntax/compile/diff checks ผ่าน
-- Worker security-hardening source ถูก deploy แล้ว (version `f32d10e4-c069-4ae4-84b3-79a409e59be0`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
-- Zone 8 audit: ยังไม่พร้อม production เพราะ `GH_TOKEN` ค่าแรกถูกเปิดเผยและต้อง revoke/rotate; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
-- Zone 9 E2E ยังไม่เริ่ม: ไม่มี workflow dispatch หรือ Telegram delivery จากการตรวจครั้งนี้
+- Worker security-hardening source ถูก deploy แล้ว (version ปัจจุบัน `29a2c667-cce4-4da9-8bff-d93b89490e0f`, `GH_REF=main`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
+- Zone 9 normal-path E2E: run `37807253687` บน migration branch สำเร็จ; report ยืนยัน `sent=1`, `failed=0`, Telegram message ID `347`. Run แรก `37806865130` ล้มก่อน process เพราะ Worker ส่ง `url`/`urls` ซ้ำ; แก้ mapping และเพิ่ม regression test แล้ว. Worker ถูกคืน `GH_REF=main` หลังทดสอบ
+- ยังไม่พร้อม production: `GH_TOKEN` ค่าแรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติ rotate/revoke; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
+- E2E scenarios ที่เหลือ: duplicate/no-resend live, multi-photo/multiple distinct media, partial-failure live recovery, large-file, browser refresh/UI และ mobile
 
 ### Historical legacy note: Apps Script POST redirect
 
@@ -203,7 +204,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Cloudflare Worker/owner-only Access และ `GH_TOKEN` secret พร้อม; owner sign-in กับ GitHub read-only lookup ผ่านแล้ว. Rotate token ก่อน production. ขั้นถัดไปคือ E2E ด้วย X URL ที่เจ้าของอนุมัติ ซึ่งอาจ dispatch workflow และส่ง Telegram; ต้องเห็น payload/กลุ่มปลายทางและได้รับการยืนยันก่อนดำเนินการ. จากนั้นจึงทำ Zone 6, merge PR และ deploy Dashboard; GitHub Actions UI เดิมยังเป็น fallback
+คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Normal-path E2E ด้วย URL ที่เจ้าของอนุมัติผ่านแล้วหนึ่งครั้งและส่งหนึ่ง MP4 ไป Telegram; Worker ถูกคืน `GH_REF=main` หลังทดสอบ. อย่าใช้ Dashboard path ก่อน merge เพราะหน้า Pages บน `main` และ workflow interface ยังเป็น legacy. Production ยังถูกบล็อกโดย `GH_TOKEN` ที่เปิดเผยและยังไม่ได้ rotate (เจ้าของยังไม่อนุมัติ), รวมถึง scenarios ที่เหลือและ residual security findings. GitHub Actions manual UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 

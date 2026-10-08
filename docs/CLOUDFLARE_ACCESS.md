@@ -22,7 +22,7 @@
 - `GH_TOKEN` อยู่ใน Worker เป็น secret ชนิด `secret_text`; ต้อง rotate ก่อน production เนื่องจากค่าแรกถูกแชร์ระหว่าง setup
 - เจ้าของ sign in ด้วย OTP แล้ว; authenticated `GET /health` ตอบ `200`, และ `GET /jobs/<random-id>` ตอบ expected `404 job_not_found` จาก GitHub-backed lookup
 - หลัง deploy hardening ทดสอบจาก GitHub Pages origin: `GET /health` ได้ `200`, invalid URL POST ได้ `400 invalid_url`, body 17 KiB ได้ `413 request_too_large`; ทั้งสอง POST ถูกปฏิเสธก่อน dispatch
-- ยังไม่มี workflow dispatch หรือ Telegram delivery
+- Normal-path E2E ผ่านเมื่อ 2026-10-08: run `37807253687` สำเร็จ, sanitized report คืน `sent=1`, Telegram `message_id=347`; Worker ถูกคืน `GH_REF=main` หลังทดสอบ
 
 ## CORS จาก GitHub Pages
 
@@ -55,10 +55,11 @@ Worker มี best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่�
 - [ ] Rotate `GH_TOKEN` เป็นค่าใหม่ก่อน production
 - [x] Authenticated status lookup อ่าน GitHub Actions ได้ (สุ่ม job ID, ได้ expected 404; ไม่ dispatch)
 - [x] Live cross-origin invalid URL และ oversized-body validation ถูก reject ก่อน dispatch
-- [ ] Authenticated report retrieval ผ่านจาก run ที่มี artifact
-- [ ] E2E ที่ dispatch จริง/ส่ง Telegram ผ่านโดยใช้ test URL ที่เจ้าของอนุมัติ
+- [x] Authenticated report retrieval ผ่านจาก run ที่มี artifact
+- [x] Normal-path E2E dispatch จริง/ส่ง Telegram ผ่านโดยใช้ URL ที่เจ้าของอนุมัติหนึ่งรายการ (รายละเอียดใน `E2E_TEST_REPORT.md`)
+- [ ] E2E scenarios ที่เหลือ: duplicate/no-resend, multi-photo, partial-failure recovery, UI refresh, mobile และ large-file
 - [x] Local test ยืนยัน per-isolate limit: 21st POST ได้ `429` โดยไม่ dispatch
 - [ ] ทดสอบ edge/global burst limit ที่ production configuration
 - [ ] ไม่พบ credential ใน network responses/frontend/logs
 
-**ข้อจำกัดปัจจุบัน:** Access และ authenticated GitHub read-only status ผ่าน; token ปัจจุบันควรถูก rotate ก่อน production. ยังไม่มี dispatch/E2E/report test. อย่า merge PR #2 หรือเปลี่ยนหน้า GitHub Pages production จนกว่าจะ rotate token และผ่าน E2E ที่เจ้าของอนุมัติ.
+**ข้อจำกัดปัจจุบัน:** Normal-path E2E หนึ่งรายการผ่าน แต่ `GH_TOKEN` ที่เคยเปิดเผยยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังไม่พร้อม production. อย่า merge PR #2 หรือเปลี่ยนหน้า GitHub Pages production จนกว่าจะจัดการ credential risk และทบทวน scenarios ที่ค้าง.

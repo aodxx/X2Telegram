@@ -234,7 +234,6 @@ async function dispatch(request, env, identity) {
         ref: env.GH_REF,
         inputs: {
           url: normalized.url,
-          urls: normalized.url,
           large_file_mode: String(largeFileMode),
           request_id: body.request_id,
           job_id: jobId,

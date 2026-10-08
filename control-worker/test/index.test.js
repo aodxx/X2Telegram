@@ -183,7 +183,7 @@ test("invalid or non-HTTPS X URLs are rejected before dispatch", async () => {
   assert.equal(dispatches.length, 0);
 });
 
-test("valid request dispatches compatible inputs and returns a stable job ID", async () => {
+test("valid request dispatches a single URL input and returns a stable job ID", async () => {
   const body = { url: "https://x.com/person/status/123?s=20", large_file_mode: false, request_id: "test-submit-1" };
   const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
   const data = await response.json();
@@ -192,9 +192,10 @@ test("valid request dispatches compatible inputs and returns a stable job ID", a
   assert.match(data.job_id, /^job-[a-f0-9]{32}$/);
   assert.equal(dispatches.length, 1);
   assert.deepEqual(dispatches[0].inputs, {
-    url: "https://x.com/person/status/123", urls: "https://x.com/person/status/123", large_file_mode: "false",
+    url: "https://x.com/person/status/123", large_file_mode: "false",
     request_id: "test-submit-1", job_id: data.job_id,
   });
+  assert.equal(Object.hasOwn(dispatches[0].inputs, "urls"), false);
 });
 
 test("same request and changed payload return idempotency conflict", async () => {

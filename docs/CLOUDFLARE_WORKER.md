@@ -5,10 +5,11 @@
 - Worker `x2telegram-control-plane` deploy แล้วที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
 - Cloudflare Access ครอบ hostname นี้และบังคับ owner-only email OTP (ดู [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md))
 - Worker secret `ACCESS_ALLOWED_EMAIL` ถูกตั้งใน Cloudflare Secret Store; ไม่อยู่ใน source, Dashboard หรือ Git
-- `GH_TOKEN` ถูกตั้งเป็น Worker secret ชนิด `secret_text`; authenticated `GET /health` ผ่าน และ read-only `GET /jobs/<random-id>` ได้ expected `404 job_not_found` ยืนยันว่า Worker อ่านรายการ GitHub Actions ได้โดยไม่ dispatch
-- Worker source รุ่น security hardening deploy แล้ว; cross-origin `GET /health` จาก Pages ได้ `200`, invalid URL ถูกปฏิเสธ `400 invalid_url`, และ oversized body 17 KiB ได้ `413 request_too_large`; ไม่มี workflow dispatch/Telegram send
-- **ก่อนใช้งานจริงให้ rotate GH_TOKEN เป็นค่าใหม่**; ค่าแรกถูกส่งผ่านแชตระหว่าง setup และไม่ควรใช้ต่อใน production
-- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะ rotate credential และผ่าน approved E2E
+- `GH_TOKEN` ถูกตั้งเป็น Worker secret ชนิด `secret_text`; authenticated `GET /health` และ read-only job lookup ผ่าน. Normal-path E2E run #37807253687 dispatch สำเร็จและ report ยืนยันส่งหนึ่ง MP4 (message ID 347); รายละเอียดใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
+- Worker source รุ่น security hardening deploy แล้ว; cross-origin `GET /health` จาก Pages ได้ `200`, invalid URL ถูกปฏิเสธ `400 invalid_url`, และ oversized body 17 KiB ได้ `413 request_too_large` ก่อน live E2E run ที่บันทึกไว้ด้านบน
+- Normal-path E2E ผ่านหนึ่งรายการบน migration branch; Worker ถูกคืน `GH_REF=main` แล้ว. รายงาน: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
+- **ก่อน production ให้ rotate/revoke GH_TOKEN**; ค่าแรกถูกส่งผ่านแชตระหว่าง setup และเจ้าของยังไม่อนุมัติให้เปลี่ยน
+- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะจัดการ credential risk และทบทวน release gates ที่เหลือ
 - GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
 
 ## Architecture
@@ -34,7 +35,7 @@ Worker เป็น API/control layer เท่านั้น ไม่ดา�
 Cloudflare Worker Secrets:
 
 - `ACCESS_ALLOWED_EMAIL` — ตั้งไว้แล้ว; ใช้ตรวจ identity ซ้ำหลัง validate Access JWT
-- `GH_TOKEN` — ตั้งแล้วเป็น `secret_text`; ควร rotate ก่อน production เป็น fine-grained credential จำกัดเฉพาะ repository `aodxx/X2Telegram` ด้วยสิทธิ์ `Actions: Read and write` และ `Metadata: Read-only`
+- `GH_TOKEN` — ตั้งแล้วเป็น `secret_text`; ค่าแรกยังไม่ได้ rotate ตามคำสั่งเจ้าของและยังเป็น production blocker. เมื่ออนุมัติ rotation ให้ใช้ fine-grained credential จำกัดเฉพาะ repository `aodxx/X2Telegram` ด้วยสิทธิ์ `Actions: Read and write` และ `Metadata: Read-only`
 
 ห้ามใช้ GitHub CLI app user token (`ghu_…`) เป็น `GH_TOKEN`: token ของ integration เป็น credential สำหรับ session ชั่วคราว ไม่ใช่ secret ระยะยาวสำหรับ Worker. อย่าพิมพ์ token ลง chat หรือ commit ลง Git. เมื่อมี fine-grained PAT ให้เพิ่มผ่าน Cloudflare Worker secret prompt:
 
@@ -60,7 +61,7 @@ Worker ตรวจ Access JWT signature RS256 กับ Cloudflare Access JWKS,
 
 เมื่อได้รับ POST Worker normalize X URL, คำนวณ opaque `job_id` จาก `request_id + normalized URL + large_file_mode` และค้น run ที่ตรงกับ workflow title `X2Telegram <request_id> <job_id>`. run เดิมถูกคืนแทนการ dispatch ซ้ำ; payload ต่างที่ใช้ request ID ซ้ำแต่พบ run ที่ต่าง job fingerprint จะได้ `409 idempotency_conflict`.
 
-Workflow dispatch inputs มี `url`, `urls` (compatibility; หนึ่ง URL), `large_file_mode`, `request_id`, `job_id`. Python `state/dedupe.json` version 2 บันทึก SHA-256 content fingerprint และ Telegram message ID แยกราย media; อ่าน state version 1 ได้และยัง skip completed post เดิม. Downloader ตรวจทุก redirect hop กับ HTTPS/X-media allowlist ก่อนตามต่อ
+Dashboard Worker ส่ง workflow inputs `url`, `large_file_mode`, `request_id`, `job_id` โดยไม่ส่ง `urls` ซ้ำ; manual workflow ยังคงรองรับ batch `urls`. Regression test ยืนยัน single-URL mapping. E2E ครั้งแรกพบว่าการส่งทั้ง `url`/`urls` ทำให้ workflow ปฏิเสธก่อนประมวลผล; แก้ mapping แล้ว run #37807253687 ส่งหนึ่ง MP4 สำเร็จ (message ID 347). Python `state/dedupe.json` version 2 บันทึก SHA-256 content fingerprint และ Telegram message ID แยกราย media; อ่าน state version 1 ได้และยัง skip completed post เดิม. Downloader ตรวจทุก redirect hop กับ HTTPS/X-media allowlist ก่อนตามต่อ
 
 เพราะไม่ใช้ durable store, สอง POST ที่มี request ID/payload เดียวกันพร้อมกันก่อน GitHub API แสดง run อาจ dispatch สอง workflow runs. Workflow concurrency และ per-media state ลดการส่งซ้ำ; ยังรับประกัน exactly-once ไม่ได้หาก Telegram รับ media แล้ว response หายก่อน checkpoint ถูก persist
 
@@ -75,7 +76,7 @@ Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied id
 
 ## ขั้นตอนที่ค้างก่อนเปิดใช้งาน
 
-1. Rotate `GH_TOKEN` เป็นค่าใหม่โดยไม่ส่ง token ผ่านแชต และเก็บผ่าน Cloudflare Worker Secret เท่านั้น
-2. ก่อน E2E rotate token และขอ URL ทดสอบที่เจ้าของมีสิทธิ์ใช้ พร้อมยืนยันการ dispatch หนึ่ง workflow/การส่งเข้ากลุ่ม Telegram ที่ล็อกไว้
-3. ทำ E2E ตาม scenarios ใน Master Plan; ห้ามใช้ URL จริงหรือส่ง Telegram ก่อนเจ้าของอนุมัติ payload ที่แน่นอน
-4. หลัง E2E ผ่านจึงพิจารณา Zone 6 (ลบ GAS), merge PR #2 และเปลี่ยน Dashboard production; ดู findings ที่ยังคงอยู่ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)
+1. Rotate/revoke `GH_TOKEN` ที่เปิดเผยก่อน production; เจ้าของยังไม่ได้อนุมัติการเปลี่ยน credential
+2. Normal-path E2E หนึ่ง URL ผ่านแล้ว; ทำ scenarios ที่เหลือตาม [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) โดยไม่ส่งซ้ำโดยไม่ตรวจ dedupe state
+3. จัดการ residual findings ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)
+4. หลัง credential และ release gates ผ่าน จึงพิจารณา Zone 6 (ลบ GAS), merge PR #2 และเปลี่ยน Dashboard production
