@@ -15,6 +15,11 @@ on:
         required: false
         default: ""
         type: string
+      destinations:
+        description: 'JSON array: telegram, mega, and/or download'
+        required: false
+        default: '["telegram"]'
+        type: string
       large_file_mode:
         description: "Use a Telegram Local Bot API Server for files above 50 MB"
         required: true
@@ -44,7 +49,7 @@ concurrency:
 
 jobs:
   send-media:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
       - name: Checkout
@@ -64,43 +69,77 @@ jobs:
       - name: Run control Worker tests
         run: npm ci --prefix control-worker && npm test --prefix control-worker
 
+      - name: Install MEGAcmd when selected
+        if: ${{ contains(fromJSON(inputs.destinations || '["telegram"]'), 'mega') }}
+        env:
+          MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
+          MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+        run: |
+          if [ -z "$MEGA_EMAIL" ] || [ -z "$MEGA_PASSWORD" ]; then
+            echo "MEGA credentials are not configured; the MEGA destination will report its own failure."
+            exit 0
+          fi
+          if ! curl --fail --location --silent --show-error --retry 3 \
+            "https://mega.nz/linux/repo/xUbuntu_24.04/amd64/megacmd-xUbuntu_24.04_amd64.deb" \
+            --output /tmp/megacmd.deb; then
+            echo "MEGAcmd package download failed; other destinations will continue."
+            exit 0
+          fi
+          if ! sudo apt-get update -y || ! sudo apt-get install -y /tmp/megacmd.deb; then
+            echo "MEGAcmd could not be installed; other destinations will continue."
+          fi
+
       - name: Start Telegram Local Bot API Server
-        if: ${{ inputs.large_file_mode }}
+        id: local-api
+        if: ${{ inputs.large_file_mode && contains(fromJSON(inputs.destinations || '["telegram"]'), 'telegram') }}
         env:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          test -n "$TELEGRAM_API_ID" || (echo "Missing TELEGRAM_API_ID secret for large-file mode" >&2; exit 1)
-          test -n "$TELEGRAM_API_HASH" || (echo "Missing TELEGRAM_API_HASH secret for large-file mode" >&2; exit 1)
-          docker run --detach --name x2telegram-local-bot-api \
+          if [ -z "$TELEGRAM_API_ID" ] || [ -z "$TELEGRAM_API_HASH" ] || [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Telegram Local Bot API is not configured; other destinations will continue."
+            exit 0
+          fi
+          if ! docker run --detach --name x2telegram-local-bot-api \
             --publish 127.0.0.1:8081:8081 \
             --env TELEGRAM_API_ID \
             --env TELEGRAM_API_HASH \
             --env TELEGRAM_LOCAL=1 \
-            aiogram/telegram-bot-api:latest
+            aiogram/telegram-bot-api:latest; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           for i in $(seq 1 60); do
-            curl --fail --silent "http://127.0.0.1:8081/bot${TELEGRAM_BOT_TOKEN}/getMe" >/dev/null && exit 0
+            if curl --fail --silent "http://127.0.0.1:8081/bot${TELEGRAM_BOT_TOKEN}/getMe" >/dev/null; then
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
             sleep 2
           done
-          docker logs x2telegram-local-bot-api
-          exit 1
+          echo "available=false" >> "$GITHUB_OUTPUT"
+          echo "Telegram Local Bot API did not become ready; other destinations will continue."
 
-      - name: Process posts and send media
+      - name: Process posts and dispatch destinations
         env:
           INPUT_URL: ${{ inputs.url }}
           INPUT_URLS: ${{ inputs.urls }}
+          DESTINATIONS_JSON: ${{ inputs.destinations || '["telegram"]' }}
           JOB_ID: ${{ inputs.job_id }}
           REQUEST_ID: ${{ inputs.request_id }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: "-1003906817580"
           LARGE_FILE_MODE: ${{ inputs.large_file_mode }}
-          MAX_FILE_SIZE_MB: ${{ inputs.large_file_mode && '2000' || '50' }}
-          TELEGRAM_API_BASE_URL: ${{ inputs.large_file_mode && 'http://127.0.0.1:8081' || 'https://api.telegram.org' }}
+          TELEGRAM_API_BASE_URL: ${{ inputs.large_file_mode && contains(fromJSON(inputs.destinations || '["telegram"]'), 'telegram') && steps.local-api.outputs.available == 'true' && 'http://127.0.0.1:8081' || 'https://api.telegram.org' }}
+          MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
+          MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+          MEGA_TOTP_SECRET: ${{ secrets.MEGA_TOTP_SECRET }}
+          MEGA_REMOTE_FOLDER: ${{ vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}
+          DOWNLOAD_EXPORT_DIR: download_exports
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           DEDUPE_STATE_PATH: state/dedupe.json
         run: |
-          test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN secret" >&2; exit 1)
           if [ -n "$INPUT_URL" ]; then
             test -z "$INPUT_URLS" || (echo "Provide url or urls, not both" >&2; exit 1)
             printf '%s\n' "$INPUT_URL" > /tmp/x2telegram-input-urls.txt
@@ -115,9 +154,14 @@ jobs:
           mkdir -p state
           python -m src.cli --report report.json --log run.jsonl --dedupe-state "$DEDUPE_STATE_PATH" < /tmp/x2telegram-input-urls.txt | tee report-output.json
 
-      - name: Stop Telegram Local Bot API Server
-        if: ${{ always() && inputs.large_file_mode }}
+      - name: Close destination sessions
+        if: always()
         run: docker rm --force x2telegram-local-bot-api || true
+
+      - name: End MEGA session
+        if: ${{ always() && contains(fromJSON(inputs.destinations || '["telegram"]'), 'mega') }}
+        run: |
+          if command -v mega-logout >/dev/null 2>&1; then mega-logout >/dev/null 2>&1 || true; fi
 
       - name: Persist duplicate prevention state
         if: always()
@@ -146,6 +190,16 @@ jobs:
           path: /tmp/dashboard-report.json
           if-no-files-found: warn
           retention-days: 30
+
+      - name: Upload browser download files
+        if: ${{ always() && contains(fromJSON(inputs.destinations || '["telegram"]'), 'download') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: x2telegram-media-${{ github.run_id }}
+          path: download_exports/
+          if-no-files-found: ignore
+          compression-level: 0
+          retention-days: 7
 
       - name: Publish run report
         if: always()

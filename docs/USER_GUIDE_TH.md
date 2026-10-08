@@ -1,17 +1,16 @@
 # คู่มือใช้งาน X2Telegram Dashboard
 
-**หน้าใช้งาน:** <https://aodxx.github.io/X2Telegram/> — ระบบจะพาไปยัง Dashboard บน Cloudflare Access/Worker origin เดียวกันโดยอัตโนมัติ เพื่อให้ browser ใช้ login session ได้ตรงกัน
+**หน้าใช้งาน:** [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) — จะ redirect ไปยัง Dashboard/API ที่อยู่บน Cloudflare Worker origin เดียวกันและถูกป้องกันด้วย Cloudflare Access
 
-## ลงชื่อเข้าใช้
+## 1. ลงชื่อเข้าใช้
 
-1. เปิด [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/). ถ้า Access session หมดอายุ ระบบจะพาไปหน้า Cloudflare Access ก่อน แล้วกลับมาที่ Dashboard หลังยืนยันอีเมลและ OTP
-2. ถ้า Dashboard เปิดอยู่แต่แถบด้านบนแจ้งว่ายังไม่ได้ยืนยัน Access ให้กด **ลงชื่อเข้าใช้ ↗**. จะเปิด Dashboard/Access ในแท็บใหม่
-3. ใส่อีเมลที่ได้รับอนุญาต กดส่งรหัส OTP และกรอกรหัสจากอีเมล เมื่อแท็บใหม่กลับมาแสดง Dashboard ให้กลับแท็บเดิมได้ ระบบจะตรวจ session ซ้ำเมื่อกลับมาที่หน้าเดิม
-4. สถานะที่ถูกต้องคือ **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**. ถ้าแจ้งว่าบัญชีไม่ได้รับอนุญาต ให้ตรวจว่าใช้อีเมลเดียวกับที่ผู้ดูแลอนุญาต
+1. เปิด Dashboard; หาก Access session หมดอายุ ระบบจะพาไปหน้า Cloudflare Access
+2. กรอกอีเมลที่ได้รับอนุญาต รับ OTP จากอีเมล แล้วกลับมาที่ Dashboard
+3. สถานะด้านบนที่ถูกต้องคือ **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**. หากเปิด Dashboard ไว้ก่อน login ให้กลับแท็บเดิมหรือ refresh เพื่อให้ระบบตรวจ session ใหม่
 
-## ส่งหลายโพสต์ในครั้งเดียว
+## 2. วาง URL และเลือกปลายทาง
 
-1. วาง URL สาธารณะของโพสต์ X **หนึ่ง URL ต่อหนึ่งบรรทัด** ในช่องรายการ วางได้สูงสุด **50 URL ต่อชุด** ตัวอย่าง:
+1. วาง URL สาธารณะของโพสต์ X **หนึ่ง URL ต่อหนึ่งบรรทัด**; หนึ่ง job รับได้สูงสุด 50 URL ตัวอย่าง:
 
    ```text
    https://x.com/username/status/1234567890
@@ -19,40 +18,62 @@
    https://twitter.com/another/status/1234567892
    ```
 
-2. กด **ตรวจสอบรายการ** หรือดูผล preview ที่อัปเดตอัตโนมัติ ระบบแสดงจำนวนทั้งหมด รายการที่พร้อมใช้ URL ผิดรูปแบบ และ URL ซ้ำ
-3. ต้องแก้/ลบ URL ที่ผิดหรือซ้ำทั้งหมดก่อน ปุ่มส่งจะเปิดใช้เมื่อ Access ผ่านและรายการทุกบรรทัดถูกต้อง ไม่เกิน 50 รายการ
-4. ตรวจปลายทางที่ล็อกไว้ให้ถูกต้อง: Telegram Supergroup `-1003906817580`. เปิด **Large-file mode** เฉพาะกรณีไฟล์เกิน 50 MB
-5. กด **เริ่มส่ง N รายการเข้า Telegram** เพียงครั้งเดียว หนึ่งชุดจะเป็นหนึ่ง GitHub Actions run และระบบทำงานแต่ละโพสต์ในชุดแยกผลลัพธ์ให้
-6. ติดตามสถานะจาก Dashboard; ผลลัพธ์จะแสดงแยกตามโพสต์ รวมจำนวน media, message ID หรือเหตุขัดข้อง
+2. เลือกปลายทางได้หนึ่งหรือหลายรายการ:
+   - **Telegram** — ส่งเข้า Telegram Supergroup ที่กำหนดไว้ (ไม่สามารถเปลี่ยน target จาก Dashboard)
+   - **MEGA** — อัปโหลดไปบัญชี MEGA ที่ตั้งไว้ใน GitHub Actions Secrets; ต้องมี `MEGA_EMAIL` และ `MEGA_PASSWORD` (บัญชีเปิด TOTP ให้ตั้ง `MEGA_TOTP_SECRET` ด้วย)
+   - **ดาวน์โหลด ZIP** — ให้ browser ดาวน์โหลดไฟล์ media ที่รวมเป็น ZIP; ไม่ต้องตั้ง secret เพิ่ม
+3. ตรวจ preview ว่า URL ทุกบรรทัดถูกต้องและไม่ซ้ำ; แก้รายการ invalid/duplicate และไม่เกิน 50 URLs
+4. เปิด **Large-file mode** เมื่อต้องการส่ง Telegram เกิน 50 MB และระบบถูกตั้งค่า Local Bot API แล้ว; ตัวเลือกนี้ไม่จำเป็นสำหรับ MEGA/Download และแต่ละปลายทางมีขีดจำกัดของตัวเอง
+5. กดปุ่มเริ่มงานหนึ่งครั้ง. Dashboard ส่ง URL และ destinations ไป Worker; หนึ่งชุดจะสร้างหนึ่ง GitHub Actions run
 
-การกดปุ่มเป็นการเริ่มงานจริงและอาจส่ง media เข้า Telegram. ระหว่างที่สถานะกำลังทำงานอย่ากดเริ่มชุดเดิมซ้ำ ให้เปิด Job ID/Run link และดูผลก่อน
+การกดเริ่มงานเป็นการประมวลผลจริงและอาจส่งไฟล์เข้า Telegram/MEGA หรือสร้าง private download artifact. อย่ากดชุดเดิมซ้ำขณะงานกำลังทำงาน; เปิด Job/Run link และดูผลก่อน
 
-## ติดตามงานและรายการล่าสุด
+## 3. ดูผลและดาวน์โหลด
 
-- งานปัจจุบันและงานล่าสุดเก็บไว้ใน local storage ของ browser เครื่องนี้ เพื่อให้กลับมาตรวจสถานะได้หลัง refresh
-- เลือกงานใน **งานล่าสุด** เพื่อโหลดสถานะ/report กลับมา
-- หากใช้เครื่องหรือ browser profile ร่วมกับผู้อื่น ให้ sign out/ปิดหน้าต่างเมื่อใช้งานเสร็จ และหลีกเลี่ยงเครื่องสาธารณะ
+Dashboard แสดงสถานะแยกตามโพสต์, media และปลายทาง. ตัวอย่าง: Telegram `success`, MEGA `failed`, Download `ready` จะเห็นได้ว่าไฟล์ถูกส่งบางปลายทางและ job ไม่ได้ล้มเหลวทั้งหมด. การ retry post เดิมจะข้าม destination/media ที่สำเร็จไปแล้วและพยายามเฉพาะส่วนที่ยังไม่สำเร็จ
 
-## แก้ปัญหาเบื้องต้น
+เมื่อ ZIP พร้อม ให้กด **ดาวน์โหลดไฟล์ ZIP**. ไฟล์ถูกส่งจาก GitHub Actions artifact ผ่าน Worker แบบ streaming และมีอายุ 7 วัน; หลังหมดอายุให้เริ่ม job ใหม่เพื่อสร้าง ZIP อีกครั้ง. iOS/Android อาจแสดง Downloads, Share หรือ Files ตาม browser และการตั้งค่าเครื่อง; สำหรับไฟล์ใหญ่ควรใช้ Wi‑Fi และมีพื้นที่ว่างเพียงพอ
 
-| อาการ | วิธีแก้ |
+## 4. ตั้งค่า MEGA (ทำครั้งเดียว)
+
+ถ้าต้องการเลือก MEGA ผู้ดูแล repository ต้องเพิ่ม credentials ที่ GitHub โดยตรง:
+
+1. เปิด [GitHub Actions Secrets สำหรับ X2Telegram](https://github.com/aodxx/X2Telegram/settings/secrets/actions)
+2. กด **New repository secret** และเพิ่ม `MEGA_EMAIL` เป็นอีเมลบัญชี MEGA
+3. เพิ่ม `MEGA_PASSWORD` เป็นรหัสผ่านบัญชี MEGA
+4. หากบัญชีใช้ MFA/TOTP ให้เพิ่ม `MEGA_TOTP_SECRET` เป็น seed สำหรับ authenticator; หากไม่ได้ใช้ MFA ให้ไม่ต้องสร้าง secret นี้
+5. กลับ Dashboard แล้วเลือก MEGA
+
+**อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`
+
+## 5. ขนาดและพฤติกรรม
+
+| ปลายทาง | ขีดจำกัดปัจจุบัน |
 |---|---|
-| ยังไม่ได้ยืนยัน Access | กด **ลงชื่อเข้าใช้ ↗**, ทำ OTP ในแท็บใหม่ แล้วกลับแท็บ Dashboard; ระบบตรวจซ้ำเมื่อกลับมาหน้าเดิม |
-| บัญชีนี้ยังไม่ได้รับอนุญาต | ใช้อีเมลที่ได้รับอนุญาต หากยังไม่ได้ให้ผู้ดูแลเพิ่มอีเมลนั้นใน Access policy |
-| หน้า login วนกลับหรือไม่กลับ Dashboard | เปิด URL Dashboard เดิมอีกครั้งในแท็บใหม่; หลัง OTP ควรกลับมาที่ origin `x2telegram-control-plane.pantipa3826.workers.dev` |
-| ปุ่มส่งยังใช้ไม่ได้ | ตรวจว่าทุกบรรทัดเป็น URL ของโพสต์ที่ลงท้ายด้วย `/status/<เลข>` ไม่มีรายการซ้ำ และจำนวนไม่เกิน 50 |
-| URL ถูกปฏิเสธ | ใช้โพสต์สาธารณะรูปแบบ `https://x.com/.../status/<id>` หรือ `https://twitter.com/.../status/<id>` ไม่ใช้หน้าโปรไฟล์ |
-| Workflow จบ `failed` | เปิด GitHub Run link และตรวจผลรายโพสต์ก่อนเริ่มงานใหม่ |
-| ขึ้น `skipped_duplicate` | โพสต์/media นี้ถูกส่งแล้ว ระบบข้ามเพื่อป้องกันการส่งซ้ำ |
-| ไม่พบ media หรืออ่านโพสต์ไม่ได้ | โพสต์อาจ private/ถูกลบ/จำกัดการเข้าถึง หรือไม่มี media ที่รองรับ |
-| ไฟล์เกิน 50 MB | เปิด Large-file mode เฉพาะเมื่อ workflow มีความพร้อมสำหรับไฟล์ขนาดใหญ่ |
+| Telegram Bot API ปกติ | 50 MB ต่อไฟล์ |
+| Telegram Local Bot API (Large-file mode) | 2,000 MB ต่อไฟล์ |
+| MEGA | ขึ้นกับบัญชี/พื้นที่ MEGA และเพดาน downloader 2,000 MB ต่อไฟล์ |
+| Browser ZIP | 2,000 MB ต่อไฟล์ และ 8 GiB รวมต่อ job; artifact เก็บ 7 วัน |
 
-## ใช้ GitHub Actions โดยตรง
+Python ดาวน์โหลด media หนึ่งครั้งแล้ว dispatch ไปยังปลายทางที่เลือก. เมื่อปลายทางหนึ่งล้มเหลว ปลายทางอื่นยังทำต่อ; Dashboard แสดง `partial_success` เมื่อมีทั้งผลสำเร็จและความล้มเหลว
 
-เป็นทางเลือกสำรอง: เปิด [X2Telegram workflow](https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml), เลือก branch `main`, กด **Run workflow** แล้วใส่ URL เดียวใน `url` หรือหลาย URL ใน `urls` โดยวางหนึ่ง URL ต่อบรรทัด ห้ามกรอกทั้งสองช่องพร้อมกัน ปลายทาง Telegram ยังคงล็อกไว้ที่กลุ่มเดิม
+## 6. งานล่าสุดและการแก้ปัญหา
+
+- Job ล่าสุดเก็บใน local storage ของ browser เครื่องนี้; ใช้ **งานล่าสุด** เพื่อเรียกสถานะกลับหลัง refresh
+- **ยังไม่ได้ยืนยัน Access**: กด **ลงชื่อเข้าใช้**, ทำ OTP แล้วกลับมา Dashboard/refresh
+- **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ URL ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 50 และเลือกอย่างน้อยหนึ่งปลายทาง
+- **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
+- **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน หรือ TOTP setting ใน GitHub Secrets; ห้ามใส่ค่า credential ใน report
+- **Download `download_expired`**: artifact หมดอายุหลัง 7 วัน ให้เริ่ม job ใหม่
+- **Download `download_artifact_size_limit`**: รวมไฟล์เกิน 8 GiB ต่อ job; แบ่ง URL เป็นหลายชุด
+- **Telegram `telegram_file_too_large`**: เปิด Large-file mode เฉพาะเมื่อ Local Bot API credentials ถูกตั้งแล้ว
+- **Workflow `failed`**: เปิด GitHub Run link และดู target/error code ก่อน retry
+- **ไม่มี media / metadata error**: โพสต์อาจ private, ถูกลบ, จำกัดการเข้าถึง หรือไม่มี media ที่รองรับ
+
+## 7. GitHub Actions โดยตรง
+
+เป็นทางเลือกสำรอง: เปิด [X2Telegram workflow](https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml), เลือก branch `main`, กด **Run workflow** แล้วใส่ URL เดี่ยวใน `url` หรือหลายรายการใน `urls` (หนึ่ง URL ต่อบรรทัด). หากตั้งค่า destinations ให้ส่ง JSON array เช่น `["telegram","download"]`; หากไม่ส่ง ค่าเริ่มต้นคือ Telegram. ห้ามกรอก `url` และ `urls` พร้อมกัน
 
 ## ขอบเขตการทดสอบ
 
-ชุดทดสอบอัตโนมัติครอบคลุมการตรวจ Access, การรับ batch, การปฏิเสธ URL ซ้ำ/เกิน 50 รายการ และการ dispatch mock. Live batch run `37816856323` ทดสอบ 2 URLs ใน workflow เดียวและจบสำเร็จ; ทั้งคู่เป็น completed posts จึงถูกข้าม (`sent=0`, `skipped_duplicate=2`, `failed=0`) เพื่อป้องกันการส่งซ้ำ. E2E เดิมยืนยันการส่ง media ใหม่หนึ่งโพสต์; ยังไม่ได้ยืนยันการส่ง fresh media หลายโพสต์ใน batch เดียว
-
-อ่านรายละเอียดระบบใน [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md), [`DASHBOARD_MIGRATION.md`](DASHBOARD_MIGRATION.md) และ [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md).
+ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E เดิมยืนยัน Telegram normal path และ 2-URL batch ที่ข้าม completed posts โดยไม่ส่งซ้ำ; **การเชื่อมบัญชี MEGA จริงยังต้องใช้ secrets ของเจ้าของ และยังไม่ผ่าน live verification**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม

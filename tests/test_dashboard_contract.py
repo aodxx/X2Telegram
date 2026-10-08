@@ -19,9 +19,18 @@ def test_dashboard_checks_authenticated_access_session_before_enabling_submit():
 
 def test_dashboard_accepts_batches_with_a_50_url_ceiling():
     assert "const MAX_BATCH_URLS = 50" in HTML
-    assert "function makeJobPayload(urlList, largeFileMode, requestId)" in HTML
+    assert "function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations())" in HTML
     assert "if (urlList.length === 1) payload.url = urlList[0]" in HTML
     assert "else payload.urls = urlList" in HTML
-    assert "makeJobPayload(r.validLines, $('largeMode').checked, requestId)" in HTML
+    assert "makeJobPayload(r.validLines, $('largeMode').checked, requestId, selectedDestinations())" in HTML
     assert "lastReview.validLines.length === lastReview.lines.length" in HTML
     assert "lastReview.overLimit" in HTML
+
+
+def test_dashboard_supports_multiple_destinations_and_browser_zip_download():
+    assert 'id="destTelegram" type="checkbox" checked' in HTML
+    assert 'id="destMega" type="checkbox"' in HTML
+    assert 'id="destDownload" type="checkbox"' in HTML
+    assert "destinations }" in HTML
+    assert "data.download?.url" in HTML
+    assert "Browser download" in HTML

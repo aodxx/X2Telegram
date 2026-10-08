@@ -164,12 +164,11 @@ def test_retry_skips_sent_media_by_content_when_temporary_urls_change(tmp_path: 
     )
     with patch.object(first_processor.downloader, "download", side_effect=make_downloader()):
         first_result = first_processor.process(post)
-    assert first_result.status == ResultStatus.TELEGRAM_ERROR
+    assert first_result.status == ResultStatus.PARTIAL_SUCCESS
     record = store.get("456")
-    assert len(first_result.message_ids) == fail_on - 1
-    assert (record is None and fail_on == 1) or (
-        record is not None and record["completed"] is False and len(record["media"]) == fail_on - 1
-    )
+    assert len(first_result.message_ids) == 2
+    assert record is not None
+    assert record["completed"] is False and len(record["media"]) == 2
 
     retry_metadata = MultiPhotoMetadata(retry_urls)
     retry_telegram = SequencedPhotoTelegram(start_id=300)
@@ -180,7 +179,7 @@ def test_retry_skips_sent_media_by_content_when_temporary_urls_change(tmp_path: 
         retry_result = retry_processor.process(post)
     assert retry_result.status == ResultStatus.SENT
     assert len(retry_result.message_ids) == 3
-    assert retry_telegram.calls == 4 - fail_on
+    assert retry_telegram.calls == 1
     assert retry_metadata.calls == 1
     assert store.get("456")["completed"] is True
     assert len(store.get("456")["media"]) == 3

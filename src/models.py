@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
 from enum import Enum
 
+
 class ResultStatus(str, Enum):
     SENT = "sent"
+    SUCCESS = "success"
+    PARTIAL_SUCCESS = "partial_success"
+    FAILED = "failed"
     NO_MEDIA = "no_media"
     METADATA_ERROR = "metadata_error"
     DOWNLOAD_ERROR = "download_error"
@@ -10,6 +14,7 @@ class ResultStatus(str, Enum):
     SKIPPED = "skipped"
     SKIPPED_DUPLICATE = "skipped_duplicate"
     ERROR = "error"
+
 
 @dataclass
 class MediaItem:
@@ -20,6 +25,7 @@ class MediaItem:
     width: int | None = None
     height: int | None = None
     mime_type: str | None = None
+
 
 @dataclass
 class PostResult:
@@ -33,3 +39,4 @@ class PostResult:
     stage: str | None = None
     error_code: str | None = None
     filenames: list[str] = field(default_factory=list)
+    destinations: dict[str, dict] = field(default_factory=dict)
