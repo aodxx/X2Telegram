@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "posts": {
     "2105840724075798807": {
       "post_id": "2105840724075798807",
@@ -8,7 +8,9 @@
       "message_ids": [
         345
       ],
-      "sent_at": "2026-10-02T07:50:03.238838+00:00"
+      "sent_at": "2026-10-02T07:50:03.238838+00:00",
+      "media": {},
+      "legacy_complete": true
     },
     "2105907520187543794": {
       "post_id": "2105907520187543794",
@@ -17,7 +19,27 @@
       "message_ids": [
         346
       ],
-      "sent_at": "2026-10-02T19:04:10.881868+00:00"
+      "sent_at": "2026-10-02T19:04:10.881868+00:00",
+      "media": {},
+      "legacy_complete": true
+    },
+    "2107508912392171879": {
+      "media": {
+        "91e2b61ce9fbeff7ee4da3881cbf8b011c3e966799b7f986bba47085af4e5b0f": {
+          "kind": "video",
+          "message_id": 347,
+          "filename": "ninmopmn_2107508912392171879_01.mp4",
+          "sent_at": "2026-10-08T16:15:07.972370+00:00"
+        }
+      },
+      "post_id": "2107508912392171879",
+      "username": "ninmopmn",
+      "source_url": "https://x.com/ninmopmn/status/2107508912392171879",
+      "message_ids": [
+        347
+      ],
+      "completed": true,
+      "updated_at": "2026-10-08T16:15:07.981125+00:00"
     }
   }
 }
