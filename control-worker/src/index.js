@@ -110,8 +110,8 @@ function validRequestId(value) {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 }
 
-async function makeJobId(requestId, urls, largeFileMode) {
-  const material = new TextEncoder().encode(`${requestId}\n${urls.join("\n")}\n${largeFileMode ? "1" : "0"}`);
+async function makeJobId(requestId, urls, largeFileMode, destinations) {
+  const material = new TextEncoder().encode(`${requestId}\n${urls.join("\n")}\n${largeFileMode ? "1" : "0"}\n${destinations.join(",")}`);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", material));
   const hex = [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   return `job-${hex.slice(0, 32)}`;
@@ -215,7 +215,7 @@ async function dispatch(request, env, identity) {
   let body;
   try { body = JSON.parse(raw); } catch (_) { return errorResponse(request, env, 400, "invalid_json", "Request body must be valid JSON"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse(request, env, 400, "invalid_request", "Request must be a JSON object");
-  if (Object.keys(body).some((key) => !["url", "urls", "large_file_mode", "request_id"].includes(key))) return errorResponse(request, env, 400, "invalid_request", "Request contains unsupported fields");
+  if (Object.keys(body).some((key) => !["url", "urls", "large_file_mode", "request_id", "destinations"].includes(key))) return errorResponse(request, env, 400, "invalid_request", "Request contains unsupported fields");
   const hasSingleUrl = Object.hasOwn(body, "url");
   const hasUrlList = Object.hasOwn(body, "urls");
   if (hasSingleUrl === hasUrlList) return errorResponse(request, env, 400, "invalid_request", "Provide exactly one of url or urls");
@@ -224,6 +224,12 @@ async function dispatch(request, env, identity) {
   if (rawUrls.length > MAX_BATCH_URLS) return errorResponse(request, env, 400, "too_many_urls", `A batch can contain at most ${MAX_BATCH_URLS} URLs`);
   if (!validRequestId(body.request_id)) return errorResponse(request, env, 400, "invalid_request_id", "request_id is missing or invalid");
   if (body.large_file_mode !== undefined && typeof body.large_file_mode !== "boolean") return errorResponse(request, env, 400, "invalid_large_file_mode", "large_file_mode must be a boolean", body.request_id);
+  const allowedDestinations = ["telegram", "mega", "download"];
+  const rawDestinations = body.destinations === undefined ? ["telegram"] : body.destinations;
+  if (!Array.isArray(rawDestinations) || rawDestinations.length < 1 || rawDestinations.length > allowedDestinations.length || rawDestinations.some((item) => typeof item !== "string" || !allowedDestinations.includes(item)) || new Set(rawDestinations).size !== rawDestinations.length) {
+    return errorResponse(request, env, 400, "invalid_destinations", "Select one or more supported destinations", body.request_id);
+  }
+  const destinations = allowedDestinations.filter((item) => rawDestinations.includes(item));
   const normalizedUrls = [];
   const postIds = new Set();
   for (const value of rawUrls) {
@@ -234,7 +240,7 @@ async function dispatch(request, env, identity) {
     normalizedUrls.push(normalized.url);
   }
   const largeFileMode = body.large_file_mode === true;
-  const jobId = await makeJobId(body.request_id, normalizedUrls, largeFileMode);
+  const jobId = await makeJobId(body.request_id, normalizedUrls, largeFileMode, destinations);
   let runs;
   try { runs = await workflowRuns(env); } catch (_) { return errorResponse(request, env, 502, "github_read_failed", "Could not check existing workflow jobs", body.request_id); }
   const existing = findRunForJob(runs, jobId);
@@ -249,6 +255,7 @@ async function dispatch(request, env, identity) {
         inputs: {
           ...(normalizedUrls.length === 1 ? { url: normalizedUrls[0] } : { urls: normalizedUrls.join("\n") }),
           large_file_mode: String(largeFileMode),
+          destinations: JSON.stringify(destinations),
           request_id: body.request_id,
           job_id: jobId,
         },
@@ -257,15 +264,20 @@ async function dispatch(request, env, identity) {
   } catch (_) { return errorResponse(request, env, 502, "github_dispatch_failed", "GitHub Actions could not accept the job", body.request_id); }
   const now = new Date().toISOString();
   return json({
-    job_id: jobId, request_id: body.request_id, url_count: normalizedUrls.length, state: "accepted", created_at: now, updated_at: now,
+    job_id: jobId, request_id: body.request_id, url_count: normalizedUrls.length, destinations, state: "accepted", created_at: now, updated_at: now,
     progress: { phase: "queued", percent: 0 }, result: null, error: null, telegram: null, duplicate: false,
   }, 202, request, env);
 }
 
-async function downloadArtifact(env, runId) {
+async function runArtifacts(env, runId) {
   const data = await github(env, `/repos/${encodeURIComponent(env.GH_OWNER)}/${encodeURIComponent(env.GH_REPO)}/actions/runs/${encodeURIComponent(String(runId))}/artifacts?per_page=100`);
+  return Array.isArray(data?.artifacts) ? data.artifacts : [];
+}
+
+async function downloadArtifact(env, runId) {
+  const artifacts = await runArtifacts(env, runId);
   const artifactName = `x2telegram-dashboard-report-${runId}`;
-  const artifact = (data?.artifacts || []).find((item) => item.name === artifactName && !item.expired);
+  const artifact = artifacts.find((item) => item.name === artifactName && !item.expired);
   if (!artifact) return null;
   const apiUrl = `https://api.github.com/repos/${encodeURIComponent(env.GH_OWNER)}/${encodeURIComponent(env.GH_REPO)}/actions/artifacts/${encodeURIComponent(String(artifact.id))}/zip`;
   const first = await fetch(apiUrl, { redirect: "manual", headers: {
@@ -287,6 +299,62 @@ async function downloadArtifact(env, runId) {
   return report;
 }
 
+function downloadFileCount(report) {
+  if (!Array.isArray(report?.selected_destinations) || !report.selected_destinations.includes("download")) return 0;
+  return (report.results || []).reduce((total, post) => {
+    const items = post?.destinations?.download?.items;
+    return total + (Array.isArray(items) ? items.filter((item) => item?.status === "ready").length : 0);
+  }, 0);
+}
+
+async function mediaArtifactForRun(env, runId) {
+  const artifacts = await runArtifacts(env, runId);
+  return artifacts.find((item) => item.name === `x2telegram-media-${runId}`) || null;
+}
+
+function markDownloadArtifactFailure(report, code, message) {
+  if (!report || !Array.isArray(report.results)) return report;
+  const results = report.results.map((post) => {
+    const destination = post?.destinations?.download;
+    if (!destination || !Array.isArray(destination.items)) return post;
+    let changed = false;
+    const items = destination.items.map((item) => {
+      if (item?.status !== "ready") return item;
+      changed = true;
+      return { ...item, status: "failed", error_code: code, error: message };
+    });
+    if (!changed) return post;
+    const destinations = { ...post.destinations, download: { ...destination, status: "failed", error_code: code, error: message, items } };
+    const otherDelivered = Object.entries(destinations).some(([name, value]) =>
+      name !== "download" && ["success", "ready", "duplicate", "partial_success"].includes(value?.status)
+    );
+    return { ...post, status: otherDelivered ? "partial_success" : "failed", error_code: code, error: message, destinations };
+  });
+  const destinationCounts = {};
+  for (const post of results) {
+    for (const [name, value] of Object.entries(post?.destinations || {})) {
+      const counts = destinationCounts[name] || (destinationCounts[name] = {});
+      const status = String(value?.status || "failed");
+      counts[status] = (counts[status] || 0) + 1;
+    }
+  }
+  const statuses = results.map((post) => post?.status);
+  const failedStatuses = new Set(["metadata_error", "download_error", "telegram_error", "error", "failed", "partial_success"]);
+  const updatedSummary = {
+    ...(report.summary || {}),
+    total: results.length,
+    sent: statuses.filter((status) => ["sent", "success", "partial_success"].includes(status)).length,
+    skipped_duplicate: statuses.filter((status) => status === "skipped_duplicate").length,
+    no_media: statuses.filter((status) => status === "no_media").length,
+    failed: statuses.filter((status) => failedStatuses.has(status)).length,
+    destinations: destinationCounts,
+  };
+  const delivered = results.some((post) => Object.values(post?.destinations || {}).some((value) =>
+    ["success", "ready", "duplicate", "partial_success"].includes(value?.status)
+  ));
+  return { ...report, status: delivered ? "partial_success" : "completed_with_errors", summary: updatedSummary, results };
+}
+
 async function jobPayload(run, jobId, requestId, env, duplicate = false) {
   const completed = run.status === "completed";
   const success = completed && run.conclusion === "success";
@@ -295,16 +363,42 @@ async function jobPayload(run, jobId, requestId, env, duplicate = false) {
   if (completed) {
     try { report = await downloadArtifact(env, run.id); } catch (_) { report = null; }
   }
+  let download = null;
+  const fileCount = downloadFileCount(report);
+  if (completed && fileCount > 0) {
+    try {
+      const artifact = await mediaArtifactForRun(env, run.id);
+      if (artifact && !artifact.expired) download = { available: true, status: "ready", url: `/jobs/${encodeURIComponent(jobId)}/download`, file_count: fileCount, expires_at: artifact.expires_at || null };
+      else if (artifact?.expired) {
+        download = { available: false, status: "expired", error_code: "download_expired", file_count: fileCount, expires_at: artifact.expires_at || null };
+        report = markDownloadArtifactFailure(report, "download_expired", "The browser download artifact has expired. Start a new job to create it again.");
+      } else {
+        download = { available: false, status: "unavailable", error_code: "download_artifact_missing", file_count: fileCount };
+        report = markDownloadArtifactFailure(report, "download_artifact_missing", "The browser download artifact could not be created. Start a new job to retry it.");
+      }
+    } catch (_) {
+      download = { available: false, status: "checking", file_count: fileCount };
+    }
+  }
+  const hasDeliveredDestination = (report?.results || []).some((post) =>
+    Object.values(post?.destinations || {}).some((destination) => ["success", "ready", "duplicate", "partial_success"].includes(destination?.status))
+  );
+  const effectiveState = completed && hasDeliveredDestination ? "completed" : completed && report?.status === "completed_with_errors" ? "failed" : state;
   const allMessageIds = (report?.results || []).flatMap((item) => Array.isArray(item.message_ids) ? item.message_ids : []);
   return {
     job_id: jobId,
     request_id: requestId,
-    state,
+    state: effectiveState,
     created_at: run.created_at || null,
     updated_at: run.updated_at || run.run_started_at || run.created_at || null,
     progress: { phase: completed ? "completed" : state === "accepted" ? "queued" : "running", percent: completed ? 100 : state === "accepted" ? 0 : 50 },
     result: report,
-    error: completed && !success ? { code: run.conclusion || "workflow_failed", message: report?.error || "GitHub Actions did not complete successfully" } : null,
+    error: effectiveState === "failed" ? {
+      code: run.conclusion && run.conclusion !== "success" ? run.conclusion : "destinations_failed",
+      message: report?.error || (report?.status === "completed_with_errors" ? "All requested destinations failed" : "GitHub Actions did not complete successfully"),
+    } : null,
+    destinations: report?.selected_destinations || null,
+    download,
     telegram: allMessageIds.length ? { message_ids: allMessageIds, count: allMessageIds.length } : null,
     run_id: String(run.id), conclusion: run.conclusion || null, html_url: run.html_url || null,
     duplicate,
@@ -320,6 +414,51 @@ async function getJob(request, env, jobId) {
   if (!run) return errorResponse(request, env, 404, "job_not_found", "Workflow job was not found");
   const requestId = runTitle(run).split(" ")[1] || null;
   return json(await jobPayload(run, jobId, requestId, env), 200, request, env);
+}
+
+async function downloadJobMedia(request, env, jobId) {
+  if (githubConfigError(env)) return errorResponse(request, env, 503, "backend_not_configured", "Control Worker is missing server configuration");
+  if (!/^job-[a-f0-9]{32}$/.test(jobId)) return errorResponse(request, env, 400, "invalid_job_id", "job_id is invalid");
+  let runs;
+  try { runs = await workflowRuns(env); } catch (_) { return errorResponse(request, env, 502, "github_read_failed", "Could not read workflow status"); }
+  const run = findRunForJob(runs, jobId);
+  if (!run) return errorResponse(request, env, 404, "job_not_found", "Workflow job was not found");
+  if (run.status !== "completed") return errorResponse(request, env, 409, "download_not_ready", "Media download is available after the workflow completes");
+
+  let report;
+  try { report = await downloadArtifact(env, run.id); } catch (_) { return errorResponse(request, env, 502, "report_unavailable", "Could not verify the media download artifact"); }
+  if (downloadFileCount(report) < 1) return errorResponse(request, env, 404, "download_unavailable", "No browser-download files were produced for this job");
+
+  let artifact;
+  try { artifact = await mediaArtifactForRun(env, run.id); } catch (_) { return errorResponse(request, env, 502, "artifact_lookup_failed", "Could not locate the media download artifact"); }
+  if (!artifact) return errorResponse(request, env, 404, "download_artifact_missing", "The media download artifact is unavailable");
+  if (artifact.expired) return errorResponse(request, env, 404, "download_expired", "The media download has expired");
+
+  const artifactUrl = `https://api.github.com/repos/${encodeURIComponent(env.GH_OWNER)}/${encodeURIComponent(env.GH_REPO)}/actions/artifacts/${encodeURIComponent(String(artifact.id))}/zip`;
+  try {
+    const redirect = await fetch(artifactUrl, { redirect: "manual", headers: {
+      Accept: "application/vnd.github+json", Authorization: `Bearer ${env.GH_TOKEN}`,
+      "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "X2Telegram-Control-Worker",
+    } });
+    if (redirect.status === 410) return errorResponse(request, env, 404, "download_expired", "The media download has expired");
+    const location = redirect.headers.get("Location");
+    if (redirect.status !== 302 || !location) throw new Error("artifact_redirect_missing");
+    const signedUrl = new URL(location);
+    if (signedUrl.protocol !== "https:" || signedUrl.username || signedUrl.password) throw new Error("artifact_redirect_invalid");
+    const upstream = await fetch(signedUrl.toString(), { redirect: "follow" });
+    if (!upstream.ok || !upstream.body) throw new Error("artifact_download_failed");
+    const headers = new Headers({
+      "Content-Type": "application/zip",
+      "Content-Disposition": `attachment; filename="x2telegram-${jobId}.zip"`,
+      "Cache-Control": "private, no-store, max-age=0",
+      "X-Content-Type-Options": "nosniff",
+    });
+    const contentLength = upstream.headers.get("Content-Length");
+    if (contentLength && /^\d+$/.test(contentLength)) headers.set("Content-Length", contentLength);
+    return new Response(upstream.body, { status: 200, headers });
+  } catch (_) {
+    return errorResponse(request, env, 502, "artifact_download_failed", "Could not download the media archive");
+  }
 }
 
 export default {
@@ -338,6 +477,8 @@ export default {
     if (!identity.ok) return errorResponse(request, env, identity.status, identity.code, identity.message);
     if (request.method === "GET" && url.pathname === "/auth/check") return json({ status: "ok", authenticated: true }, 200, request, env);
     if (request.method === "POST" && url.pathname === "/jobs") return dispatch(request, env, identity);
+    const downloadMatch = url.pathname.match(/^\/jobs\/([^/]+)\/download$/);
+    if (request.method === "GET" && downloadMatch) return downloadJobMedia(request, env, decodeURIComponent(downloadMatch[1]));
     const match = url.pathname.match(/^\/jobs\/([^/]+)$/);
     if (request.method === "GET" && match) return getJob(request, env, decodeURIComponent(match[1]));
     if ((request.method === "GET" || request.method === "HEAD") && env.ASSETS?.fetch) return env.ASSETS.fetch(request);

@@ -8,13 +8,9 @@ from typing import Iterator
 
 
 class DedupeStore:
-    """Atomic local state for completed posts and individually delivered media.
+    """Atomic per-post/media/destination checkpoints with v1/v2 read compatibility."""
 
-    Version 1 records are migrated in memory: completed legacy posts remain
-    whole-post duplicates, while new records checkpoint each media fingerprint.
-    """
-
-    VERSION = 2
+    VERSION = 3
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -33,7 +29,7 @@ class DedupeStore:
             raise RuntimeError(f"Dedupe state is unreadable: {exc}") from exc
         version = payload.get("version") if isinstance(payload, dict) else None
         posts = payload.get("posts") if isinstance(payload, dict) else None
-        if version not in {1, self.VERSION} or not isinstance(posts, dict):
+        if version not in {1, 2, self.VERSION} or not isinstance(posts, dict):
             raise RuntimeError("Dedupe state has an unsupported schema")
         if version == 1:
             migrated = {}
@@ -46,6 +42,8 @@ class DedupeStore:
                     record["legacy_complete"] = True
                 migrated[key] = record
             return {"version": self.VERSION, "posts": migrated}
+        if version == 2:
+            return {"version": self.VERSION, "posts": posts}
         return payload
 
     @contextmanager
@@ -89,6 +87,54 @@ class DedupeStore:
             return None
         return (record.get("media") or {}).get(fingerprint)
 
+    def get_destination(self, key: str, fingerprint: str, destination: str) -> dict | None:
+        media = self.get_media(key, fingerprint)
+        if not media:
+            return None
+        delivered = (media.get("destinations") or {}).get(destination)
+        if isinstance(delivered, dict) and delivered.get("status") == "success":
+            return delivered
+        # State v2 stored Telegram fields directly on the media record.
+        if destination == "telegram" and isinstance(media.get("message_id"), int):
+            return {"status": "success", "message_id": media["message_id"], "filename": media.get("filename")}
+        return None
+
+    def mark_destination_sent(
+        self,
+        key: str,
+        fingerprint: str,
+        *,
+        destination: str,
+        post_id: str | None,
+        username: str | None,
+        source_url: str,
+        kind: str,
+        filename: str,
+        details: dict | None = None,
+    ) -> None:
+        if destination not in {"telegram", "mega"}:
+            raise ValueError("Only persistent destinations can be checkpointed")
+        with self._locked():
+            payload = self._load()
+            record = payload["posts"].setdefault(key, {"media": {}})
+            record.update({"post_id": post_id, "username": username, "source_url": source_url})
+            media = record.setdefault("media", {}).setdefault(fingerprint, {"kind": kind, "filename": filename})
+            delivered = {"status": "success", "filename": filename,
+                         "delivered_at": datetime.now(timezone.utc).isoformat()}
+            delivered.update(details or {})
+            media.setdefault("destinations", {})[destination] = delivered
+            # Retain the legacy v2 fields for Telegram report/backward compatibility.
+            if destination == "telegram" and isinstance(delivered.get("message_id"), int):
+                media.update({"message_id": delivered["message_id"], "filename": filename,
+                              "sent_at": delivered["delivered_at"]})
+            record["message_ids"] = [
+                int(item["message_id"]) for item in record["media"].values()
+                if isinstance(item, dict) and isinstance(item.get("message_id"), int)
+            ]
+            record["completed"] = False
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save(payload)
+
     def mark_media_sent(
         self,
         key: str,
@@ -101,24 +147,11 @@ class DedupeStore:
         message_id: int,
         filename: str,
     ) -> None:
-        with self._locked():
-            payload = self._load()
-            record = payload["posts"].setdefault(key, {"media": {}})
-            record.update({"post_id": post_id, "username": username, "source_url": source_url})
-            media = record.setdefault("media", {})
-            media[fingerprint] = {
-                "kind": kind,
-                "message_id": int(message_id),
-                "filename": filename,
-                "sent_at": datetime.now(timezone.utc).isoformat(),
-            }
-            record["message_ids"] = [
-                int(item["message_id"]) for item in media.values()
-                if isinstance(item, dict) and isinstance(item.get("message_id"), int)
-            ]
-            record["completed"] = False
-            record["updated_at"] = datetime.now(timezone.utc).isoformat()
-            self._save(payload)
+        """Compatibility helper for existing callers/tests; records Telegram delivery."""
+        self.mark_destination_sent(
+            key, fingerprint, destination="telegram", post_id=post_id, username=username,
+            source_url=source_url, kind=kind, filename=filename, details={"message_id": int(message_id)},
+        )
 
     def mark_complete(self, key: str) -> None:
         with self._locked():

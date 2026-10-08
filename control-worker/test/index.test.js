@@ -28,6 +28,8 @@ let failDispatch = false;
 let dispatches = [];
 let artifactReport = null;
 let artifactRunId = "123";
+let requestSerial = 0;
+let omitMediaArtifact = false;
 
 function b64url(value) {
   return Buffer.from(value).toString("base64url");
@@ -50,7 +52,11 @@ function accessJwt(email = "owner@example.com", overrides = {}) {
 function request(path, { method = "GET", body, authenticated = true, headers = {} } = {}) {
   const actualHeaders = new Headers(headers);
   if (!actualHeaders.has("Origin")) actualHeaders.set("Origin", ENV.DASHBOARD_ORIGIN);
-  if (authenticated) actualHeaders.set("Cf-Access-Jwt-Assertion", accessJwt());
+  if (authenticated) {
+    const email = `unit-${++requestSerial}@example.com`;
+    ENV.ACCESS_ALLOWED_EMAIL = email;
+    actualHeaders.set("Cf-Access-Jwt-Assertion", accessJwt(email));
+  }
   if (body !== undefined) actualHeaders.set("Content-Type", "application/json");
   return new Request(`https://worker.test${path}`, {
     method, headers: actualHeaders, body: body === undefined ? undefined : typeof body === "string" ? body : JSON.stringify(body),
@@ -74,21 +80,27 @@ before(() => {
         return new Response(null, { status: 204 });
       }
       if (path.endsWith(`/actions/runs/${artifactRunId}/artifacts`)) {
-        return Response.json({ artifacts: [{ id: "artifact-1", name: `x2telegram-dashboard-report-${artifactRunId}`, expired: false }] });
+        const artifacts = [{ id: "artifact-1", name: `x2telegram-dashboard-report-${artifactRunId}`, expired: false }];
+        if (!omitMediaArtifact && artifactReport?.selected_destinations?.includes("download")) artifacts.push({ id: "artifact-media", name: `x2telegram-media-${artifactRunId}`, expired: false, size_in_bytes: 4 });
+        return Response.json({ artifacts });
       }
       if (path.endsWith("/actions/artifacts/artifact-1/zip")) {
         return new Response(null, { status: 302, headers: { Location: "https://blob.test/report.zip" } });
+      }
+      if (path.endsWith("/actions/artifacts/artifact-media/zip")) {
+        return new Response(null, { status: 302, headers: { Location: "https://blob.test/media.zip" } });
       }
     }
     if (url === "https://blob.test/report.zip" && artifactReport) {
       return new Response(zipSync({ "dashboard-report.json": strToU8(JSON.stringify(artifactReport)) }));
     }
+    if (url === "https://blob.test/media.zip" && artifactReport) return new Response(new Uint8Array([80, 75, 3, 4]));
     return Response.json({ message: "unexpected mocked request" }, { status: 500 });
   };
 });
 
 after(() => { globalThis.fetch = originalFetch; });
-beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; });
+beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; omitMediaArtifact = false; });
 
 test("health is public and does not expose credentials", async () => {
   const response = await worker.fetch(new Request("https://worker.test/health"), ENV);
@@ -144,6 +156,8 @@ test("oversized declared body is rejected before reading or dispatch", async () 
 });
 
 test("oversized streamed body without Content-Length is cancelled before dispatch", async () => {
+  const email = "oversized-stream@example.com";
+  ENV.ACCESS_ALLOWED_EMAIL = email;
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode("x".repeat(17000)));
@@ -155,7 +169,7 @@ test("oversized streamed body without Content-Length is cancelled before dispatc
     headers: {
       Origin: ENV.DASHBOARD_ORIGIN,
       "Content-Type": "application/json",
-      "Cf-Access-Jwt-Assertion": accessJwt(),
+      "Cf-Access-Jwt-Assertion": accessJwt(email),
     },
     body: stream,
     duplex: "half",
@@ -217,9 +231,29 @@ test("valid request dispatches a single URL input and returns a stable job ID", 
   assert.equal(dispatches.length, 1);
   assert.deepEqual(dispatches[0].inputs, {
     url: "https://x.com/person/status/123", large_file_mode: "false",
+    destinations: '["telegram"]',
     request_id: "test-submit-1", job_id: data.job_id,
   });
   assert.equal(Object.hasOwn(dispatches[0].inputs, "urls"), false);
+});
+
+test("multi-destination request is validated and dispatched as one JSON workflow input", async () => {
+  const body = { url: "https://x.com/person/status/123", destinations: ["mega", "telegram", "download"], request_id: "multi-target-1" };
+  const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 202);
+  assert.deepEqual(data.destinations, ["telegram", "mega", "download"]);
+  assert.equal(dispatches.length, 1);
+  assert.equal(dispatches[0].inputs.destinations, '["telegram","mega","download"]');
+});
+
+test("empty, duplicate, or unsupported destinations are rejected before dispatch", async () => {
+  for (const destinations of [[], ["telegram", "telegram"], ["gdrive"]]) {
+    const response = await worker.fetch(request("/jobs", { method: "POST", body: { url: "https://x.com/u/status/1", destinations, request_id: `bad-${dispatches.length}` } }), ENV);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error.code, "invalid_destinations");
+  }
+  assert.equal(dispatches.length, 0);
 });
 
 test("batch request dispatches up to 50 URLs in one workflow run", async () => {
@@ -251,6 +285,17 @@ test("same request and changed payload return idempotency conflict", async () =>
   const response = await worker.fetch(request("/jobs", { method: "POST", body: { url: "https://x.com/u/status/2", request_id: "same-key" } }), ENV);
   assert.equal(response.status, 409);
   assert.equal((await response.json()).error.code, "idempotency_conflict");
+  assert.equal(dispatches.length, 1);
+});
+
+test("same URL and request ID with changed destinations is an idempotency conflict", async () => {
+  const body = { url: "https://x.com/u/status/1", request_id: "destination-conflict" };
+  const first = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const jobId = (await first.json()).job_id;
+  githubRuns = [run("12", `X2Telegram destination-conflict ${jobId}`)];
+  const changed = await worker.fetch(request("/jobs", { method: "POST", body: { ...body, destinations: ["mega"] } }), ENV);
+  assert.equal(changed.status, 409);
+  assert.equal((await changed.json()).error.code, "idempotency_conflict");
   assert.equal(dispatches.length, 1);
 });
 
@@ -287,6 +332,52 @@ test("status endpoint reads workflow state and a sanitized report artifact", asy
   assert.equal(data.state, "completed");
   assert.equal(data.result.summary.sent, 1);
   assert.deepEqual(data.telegram, { message_ids: [42], count: 1 });
+});
+
+test("partial destination delivery remains completed when another target failed", async () => {
+  const jobId = "job-0123456789abcdef0123456789abcdef";
+  artifactReport = { status: "partial_success", selected_destinations: ["telegram", "mega"], results: [{
+    status: "partial_success", destinations: { telegram: { status: "success" }, mega: { status: "failed" } },
+  }] };
+  githubRuns = [run("123", `X2Telegram partial-key ${jobId}`, "completed", "failure")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.state, "completed");
+  assert.equal(data.error, null);
+  assert.deepEqual(data.destinations, ["telegram", "mega"]);
+});
+
+test("browser download endpoint streams only the completed job's private media artifact", async () => {
+  const jobId = "job-0123456789abcdef0123456789abcdef";
+  artifactReport = { selected_destinations: ["download"], results: [{
+    destinations: { download: { status: "ready", items: [{ status: "ready", filename: "user_123_01.mp4" }] } },
+  }] };
+  githubRuns = [run("123", `X2Telegram download-key ${jobId}`, "completed", "success")];
+  const response = await worker.fetch(request(`/jobs/${jobId}/download`), ENV);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/zip");
+  assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0");
+  assert.match(response.headers.get("content-disposition"), /attachment; filename="x2telegram-job-/);
+  assert.deepEqual(Array.from(new Uint8Array(await response.arrayBuffer())), [80, 75, 3, 4]);
+});
+
+test("missing media artifact is reported as a failed Download destination", async () => {
+  const jobId = "job-0123456789abcdef0123456789abcdef";
+  artifactReport = { selected_destinations: ["download"], summary: { total: 1, sent: 1, failed: 0, destinations: { download: { ready: 1 } } }, results: [{
+    status: "success", destinations: { download: { status: "ready", items: [{ status: "ready", filename: "user_123_01.mp4" }] } },
+  }] };
+  omitMediaArtifact = true;
+  githubRuns = [run("123", `X2Telegram missing-artifact ${jobId}`, "completed", "success")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.state, "failed");
+  assert.equal(data.error.code, "destinations_failed");
+  assert.equal(data.download.status, "unavailable");
+  assert.equal(data.result.results[0].destinations.download.status, "failed");
+  assert.equal(data.result.results[0].destinations.download.items[0].error_code, "download_artifact_missing");
+  assert.equal(data.result.summary.destinations.download.failed, 1);
 });
 
 test("CORS is restricted to the configured Dashboard origin", async () => {

@@ -1,36 +1,53 @@
-# GitHub Actions Interface — Zone 2
+# GitHub Actions Interface
 
-## Entry workflow
-
-`.github/workflows/x2telegram.yml` คือ execution entry point เดียวของ X2Telegram. Control Worker จะ dispatch workflow นี้; Python worker ยังคงรับ batch text ผ่าน `INPUT_URLS` และทำงานเหมือนเดิม
+`.github/workflows/x2telegram.yml` เป็น execution workflow หลักเพียง workflow เดียว. Worker ส่ง input ของ job และ Python worker ประมวลผล media หนึ่งครั้งก่อน dispatch ไปยัง destination ที่เลือก
 
 ## `workflow_dispatch` inputs
 
-| Input | Required | Default | Meaning |
+| Input | Required | Default | ความหมาย |
 |---|---:|---|---|
-| `url` | no | empty | URL เดี่ยวจาก Control Plane หรือ manual dispatch |
-| `urls` | no | empty | batch URLs หนึ่งรายการต่อบรรทัดจาก Dashboard หรือ manual dispatch; Dashboard จำกัด 50 URL ต่อ run |
-| `large_file_mode` | yes | `false` | เปิด Local Bot API Server สำหรับไฟล์ใหญ่ |
-| `request_id` | no | empty | correlation/idempotency request ID |
-| `job_id` | no | empty | job identifier ที่ใช้ใน run name และ report |
+| `url` | no | empty | URL เดี่ยว; backward-compatible |
+| `urls` | no | empty | URL หลายรายการ คั่นด้วย newline; Dashboard batch/manual input |
+| `destinations` | no | `['telegram']` | JSON array จาก `telegram`, `mega`, `download` |
+| `large_file_mode` | yes | `false` | ใช้ Local Bot API สำหรับ Telegram ไฟล์ใหญ่เมื่อเลือก Telegram |
+| `request_id` | no | empty | idempotency/correlation key |
+| `job_id` | no | empty | opaque job identifier ใน run title/report |
 
-ต้องส่ง `url` หรือ `urls` อย่างใดอย่างหนึ่งเท่านั้น; เมื่อส่ง `url` จะไม่อนุญาตให้ส่ง `urls` พร้อมกัน Workflow ตรวจเงื่อนไขก่อนเรียก CLI. Manual Run workflow เดิมที่ป้อน `urls` และปล่อย ID ว่างยังทำงานได้
+ส่ง `url` หรือ `urls` อย่างใดอย่างหนึ่งเท่านั้น. Dashboard ส่ง `url` เมื่อมีโพสต์เดียว หรือ `urls` newline-separated เมื่อมีหลายโพสต์; destinations จะส่งเป็น JSON array. หาก manual dispatch ไม่ระบุ destination ระบบ default เป็น Telegram
 
-สำหรับ Control Worker, ส่ง `url` เมื่อ batch มีรายการเดียว หรือส่ง `urls` newline-separated เมื่อมีหลายรายการ; ทั้งสอง input ห้ามส่งพร้อมกัน. `large_file_mode` ถูกส่งเป็น boolean input; `request_id` เป็น client idempotency key; `job_id` เป็น fingerprinted opaque ID. Workflow run title เป็น `X2Telegram <request_id> <job_id>` เพื่อให้ Worker ค้นหาและตรวจ ID ใช้ซ้ำกับ payload อื่นได้โดยไม่เพิ่ม database
+ตัวอย่างเลือก Telegram+Download:
 
-รายงาน `report.json` เพิ่ม `job_id` และ sanitized report allow-list เพิ่ม `job_id` ที่ผ่านการตรวจรูปแบบ; `request_id` และ `run_id` เดิมคงไว้
+```json
+["telegram", "download"]
+```
 
-## Security / permissions
+ค่า destinations ที่ว่าง, ซ้ำ หรือไม่อยู่ใน allowlist ถูกปฏิเสธใน Worker/Python validation. การเปลี่ยน destinations ขณะใช้ `request_id` เดิมถือเป็น payload เปลี่ยนและได้ idempotency conflict
 
-- Workflow ไม่รับ secret ผ่าน input
-- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `ALERT_WEBHOOK_URL` ยังคงมาจาก GitHub Actions Secrets
-- `TELEGRAM_CHAT_ID` ยังคงกำหนดตายตัว
-- workflow ใช้ `contents: write` ที่ระดับ workflow เพราะ step persist `state/dedupe.json` commit กลับ branch; การแยก permission ให้แคบกว่านี้ยังต้องทบทวนกับ GitHub Actions token scope และผลต่อ persist state ก่อนปรับ
-- GitHub credential ที่ Control Worker ใช้ dispatch/read status/report เป็น credential ฝั่ง server; ไม่ส่งลง input และไม่มีการเปลี่ยน workflow ไปใช้ user token
+## Runtime และ secrets
 
-## Tests / evidence
+| Secret | ใช้เมื่อ |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | เลือก Telegram |
+| `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` | Telegram Large-file mode |
+| `MEGA_EMAIL`, `MEGA_PASSWORD` | เลือก MEGA |
+| `MEGA_TOTP_SECRET` | บัญชี MEGA เปิด TOTP/MFA |
+| `ALERT_WEBHOOK_URL` | ตั้งค่า alert เพิ่มเติม |
 
-- `tests/test_dashboard_report.py` ยืนยัน `job_id` อยู่ใน CLI report และ sanitized report
-- `npm test --prefix control-worker` ตรวจ mapping input/request → dispatch โดย mock GitHub API (Zone 3)
-- `.github/workflows/x2telegram.yml` รัน Python tests และ Control Worker tests ใน CI
-- ยังไม่ได้เรียก `workflow_dispatch` จริงใน Zone 2–5 เพราะต้อง trigger execution plane ที่อาจส่ง media ไปยัง Telegram; จึงไม่ทำ destructive/side-effecting test ใน audit รอบนี้
+`TELEGRAM_CHAT_ID` ถูกกำหนดใน workflow; ไม่มี secret ส่งจาก frontend. MEGAcmd setup ทำเฉพาะเมื่อเลือก MEGA และความล้มเหลวของ installation/login/upload อยู่ใน destination result เพื่อให้ target อื่นทำงานต่อ. Download files ถูก upload เป็น private Actions artifact 7 วัน (ต่อ job รวมไม่เกิน 8 GiB)
+
+## Process stages
+
+1. Checkout และติดตั้ง Python dependencies
+2. รัน Python และ Worker regression tests
+3. ติดตั้ง MEGAcmd เมื่อเลือก MEGA; เริ่ม Local Bot API เฉพาะเมื่อเปิด Large-file mode+เลือก Telegram
+4. Normalize `url`/`urls`, ส่ง input ไป Python CLI พร้อม `DESTINATIONS_JSON`
+5. ประมวลผล media; download/validate หนึ่งครั้งและ dispatch local file ไปทุก target ที่เลือก
+6. Persist dedupe state v3; target ที่สำเร็จแล้วถูกข้ามในการ retry
+7. สร้าง sanitized report; upload private dashboard report และ optional media ZIP artifact; ปิด destination sessions
+
+## Permissions and evidence
+
+- Workflow ใช้ `contents: write` สำหรับ persist `state/dedupe.json`; GitHub credential ที่ Control Worker ใช้ dispatch/read status ไม่ถูกส่งเป็น workflow input
+- Secrets อยู่ใน GitHub Actions Secrets; ห้ามพิมพ์ค่าใน workflow input/log/source
+- Python tests ใช้ fakes สำหรับ destination uploads และ Worker tests mock GitHub/JWKS, report artifacts และ ZIP stream
+- Live Telegram normal-path/batch evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md); live MEGA path ต้องมี secret ของบัญชี MEGA ก่อนจึงจะตรวจจริงได้

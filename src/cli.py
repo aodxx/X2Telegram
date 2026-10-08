@@ -9,13 +9,31 @@ import time
 
 from .config import Config
 from .dedupe import DedupeStore
+from .destinations import DestinationError, DownloadExporter, MegaUploader
 from .logging_utils import configure_logging, log_event, redact
 from .metadata import YtDlpMetadataProvider
 from .models import ResultStatus
 from .notifications import NotificationError, send_webhook, write_github_summary
 from .processor import PostProcessor
-from .telegram_api import TelegramClient
+from .telegram_api import REQUIRED_CHAT_ID, TelegramClient
 from .urls import parse_batch
+
+
+class _UnavailableTelegram:
+    def __init__(self, code: str, message: str):
+        self.error = DestinationError(code, message)
+
+    def _raise(self):
+        raise self.error
+
+    def send_video(self, path, caption):
+        self._raise()
+
+    def send_photo(self, path, caption):
+        self._raise()
+
+    def send_document(self, path, caption):
+        self._raise()
 
 
 def _write_report(payload: dict, path: str) -> str:
@@ -29,20 +47,64 @@ def _write_report(payload: dict, path: str) -> str:
 
 
 def build_summary(results: list[dict]) -> dict:
-    """Aggregate per-post statuses for dashboards. Pure and additive."""
-    failed = {"metadata_error", "download_error", "telegram_error", "error"}
+    """Aggregate post-level and per-destination statuses for dashboards."""
+    failed_statuses = {"metadata_error", "download_error", "telegram_error", "error", "failed", "partial_success"}
     statuses = [item.get("status") for item in results]
-    return {
+    per_destination: dict[str, dict[str, int]] = {}
+    for item in results:
+        for destination, details in (item.get("destinations") or {}).items():
+            if not isinstance(details, dict):
+                continue
+            target_counts = per_destination.setdefault(destination, {})
+            status = str(details.get("status", "unknown"))
+            target_counts[status] = target_counts.get(status, 0) + 1
+    summary = {
         "total": len(results),
-        "sent": statuses.count("sent"),
+        "sent": sum(1 for status in statuses if status in {"sent", "success", "partial_success"}),
         "skipped_duplicate": statuses.count("skipped_duplicate"),
         "no_media": statuses.count("no_media"),
-        "failed": sum(1 for status in statuses if status in failed),
+        "failed": sum(1 for status in statuses if status in failed_statuses),
     }
+    if per_destination:
+        summary["destinations"] = per_destination
+    return summary
+
+
+def _create_telegram(config: Config, payload: dict):
+    if "telegram" not in config.destinations:
+        return None
+    if not config.telegram_bot_token:
+        return _UnavailableTelegram("telegram_credentials_missing", "Telegram bot credentials are not configured in GitHub Actions Secrets.")
+    if config.telegram_chat_id != REQUIRED_CHAT_ID:
+        return _UnavailableTelegram("telegram_configuration_error", "Telegram target chat is not configured correctly.")
+    client = TelegramClient(
+        config.telegram_bot_token,
+        config.telegram_chat_id,
+        config.timeout_seconds,
+        config.max_retries,
+        config.telegram_api_base_url,
+    )
+    try:
+        preflight = client.preflight()
+        payload["telegram_preflight"] = {
+            "status": "success",
+            "chat_id": preflight.chat_id,
+            "chat_type": preflight.chat_type,
+            "member_status": preflight.member_status,
+            "can_send_messages": preflight.can_send_messages,
+            "can_send_media": preflight.can_send_media,
+        }
+        return client
+    except Exception:
+        payload["telegram_preflight"] = {"status": "failed", "error_code": "telegram_preflight_failed"}
+        return _UnavailableTelegram(
+            "telegram_preflight_failed",
+            "Telegram preflight failed. Verify the bot, target group, and send permissions.",
+        )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Send public X post media to Telegram")
+    parser = argparse.ArgumentParser(description="Process public X post media to selected destinations")
     parser.add_argument("--parse-only", action="store_true")
     parser.add_argument("--report", default="")
     parser.add_argument("--log", default=os.getenv("LOG_PATH", ""))
@@ -55,7 +117,7 @@ def main() -> int:
     raw = sys.stdin.read()
     posts = parse_batch(raw)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": os.getenv("GITHUB_RUN_ID"),
         "request_id": os.getenv("REQUEST_ID") or None,
         "job_id": os.getenv("JOB_ID") or os.getenv("REQUEST_ID") or None,
@@ -70,40 +132,43 @@ def main() -> int:
     exit_code = 0
     log_event(logger, logging.INFO, "run_started", "run_started", input_count=payload["input_count"], valid_unique_posts=len(posts))
     if args.parse_only:
+        payload["selected_destinations"] = ["telegram"]
         payload["results"] = [
-            {"username": p.username, "post_id": p.post_id, "source_url": p.normalized_url, "status": "ready"}
-            for p in posts
+            {"username": post.username, "post_id": post.post_id, "source_url": post.normalized_url, "status": "ready"}
+            for post in posts
         ]
     else:
+        worker = None
         try:
             config = Config.from_env()
-            telegram = TelegramClient(
-                config.telegram_bot_token,
-                config.telegram_chat_id,
-                config.timeout_seconds,
-                config.max_retries,
-                config.telegram_api_base_url,
-            )
-            preflight = telegram.preflight()
-            payload["telegram_preflight"] = {
-                "chat_id": preflight.chat_id,
-                "chat_type": preflight.chat_type,
-                "member_status": preflight.member_status,
-                "can_send_messages": preflight.can_send_messages,
-                "can_send_media": preflight.can_send_media,
-            }
+            payload["selected_destinations"] = list(config.destinations)
+            telegram = _create_telegram(config, payload)
             dedupe = DedupeStore(args.dedupe_state) if args.dedupe_state else None
-            worker = PostProcessor(config, YtDlpMetadataProvider(config.timeout_seconds), telegram, logger, dedupe)
+            worker = PostProcessor(
+                config,
+                YtDlpMetadataProvider(config.timeout_seconds),
+                telegram,
+                logger,
+                dedupe,
+                MegaUploader(),
+                DownloadExporter(os.getenv("DOWNLOAD_EXPORT_DIR", "")),
+            )
             payload["results"] = [asdict(worker.process(post)) for post in posts]
             for item in payload["results"]:
                 item["status"] = item["status"].value
-            failed = {
-                ResultStatus.METADATA_ERROR.value,
-                ResultStatus.DOWNLOAD_ERROR.value,
-                ResultStatus.TELEGRAM_ERROR.value,
-                ResultStatus.ERROR.value,
-            }
-            if any(item["status"] in failed for item in payload["results"]):
+            any_failure = any(
+                value.get("status") in {"failed", "partial_success"}
+                for item in payload["results"]
+                for value in (item.get("destinations") or {}).values()
+            )
+            any_delivery = any(
+                value.get("status") in {"success", "ready", "duplicate", "partial_success"}
+                for item in payload["results"]
+                for value in (item.get("destinations") or {}).values()
+            )
+            if any_failure and any_delivery:
+                payload["status"] = "partial_success"
+            elif any_failure:
                 payload["status"] = "completed_with_errors"
                 exit_code = 1
         except Exception as exc:
@@ -112,6 +177,9 @@ def main() -> int:
             payload["error"] = str(exc)[:500]
             log_event(logger, logging.ERROR, "run_failed", "run_failed", error=payload["error"])
             exit_code = 1
+        finally:
+            if worker:
+                worker.close()
 
     payload["summary"] = build_summary(payload["results"])
     payload["duration_seconds"] = round(time.monotonic() - started, 3)

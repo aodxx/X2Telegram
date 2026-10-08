@@ -1,72 +1,54 @@
 # X2Telegram
 
-X media to Telegram automation running on GitHub Actions.
+ระบบรับ X post URL แล้วดึง media **หนึ่งครั้ง** เพื่อส่งไฟล์เดียวกันไปยังปลายทางที่ผู้ใช้เลือก โดยใช้ Dashboard ส่วนตัว, Cloudflare Access/Worker และ GitHub Actions
 
-## Goal
-Paste one or many public X post URLs into one GitHub Actions run. The system parses each URL, processes each post independently, and reports results.
+## เลือกปลายทางได้
 
-## Project status
+- **Telegram** — กลุ่มเป้าหมายถูกล็อกไว้ใน workflow; Bot API ปกติไม่เกิน 50 MB ต่อไฟล์, Large-file mode ใช้ Local Bot API (เพดาน 2,000 MB)
+- **MEGA** — อัปโหลดด้วย MEGAcmd ไปยัง `/X2Telegram/YYYY-MM-DD`; ต้องตั้ง `MEGA_EMAIL` และ `MEGA_PASSWORD` ใน GitHub Actions Secrets; `MEGA_TOTP_SECRET` ใช้เฉพาะบัญชีที่เปิด TOTP
+- **ดาวน์โหลด ZIP** — Dashboard ให้ browser รับ media เป็น ZIP ผ่าน Worker แบบ streaming; artifact เป็น private และเก็บ 7 วัน; ขนาดต่อไฟล์ไม่เกิน 2,000 MB และรวมต่อ job ไม่เกิน 8 GiB
 
-See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and private Dashboard migration status.
+เลือกได้หนึ่งหรือหลายปลายทางพร้อมกัน เช่น Telegram+MEGA หรือ Telegram+Download. สถานะและข้อผิดพลาดแสดงแยกตามปลายทาง/ไฟล์; ความล้มเหลวของหนึ่งปลายทางไม่ทำให้ความสำเร็จของอีกปลายทางถูกนับเป็น failure ทั้งหมด
 
-## Principles
-- Simple setup: configure secrets once.
-- Batch input: one URL or many URLs, one per line.
-- Independent processing: one bad URL must not stop the rest.
-- Temporary files only: media is not committed to Git.
-- Secrets stay in GitHub Actions Secrets.
-- Clear per-post result states.
+## ใช้งาน
 
-## Planned flow
-X URLs -> parse -> metadata -> validation -> media selection -> temporary download -> Telegram -> result -> cleanup.
+1. เปิด [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) แล้วลงชื่อเข้าใช้ Cloudflare Access ด้วยอีเมลที่ได้รับอนุญาต
+2. วาง X URL หนึ่งรายการต่อบรรทัด (สูงสุด 50 URL ต่อ job)
+3. เลือก Telegram, MEGA และ/หรือดาวน์โหลด ZIP
+4. กดเริ่มงานหนึ่งครั้ง แล้วติดตามสถานะรายปลายทางใน Dashboard
 
-## Repository layout
-.github/workflows/x2telegram.yml
-src/
-tests/
-docs/
+อ่าน [คู่มือผู้ใช้ภาษาไทย](docs/USER_GUIDE_TH.md) และ [คู่มือปลายทางหลายแบบ](docs/MULTI_DESTINATION.md) สำหรับการตั้งค่าและข้อจำกัด
 
-## Setup and real usage
-1. Create a Telegram bot with `@BotFather`, add it to the target chat, and obtain the bot token.
-2. Add the repository Actions secret `TELEGRAM_BOT_TOKEN`. The workflow is locked to chat `-1003906817580`.
-3. Open **Actions → X2Telegram → Run workflow**, then paste one public X URL per line.
-4. The workflow runs a Telegram preflight, extracts metadata, selects the highest-bitrate video (or photos), downloads to temporary storage, sends to Telegram, deletes the temporary file, and uploads a JSON report plus JSONL execution log as workflow artifacts.
+## Architecture
 
-The default workflow uses the standard Telegram Bot API and limits media to 50 MB. For larger media, enable the manual `large_file_mode` input. That mode requires repository secrets `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`, starts a Telegram Local Bot API Server for the job, and allows up to 2000 MB. The large-file path is intentionally opt-in.
-
-If the optional `ALERT_WEBHOOK_URL` repository secret is configured with an HTTPS webhook, each run sends a redacted summary containing only run status, counts, and duration. The webhook never receives bot tokens, media URLs, captions, or per-post error text.
-
-The workflow also enables duplicate prevention with `state/dedupe.json` v2. Each successfully delivered media item is checkpointed by content fingerprint and Telegram message ID, so a retry after partial failure can skip completed items even when temporary media URLs change. Existing v1 completed-post records remain readable. GitHub Actions concurrency serializes runs that share the state file. Exactly-once delivery is not guaranteed if Telegram accepts a send but the response is lost before the checkpoint is persisted.
-
-Metadata fallback order is `yt-dlp` → X syndication → public FxTwitter API (`https://api.fxtwitter.com/2/status/{post_id}`). The fallback accepts only MP4 variants from the API and preserves required query parameters such as `?tag=12` on direct `video.twimg.com` URLs. Query parameters are stripped only from the source post URL used for lookup.
-
-For local URL validation without sending anything:
-
-```bash
-printf '%s\n' 'https://x.com/user/status/123' | python -m src.cli --parse-only
+```text
+Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
+  → metadata/download/validate once → destination dispatcher → Telegram / MEGA / private ZIP
 ```
 
-For a complete local dry-run before GitHub Actions:
+ไม่เพิ่ม database, Redis, queue หรือ Google Drive; GitHub Actions ยังคงเป็น execution plane และ credentials ไม่อยู่ใน frontend. การรัน manual จาก GitHub Actions ยังคงรองรับ legacy `url` เดี่ยวหรือ `urls` แบบ batch และค่า destination ที่ไม่ส่งจะ default เป็น Telegram
+
+## ความปลอดภัยและ retry
+
+Python บันทึกผลสำเร็จแยกตาม media fingerprint และ Telegram/MEGA destination; retry จึงข้าม target ที่สำเร็จแล้วและลองเฉพาะ target ที่ยังไม่สำเร็จ. Browser ZIP เป็น artifact ของ job และสร้างใหม่ได้จาก job ใหม่. GitHub Actions concurrency ป้องกันงานเขียน dedupe state พร้อมกัน แต่ระบบไม่อ้าง exactly-once เมื่อปลายทางรับไฟล์แล้ว response/checkpoint สูญหาย
+
+ใช้เฉพาะ media ที่คุณมีสิทธิ์ดาวน์โหลดและเผยแพร่ และปฏิบัติตามกฎหมาย/เงื่อนไขของแพลตฟอร์ม. X อาจจำกัดโพสต์หรือ rate-limit ซึ่งรายงานผลแยกต่อรายการ
+
+## ตรวจโค้ดและทดสอบ
 
 ```bash
-scripts/local_test.sh
-scripts/local_test.sh --urls-file urls.txt
+python -m pip install -r requirements.txt
+python -m pip install pytest
+python -m pytest -q
+npm ci --prefix control-worker
+npm test --prefix control-worker
 ```
 
-To verify the Telegram token, target group, bot membership, and permissions without sending a message or media, use:
+Tests ครอบ Telegram-only, MEGA-only, Download-only, การเลือกปลายทางร่วมกัน, isolated failure/retry, Worker validation/idempotency และ protected ZIP route โดยใช้ mocks/fakes; live MEGA ต้องตั้ง secrets ก่อนใช้งานจริง. ดูผลทดสอบและข้อจำกัดได้ใน [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md) และสถานะโครงการใน [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md).
 
-```bash
-TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --preflight
-```
+## ไฟล์เอกสารหลัก
 
-The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
-
-## Private Dashboard (deployed; batch support)
-
-The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The Dashboard accepts up to 50 X post URLs per batch and creates one GitHub Actions run for the batch. Dashboard static assets and API are served on the same Access-protected Worker origin; the GitHub Pages URL redirects there so browsers do not depend on cross-site Access cookies. GitHub Actions remains the execution plane. See the [Thai user guide](docs/USER_GUIDE_TH.md), [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), and [`docs/DASHBOARD_MIGRATION.md`](docs/DASHBOARD_MIGRATION.md).
-
-**Dashboard:** [aodxx.github.io/X2Telegram](https://aodxx.github.io/X2Telegram/) (redirects to the Access-protected Worker-hosted app). It verifies the Access session through `/auth/check`, and supports batches up to 50 URLs. The earlier normal-path E2E delivered one MP4 to the locked Telegram group; automated tests now cover batch validation/dispatch behavior. Live dispatch of a multi-URL batch has not yet been performed. See [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md); the manual Actions flow remains available.
-
-Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
-
-Only use media you are authorized to download and redistribute, and comply with applicable platform terms. X availability and rate limits can change; unresolved public posts are reported as errors rather than retried indefinitely.
+- [`docs/MULTI_DESTINATION.md`](docs/MULTI_DESTINATION.md) — ปลายทาง, MEGA secrets, browser ZIP และ retry
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — การติดตั้ง/ตั้งค่า
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — ภาพรวมระบบ
+- [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md) — Worker API และ idempotency
