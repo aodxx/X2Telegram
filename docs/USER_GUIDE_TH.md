@@ -44,7 +44,7 @@ Dashboard แสดงสถานะแยกตามโพสต์, media �
 4. หากบัญชีใช้ MFA/TOTP ให้เพิ่ม `MEGA_TOTP_SECRET` เป็น seed สำหรับ authenticator; หากไม่ได้ใช้ MFA ให้ไม่ต้องสร้าง secret นี้
 5. กลับ Dashboard แล้วเลือก MEGA
 
-**อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`
+**อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`; หากต้องการเปลี่ยน root ให้เพิ่ม repository variable `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`)
 
 ## 5. ขนาดและพฤติกรรม
 
@@ -76,4 +76,4 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 
 ## ขอบเขตการทดสอบ
 
-ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E เดิมยืนยัน Telegram normal path และ 2-URL batch ที่ข้าม completed posts โดยไม่ส่งซ้ำ; **การเชื่อมบัญชี MEGA จริงยังต้องใช้ secrets ของเจ้าของ และยังไม่ผ่าน live verification**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
+ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend และ Download-only 2 URLs; run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) สร้าง ZIP 2 ไฟล์และทดสอบดาวน์โหลดผ่าน Access/Worker สำเร็จ. **การเชื่อมบัญชี MEGA จริงยังต้องใช้ Actions Secrets ของเจ้าของและยังไม่ผ่าน live verification**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม

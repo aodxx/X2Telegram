@@ -1,82 +1,74 @@
-# Cloudflare Control Worker — Zone 3
+# Cloudflare Control Worker
 
-## สถานะปัจจุบัน (2026-10-09)
+## สถานะ live (2026-10-09)
 
-- Worker `x2telegram-control-plane` deploy แล้วที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
-- Cloudflare Access ครอบ hostname นี้และบังคับ owner-only email OTP (ดู [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md))
-- Worker secret `ACCESS_ALLOWED_EMAIL` ถูกตั้งใน Cloudflare Secret Store; ไม่อยู่ใน source, Dashboard หรือ Git
-- `GH_TOKEN` ถูกตั้งเป็น Worker secret ชนิด `secret_text`; authenticated `GET /health` และ read-only job lookup ผ่าน. Normal-path E2E run #37807253687 dispatch สำเร็จและ report ยืนยันส่งหนึ่ง MP4 (message ID 347); รายละเอียดใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
-- Worker source รุ่น security hardening deploy แล้ว; cross-origin `GET /health` จาก Pages ได้ `200`, invalid URL ถูกปฏิเสธ `400 invalid_url`, และ oversized body 17 KiB ได้ `413 request_too_large` ก่อน live E2E run ที่บันทึกไว้ด้านบน
-- Normal-path E2E ผ่านหนึ่งรายการบน migration branch; Worker ถูกคืน `GH_REF=main` แล้ว. รายงาน: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
-- PR #4 merged; Pages deploy run `37816537609` ผ่าน และ Worker version `9641c2a5-eda8-4eef-b7ba-6667461de2d3` deploy แล้ว. Dashboard เสิร์ฟ assets/API จาก Access-protected origin เดียวกัน, `/auth/check` ผ่าน browser session จริง และ batch submit รองรับสูงสุด 50 URL
-- Live batch run `37816856323` สำเร็จสำหรับ 2 URLs; ทั้งคู่ถูกข้ามด้วย completed dedupe state (`sent=0`, `skipped_duplicate=2`, `failed=0`), จึงไม่มี Telegram send ซ้ำ. ยังไม่ใช่การทดสอบ fresh multi-post media delivery
-- GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
+- Worker `x2telegram-control-plane` ใช้งานที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
+- Version ID ปัจจุบัน: `0a099878-485a-43ef-9097-cf4f44e24373`
+- Source: `main`, commit `389621bab764d15aa7ded722b74a944314693274` (PR #6)
+- Cloudflare Access จำกัด hostname นี้ตาม email owner policy; Dashboard static assets และ API อยู่ origin เดียวกัน
+- Worker-hosted Dashboard แสดง Access session ผ่าน browser จริงและมี destination selectors
+- Live Download-only run #37843359593 ประมวลผล 2 URLs และ browser ดาวน์โหลด ZIP จริงผ่าน protected endpoint; report มี Download 2 files พร้อม ZIP CRC check ผ่าน
+- Live Telegram normal-path run #37807253687 และ Dashboard batch/no-resend run #37816856323 ยังคงเป็นหลักฐาน Telegram/batch ก่อน multi-destination
 
 ## Architecture
 
 ```text
-GitHub Pages redirect → Cloudflare Access + Worker-hosted Dashboard/API → GitHub Actions → Python worker → Telegram
+GitHub Pages URL redirect
+  → Cloudflare Access
+  → Worker static Dashboard + API (same origin)
+  → GitHub Actions workflow_dispatch (one workflow)
+  → Python media processor (download/validate once per media)
+  → Telegram / MEGA / private Actions ZIP artifact
+  → Worker Access-protected ZIP stream → Browser
 ```
 
-Worker ให้บริการ Dashboard static assets จาก `../web` และ API บน origin เดียวกัน; `run_worker_first=true` ทำให้ Worker ตรวจ Access JWT ก่อนเรียก `env.ASSETS.fetch(request)`. Worker ไม่ดาวน์โหลด media ไม่ส่ง Telegram และไม่มี database/Redis/queue. `fflate` ใช้แตก ZIP ของ GitHub Actions report artifact เพื่อคืนเฉพาะ sanitized dashboard report
+Worker ไม่ดาวน์โหลด/แปลง media และไม่เก็บ database/Redis/queue. `fflate` ใช้แตกเฉพาะ sanitized report artifact ที่มีขนาดเล็ก; media ZIP ส่งจาก GitHub artifact แบบ stream โดยไม่ buffer ทั้งก้อนใน Worker
 
 ## Configuration
 
-`wrangler.toml` มี non-secret variables:
+`control-worker/wrangler.toml` กำหนด non-secret values/bindings ได้แก่ GitHub owner/repo/workflow/ref, Dashboard origin, Access team domain/audience และ Static Assets จาก `../web`. Cloudflare secret store มี `ACCESS_ALLOWED_EMAIL` สำหรับ allowlist และ `GH_TOKEN` สำหรับ GitHub Actions API; secret values ไม่อยู่ใน source/Dashboard
 
-- `GH_OWNER=aodxx`
-- `GH_REPO=X2Telegram`
-- `GH_WORKFLOW_ID=x2telegram.yml`
-- `GH_REF=main`
-- `DASHBOARD_ORIGIN=https://x2telegram-control-plane.pantipa3826.workers.dev`
-- `ACCESS_TEAM_DOMAIN=https://falling-sky-a8ee.cloudflareaccess.com`
-- `ACCESS_AUD` — audience ของ Access app ที่ตั้งไว้ใน config
-
-Cloudflare Worker Secrets:
-
-- `ACCESS_ALLOWED_EMAIL` — ตั้งไว้แล้ว; ใช้ตรวจ identity ซ้ำหลัง validate Access JWT
-- `GH_TOKEN` — ตั้งเป็น `secret_text`; ใช้สำหรับ dispatch workflow และอ่าน workflow run/report ใน repository นี้
-
-ห้ามใช้ GitHub CLI app user token (`ghu_…`) เป็น `GH_TOKEN`: token ของ integration เป็น credential สำหรับ session ชั่วคราว ไม่ใช่ secret ระยะยาวสำหรับ Worker. อย่าพิมพ์ token ลง chat หรือ commit ลง Git. เมื่อมี fine-grained PAT ให้เพิ่มผ่าน Cloudflare Worker secret prompt:
+เผยแพร่ source จาก root repo:
 
 ```bash
 cd control-worker
-npx wrangler secret put GH_TOKEN --name x2telegram-control-plane
+npm ci
+npm test
+npx wrangler deploy --config wrangler.toml
 ```
 
-หลังตั้ง secrets ให้รัน local tests และ deploy Worker ตามขั้นตอนของ Wrangler; ใช้ live E2E test matrix ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) เพื่อยืนยันฟังก์ชันที่เกี่ยวข้อง
+การ publish HTML/static assets ใช้ config เดียวกันและ deploy พร้อม Worker source. ตรวจสถานะจาก Dashboard ผ่าน browser ที่ลงชื่อเข้าใช้ Access แล้ว; สำหรับ HTTP liveness ให้ตรวจเฉพาะ status code และไม่พิมพ์ Access redirect location หรือ auth query ลง log
 
 ## Endpoints
 
-| Method/path | Authentication | Behavior |
+| Method/path | Auth | Behavior |
 |---|---|---|
-| `GET /health` | Cloudflare Access ที่ edge | คืน service/status โดยไม่เปิดเผย credential หรือสถานะ upstream |
-| `GET /auth/check` | Cloudflare Access JWT | ตรวจ session จริงก่อน Dashboard เปิดปุ่มส่ง |
-| `POST /jobs` | Cloudflare Access JWT | รับ `url` เดี่ยวหรือ `urls` array 1–50; validate ทุก URL, duplicate, origin, schema, body size และ request ID; ตรวจ run เดิม; dispatch GitHub Actions |
-| `GET /jobs/<job_id>` | Cloudflare Access JWT | ค้น run จาก workflow title, คืนสถานะและ sanitized artifact |
-| `OPTIONS *` | CORS preflight | รับเฉพาะ Dashboard origin; Access application ตอบ preflight ด้วย CORS headers ที่กำหนด |
+| `GET /` และ static assets | Cloudflare Access at edge + Worker JWT identity validation | เสิร์ฟ Dashboard จาก Worker origin; หน้าเว็บและ API ใช้ same-origin |
+| `GET /auth/check` | Access JWT + owner email | ให้ Dashboard ตรวจ session ก่อนเปิดปุ่ม submit |
+| `GET /health` | Cloudflare Access at edge | Liveness only; ไม่แสดง secret หรือยืนยัน upstream readiness |
+| `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–50; validate และ dispatch `destinations` ไปยัง workflow |
+| `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
+| `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |
 
-Worker ตรวจ Access JWT signature RS256 กับ Cloudflare Access JWKS, issuer, audience, `exp`/`nbf`, และ email allowlist. GitHub token อยู่ใน Worker secret เท่านั้น. GitHub errors ถูก sanitize; request body จำกัด 16 KiB โดยอ่าน stream แบบมี hard cap และตอบ `413` เมื่อเกิน; response ใช้ `Cache-Control: no-store`; CORS ไม่ใช้ wildcard
+Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
 
-## Dispatch / idempotency / workflow interface
+## Dispatch และ idempotency
 
-เมื่อได้รับ POST Worker normalize URL list, คำนวณ opaque `job_id` จาก `request_id + ordered normalized URL list + large_file_mode` และค้น run ที่ตรงกับ workflow title `X2Telegram <request_id> <job_id>`. run เดิมถูกคืนแทนการ dispatch ซ้ำ; payload ต่างที่ใช้ request ID ซ้ำแต่พบ run ที่ต่าง job fingerprint จะได้ `409 idempotency_conflict`.
+Request มี `request_id`, URL(s), `large_file_mode` และ optional `destinations`; หาก `destinations` ไม่มีให้ default เป็น Telegram. Worker normalize URL, ปฏิเสธ duplicate post IDs และคำนวณ `job_id` จาก request/payload รวม target list. Request ID เดิมกับ target/URL ที่เปลี่ยนจะเกิด `409 idempotency_conflict`; request เดิมจะคืน run ที่มีอยู่แทน dispatch ซ้ำ
 
-Dashboard Worker ส่ง workflow input `url` เมื่อมีรายการเดียว หรือ `urls` newline-separated เมื่อเป็น batch; ไม่ส่งสองฟิลด์พร้อมกัน. Manual workflow ยังคงรองรับ `urls`. Worker tests ครอบ batch 1–50, duplicate URL rejection และ max-count enforcement; Python `state/dedupe.json` version 2 บันทึก SHA-256 content fingerprint และ Telegram message ID แยกราย media; อ่าน state version 1 ได้และยัง skip completed post เดิม. Downloader ตรวจทุก redirect hop กับ HTTPS/X-media allowlist ก่อนตามต่อ
+Worker ส่ง `url` เมื่อมี URL เดียวหรือ `urls` newline-separated เมื่อเป็น batch, พร้อม `destinations` JSON array และ correlation IDs. Report sanitizer allowlist destinations/statuses/filenames, strip URLs/credential-like strings from errors และไม่คืน raw logs หรือ signed artifact URL
 
-เพราะไม่ใช้ durable store, สอง POST ที่มี request ID/payload เดียวกันพร้อมกันก่อน GitHub API แสดง run อาจ dispatch สอง workflow runs. Workflow concurrency และ per-media state ลดการส่งซ้ำ; ยังรับประกัน exactly-once ไม่ได้หาก Telegram รับ media แล้ว response หายก่อน checkpoint ถูก persist
+## ZIP streaming และ result mapping
 
-## Local tests
+Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, เก็บ 7 วัน และจำกัด total ZIP ที่ 8 GiB/job. Worker เลือก artifact เฉพาะชื่อ/run ที่ match กับ job และ stream `application/zip` พร้อม `Content-Disposition: attachment`. Artifact missing/expired ถูกแสดงเป็น Download target failure ไม่ใช่ ready state เท็จ
 
-```bash
-npm ci --prefix control-worker
-npm test --prefix control-worker
-```
+ผล Job เป็น `completed` ถ้ามีอย่างน้อยหนึ่ง destination success; target ที่ล้มเหลวยังคงรายงาน `failed`/`partial_success`. ถ้าทุก target ล้มเหลว job เป็น `failed`. Media-level statuses และ error codes ผ่าน sanitizer ก่อน Dashboard
 
-Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied identity, invalid/malformed/oversized body, per-isolate rate cap, dispatch mapping, duplicate/conflict, GitHub failure, status/artifact, CORS. Tests ไม่เรียก GitHub จริง, ไม่ dispatch workflow และไม่ส่ง Telegram. Python tests ยังครอบ token redaction, validated redirects และ partial-media retry
+## Tests และ live coverage
 
-## ผลตรวจสอบและขั้นตอนต่อไป
+- Worker: `npm test --prefix control-worker` — **25 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, partial success, ZIP streaming และ missing artifact
+- Python: `python3 -m pytest -q` — **71 passed**, ครอบ per-destination retry/dedupe, MEGA/Download fakes, size limits และ sanitization
+- Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download ผ่าน
+- MEGA account upload, combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; MEGA ต้องมี repository Actions Secrets ตาม [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
 
-1. Deployment, owner Access session check, 1–50 URL UI และ live 2-URL dispatch/no-resend ผ่านแล้ว
-2. ทำ scenarios ที่ยังเหลือตาม [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md): fresh multi-post delivery, multi-photo, partial-failure recovery, large-file, refresh และ mobile
-3. พิจารณา Zone 6 (ลบ GAS) หลังทบทวน migration/E2E coverage; ปัจจุบัน `gas/` เป็น legacy/reference และ Dashboard ไม่เรียกใช้
+รายละเอียด API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); Access policy: [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md); ผลทดสอบ: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
