@@ -1,47 +1,48 @@
-# Dashboard Migration — Access UX และ URL batches
+# Dashboard Migration — Access UX, batch และปลายทางหลายแบบ
 
-## สถาปัตยกรรมปัจจุบัน
+## Architecture ที่ deploy อยู่
 
 ```text
-GitHub Pages link → redirect → Cloudflare Access + Worker-hosted Dashboard/API → GitHub Actions → X2Telegram → Telegram
+GitHub Pages entry → redirect → Cloudflare Access + Worker-hosted Dashboard/API
+  → GitHub Actions → Python processor → Telegram / MEGA / Browser ZIP
 ```
 
-หน้าเดิมจาก GitHub Pages ต่าง origin กับ `workers.dev`; browser บางตัวจึงไม่ส่ง Access cookie ใน cross-site fetch ทำให้ login แล้วหน้าเดิมยังมองว่าไม่ได้ login. Dashboard assets ถูกเสิร์ฟจาก Cloudflare Worker host ที่ป้องกันด้วย Access เดียวกับ API; GitHub Pages URL ทำหน้าที่พาไป origin นี้. Worker ตรวจ JWT ทั้งบนหน้า static assets และ API routes.
+Dashboard assets และ API อยู่ Worker origin เดียวกันเพื่อให้ Access session เป็น first-party cookie; หน้า Pages ทำหน้าที่เป็น entry/redirect. Worker ตรวจ Access JWT ก่อน serve static assets และบนทุก API endpoint ที่มีข้อมูลหรือ side effects. Browser session ที่ทดสอบหลัง merge แสดง **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**
 
-## API และ authentication
+## URL และ destination flow
 
-- `GET /auth/check`: endpoint ที่ต้องผ่าน Access JWT; Dashboard ใช้ยืนยันว่าลงชื่อเข้าใช้จริงก่อนเปิดปุ่มส่ง
-- `GET /health`: liveness endpoint สำหรับตรวจว่า Worker ตอบสนอง
-- `POST /jobs`: รับ `url` หนึ่งรายการเพื่อ backward compatibility หรือ `urls` array 1–50 รายการ; ห้ามส่งทั้งสองแบบพร้อมกัน
-- `GET /jobs/<job_id>`: อ่านสถานะและ sanitized report
-- Dashboard ใช้ `credentials: include`; เมื่อเสิร์ฟหน้าและ API จาก Worker origin เดียวกัน cookie เป็น first-party ไม่พึ่ง third-party-cookie behavior
-- ปุ่ม Access เปิด Worker-hosted Dashboard ในแท็บใหม่; เมื่อกลับแท็บเดิม ระบบตรวจสถานะอีกครั้งบน focus/visibility change
+- วาง X URL หนึ่งรายการต่อบรรทัด; 1–50 URL ต่อ job
+- Frontend preview บอก valid/invalid/duplicate; Worker ตรวจ URL และ duplicate post ID ซ้ำอีกครั้ง
+- URL เดี่ยวถูกส่งเป็น workflow input `url`; batch ถูกส่งเป็น `urls` newline-separated; หนึ่ง job คือหนึ่ง GitHub Actions run
+- เลือกได้หนึ่งหรือหลาย targets จาก `telegram`, `mega`, `download`; ถ้าไม่ระบุโดย manual Actions จะ default Telegram
+- Job fingerprint รวม request ID, ordered normalized URL(s), large-file flag และ normalized destinations; `request_id` เดิมกับ payload/target ที่เปลี่ยนถูกปฏิเสธด้วย `409 idempotency_conflict`
+- Dashboard แสดง status/error แยก post, media และ destination; target ที่ล้มเหลวไม่ยกเลิก target อื่น
 
-## Batch behavior
+## Login และ recovery
 
-- วางหนึ่ง URL ต่อบรรทัด; limit สูงสุด 50 รายการต่อ job
-- Frontend preview แสดงจำนวน, URL ที่ผ่าน, URL ผิด และ duplicate; รายการผิด/ซ้ำหรือเกิน limit จะปิดปุ่มส่ง
-- Worker ตรวจชนิด/รูปแบบ URL ซ้ำอีกครั้ง และปฏิเสธ duplicate post ID
-- Worker normalize URL แล้ว map หนึ่ง URL ไปยัง workflow input `url`; หลาย URL ไปยัง workflow input `urls` แบบหนึ่ง URL ต่อบรรทัด
-- หนึ่ง batch เป็นหนึ่ง GitHub Actions run; report แสดงผลแยกรายโพสต์
-- `request_id` ถูก persist ก่อนส่ง; `job_id` เป็น deterministic fingerprint จาก request ID, URL ที่ normalize แล้วเรียงตาม input, และโหมด large-file
-- Workflow รองรับ `url`/`urls` อยู่แล้ว; Python worker ยังคงอ่าน batch จาก `INPUT_URLS`
+- `GET /auth/check` ต้องผ่าน Access JWT และ owner email; Dashboard ใช้ตรวจ session ก่อนเปิด submit
+- เมื่อกลับมาที่แท็บเดิมหลัง login, focus/visibility check และ refresh จะยืนยันสถานะใหม่
+- ปุ่ม Access เปิด Worker-hosted Dashboard ในแท็บใหม่; Pages และ Worker entry ยังคงใช้ same-origin backend config
+- สถานะ recent jobs เก็บใน `localStorage` ของ browser นี้; ไม่มี server-side job database
 
-## Static assets และ settings
+## Browser ZIP
 
-`control-worker/wrangler.toml` ผูก `../web` เป็น Static Assets และตั้ง `run_worker_first = true`; Worker ตรวจ Access ก่อนเรียก `env.ASSETS.fetch(request)`. `DASHBOARD_ORIGIN` เป็น Worker origin เดียวกับ `apiBase`:
+เมื่อเลือก Download ระบบสร้าง private GitHub Actions artifact 7 วัน แล้วเพิ่ม link ใน Dashboard. `GET /jobs/<job_id>/download` ตรวจ Access และ artifact ที่ตรงกับ run ก่อน stream ZIP ไปยัง browser; Worker ไม่คืน signed GitHub URL และไม่ buffer media ZIP ทั้งก้อน. ขีดจำกัด 2,000 MB ต่อไฟล์และ 8 GiB รวมต่อ job; artifact ที่หาย/หมดอายุถูกแสดงเป็น Download failure
 
-```js
-window.X2TELEGRAM_CONFIG = Object.freeze({
-  apiBase: "https://x2telegram-control-plane.pantipa3826.workers.dev",
-});
-```
+บนมือถือ download ทำงานผ่าน browser Downloads/Files/Share sheet ตามแพลตฟอร์ม ไม่ได้เขียนไฟล์จาก Actions runner ลง device โดยตรง
 
-หน้า GitHub Pages จะ redirect เฉพาะ repository path `/X2Telegram` ไปยัง Worker dashboard. Static assets ไม่มี GitHub/Telegram credentials.
+## Live evidence หลัง deploy
 
-## ข้อจำกัดและการตรวจ
+- Worker version `0a099878-485a-43ef-9097-cf4f44e24373` จาก PR #6 / commit `389621b`
+- Access authenticated Dashboard ถูกตรวจใน browser
+- Actions run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) ประมวลผล Download-only 2 URLs; report แสดง 2 ready files, media ZIP upload ผ่าน และ ZIP ดาวน์โหลดผ่าน protected Worker route ได้จริง (2 entries, CRC ผ่าน)
+- Run นี้ไม่ได้เลือก Telegram/MEGA; existing Telegram normal-path และ batch/no-resend evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
 
-- Batch มากกว่า 50 รายการต้องแบ่งเป็นหลายชุด
-- Live batch E2E run `37816856323` dispatch 2 URL ใน Actions run เดียวและจบสำเร็จ; ทั้งคู่มี completed dedupe records จึง `skipped_duplicate` และไม่มีการส่ง Telegram ซ้ำ. นี่ยืนยัน live batch dispatch/no-resend แต่ยังไม่ใช่การทดสอบส่ง media ใหม่หลายโพสต์ใน batch
-- สถานะงานล่าสุดเก็บใน browser `localStorage`; ไม่มี server-side history database
-- ผลการส่ง Telegram ดูจาก sanitized report artifact และ message IDs; network timeout หลัง Telegram รับไฟล์ยังต้องตรวจผลก่อน retry
+## ข้อจำกัด
+
+- Batch เกิน 50 URLs ต้องแบ่งหลาย jobs
+- MEGA credentials ต้องตั้งใน GitHub Actions Secrets; live MEGA upload และ live combined destination send ยังไม่ยืนยัน
+- Large-file mode และมือถือยังไม่ได้ live-test รอบนี้
+- Network timeout หลัง Telegram/MEGA รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry
+
+รายละเอียดผู้ใช้: [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); API schema: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); multi-destination setup: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md).
