@@ -4,6 +4,7 @@ const RUNS_LIMIT = 100;
 const BODY_LIMIT = 16 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 20;
+const MAX_BATCH_URLS = 50;
 const attemptsByIdentity = new Map();
 let jwksCache = { until: 0, keys: [] };
 
@@ -109,8 +110,8 @@ function validRequestId(value) {
   return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 }
 
-async function makeJobId(requestId, url, largeFileMode) {
-  const material = new TextEncoder().encode(`${requestId}\n${url}\n${largeFileMode ? "1" : "0"}`);
+async function makeJobId(requestId, urls, largeFileMode) {
+  const material = new TextEncoder().encode(`${requestId}\n${urls.join("\n")}\n${largeFileMode ? "1" : "0"}`);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", material));
   const hex = [...digest].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   return `job-${hex.slice(0, 32)}`;
@@ -214,13 +215,26 @@ async function dispatch(request, env, identity) {
   let body;
   try { body = JSON.parse(raw); } catch (_) { return errorResponse(request, env, 400, "invalid_json", "Request body must be valid JSON"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse(request, env, 400, "invalid_request", "Request must be a JSON object");
-  if (Object.keys(body).some((key) => !["url", "large_file_mode", "request_id"].includes(key))) return errorResponse(request, env, 400, "invalid_request", "Request contains unsupported fields");
-  const normalized = allowedUrl(body.url);
-  if (!normalized) return errorResponse(request, env, 400, "invalid_url", "URL must be a public HTTPS X post URL", validRequestId(body.request_id) ? body.request_id : null);
+  if (Object.keys(body).some((key) => !["url", "urls", "large_file_mode", "request_id"].includes(key))) return errorResponse(request, env, 400, "invalid_request", "Request contains unsupported fields");
+  const hasSingleUrl = Object.hasOwn(body, "url");
+  const hasUrlList = Object.hasOwn(body, "urls");
+  if (hasSingleUrl === hasUrlList) return errorResponse(request, env, 400, "invalid_request", "Provide exactly one of url or urls");
+  const rawUrls = hasSingleUrl ? [body.url] : body.urls;
+  if (!Array.isArray(rawUrls) || rawUrls.length === 0) return errorResponse(request, env, 400, "invalid_url_list", "Provide at least one X post URL");
+  if (rawUrls.length > MAX_BATCH_URLS) return errorResponse(request, env, 400, "too_many_urls", `A batch can contain at most ${MAX_BATCH_URLS} URLs`);
   if (!validRequestId(body.request_id)) return errorResponse(request, env, 400, "invalid_request_id", "request_id is missing or invalid");
   if (body.large_file_mode !== undefined && typeof body.large_file_mode !== "boolean") return errorResponse(request, env, 400, "invalid_large_file_mode", "large_file_mode must be a boolean", body.request_id);
+  const normalizedUrls = [];
+  const postIds = new Set();
+  for (const value of rawUrls) {
+    const normalized = allowedUrl(value);
+    if (!normalized) return errorResponse(request, env, 400, "invalid_url", "Every URL must be a public HTTPS X post URL", body.request_id);
+    if (postIds.has(normalized.postId)) return errorResponse(request, env, 400, "duplicate_url", "Remove duplicate X post URLs from the batch", body.request_id);
+    postIds.add(normalized.postId);
+    normalizedUrls.push(normalized.url);
+  }
   const largeFileMode = body.large_file_mode === true;
-  const jobId = await makeJobId(body.request_id, normalized.url, largeFileMode);
+  const jobId = await makeJobId(body.request_id, normalizedUrls, largeFileMode);
   let runs;
   try { runs = await workflowRuns(env); } catch (_) { return errorResponse(request, env, 502, "github_read_failed", "Could not check existing workflow jobs", body.request_id); }
   const existing = findRunForJob(runs, jobId);
@@ -233,7 +247,7 @@ async function dispatch(request, env, identity) {
       body: JSON.stringify({
         ref: env.GH_REF,
         inputs: {
-          url: normalized.url,
+          ...(normalizedUrls.length === 1 ? { url: normalizedUrls[0] } : { urls: normalizedUrls.join("\n") }),
           large_file_mode: String(largeFileMode),
           request_id: body.request_id,
           job_id: jobId,
@@ -243,7 +257,7 @@ async function dispatch(request, env, identity) {
   } catch (_) { return errorResponse(request, env, 502, "github_dispatch_failed", "GitHub Actions could not accept the job", body.request_id); }
   const now = new Date().toISOString();
   return json({
-    job_id: jobId, request_id: body.request_id, state: "accepted", created_at: now, updated_at: now,
+    job_id: jobId, request_id: body.request_id, url_count: normalizedUrls.length, state: "accepted", created_at: now, updated_at: now,
     progress: { phase: "queued", percent: 0 }, result: null, error: null, telegram: null, duplicate: false,
   }, 202, request, env);
 }
@@ -322,9 +336,11 @@ export default {
     if (request.method === "GET" && url.pathname === "/health") return json({ status: "ok", service: "x2telegram-control" }, 200, request, env);
     const identity = await verifyAccess(request, env);
     if (!identity.ok) return errorResponse(request, env, identity.status, identity.code, identity.message);
+    if (request.method === "GET" && url.pathname === "/auth/check") return json({ status: "ok", authenticated: true }, 200, request, env);
     if (request.method === "POST" && url.pathname === "/jobs") return dispatch(request, env, identity);
     const match = url.pathname.match(/^\/jobs\/([^/]+)$/);
     if (request.method === "GET" && match) return getJob(request, env, decodeURIComponent(match[1]));
+    if ((request.method === "GET" || request.method === "HEAD") && env.ASSETS?.fetch) return env.ASSETS.fetch(request);
     return errorResponse(request, env, 404, "not_found", "Endpoint not found");
   },
 };

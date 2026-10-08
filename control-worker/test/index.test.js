@@ -13,7 +13,15 @@ const originalFetch = globalThis.fetch;
 const ENV = {
   GH_TOKEN: "test-token", GH_OWNER: "aodxx", GH_REPO: "X2Telegram", GH_WORKFLOW_ID: "x2telegram.yml", GH_REF: "main",
   ACCESS_TEAM_DOMAIN: "https://team.cloudflareaccess.com", ACCESS_AUD: "test-aud", ACCESS_ALLOWED_EMAIL: "owner@example.com",
-  DASHBOARD_ORIGIN: "https://aodxx.github.io",
+  DASHBOARD_ORIGIN: "https://x2telegram-control-plane.pantipa3826.workers.dev",
+  ASSETS: {
+    async fetch(request) {
+      const path = new URL(request.url).pathname;
+      if (path === "/") return new Response("<html>dashboard</html>", { headers: { "Content-Type": "text/html" } });
+      if (path === "/config.js") return new Response("window.X2TELEGRAM_CONFIG = {}", { headers: { "Content-Type": "text/javascript" } });
+      return new Response("Not found", { status: 404 });
+    },
+  },
 };
 let githubRuns = [];
 let failDispatch = false;
@@ -87,6 +95,22 @@ test("health is public and does not expose credentials", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { status: "ok", service: "x2telegram-control" });
   assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("session probe verifies Access identity before reporting signed-in state", async () => {
+  const allowed = await worker.fetch(request("/auth/check"), ENV);
+  assert.equal(allowed.status, 200);
+  assert.deepEqual(await allowed.json(), { status: "ok", authenticated: true });
+  const denied = await worker.fetch(request("/auth/check", { authenticated: false }), ENV);
+  assert.equal(denied.status, 401);
+});
+
+test("Dashboard static assets are served only after Access verification", async () => {
+  const allowed = await worker.fetch(request("/"), ENV);
+  assert.equal(allowed.status, 200);
+  assert.match(await allowed.text(), /dashboard/);
+  const denied = await worker.fetch(request("/", { authenticated: false }), ENV);
+  assert.equal(denied.status, 401);
 });
 
 test("missing Access JWT is denied before any GitHub access", async () => {
@@ -196,6 +220,28 @@ test("valid request dispatches a single URL input and returns a stable job ID", 
     request_id: "test-submit-1", job_id: data.job_id,
   });
   assert.equal(Object.hasOwn(dispatches[0].inputs, "urls"), false);
+});
+
+test("batch request dispatches up to 50 URLs in one workflow run", async () => {
+  const body = { urls: ["https://x.com/person/status/123", "https://twitter.com/other/status/456?s=20"], request_id: "batch-submit-1" };
+  const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 202);
+  assert.equal(data.url_count, 2);
+  assert.equal(dispatches.length, 1);
+  assert.equal(dispatches[0].inputs.urls, "https://x.com/person/status/123\nhttps://x.com/other/status/456");
+  assert.equal(Object.hasOwn(dispatches[0].inputs, "url"), false);
+});
+
+test("batches above 50 URLs and duplicate posts are rejected before dispatch", async () => {
+  const tooMany = Array.from({ length: 51 }, (_, index) => `https://x.com/u/status/${index + 1}`);
+  const tooManyResponse = await worker.fetch(request("/jobs", { method: "POST", body: { urls: tooMany, request_id: "batch-too-many" } }), ENV);
+  assert.equal(tooManyResponse.status, 400);
+  assert.equal((await tooManyResponse.json()).error.code, "too_many_urls");
+  const duplicateResponse = await worker.fetch(request("/jobs", { method: "POST", body: { urls: ["https://x.com/u/status/1", "https://twitter.com/other/status/1"], request_id: "batch-duplicate" } }), ENV);
+  assert.equal(duplicateResponse.status, 400);
+  assert.equal((await duplicateResponse.json()).error.code, "duplicate_url");
+  assert.equal(dispatches.length, 0);
 });
 
 test("same request and changed payload return idempotency conflict", async () => {

@@ -6,12 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Single X post URL submitted by the control plane"
+        description: "Single X post URL (legacy/single-item control-plane input)"
         required: false
         default: ""
         type: string
       urls:
-        description: "Paste one or more X post URLs, one per line (manual/legacy input)"
+        description: "One or more X post URLs, one per line (Dashboard batch or manual input)"
         required: false
         default: ""
         type: string
