@@ -9,7 +9,7 @@ import time
 
 from .config import Config
 from .dedupe import DedupeStore
-from .logging_utils import configure_logging, log_event
+from .logging_utils import configure_logging, log_event, redact
 from .metadata import YtDlpMetadataProvider
 from .models import ResultStatus
 from .notifications import NotificationError, send_webhook, write_github_summary
@@ -19,7 +19,8 @@ from .urls import parse_batch
 
 
 def _write_report(payload: dict, path: str) -> str:
-    output = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
+    # Reports are printed and uploaded as artifacts; redact defensively at the final boundary.
+    output = json.dumps(redact(payload), ensure_ascii=False, indent=2, default=str)
     print(output)
     if path:
         with open(path, "w", encoding="utf-8") as handle:

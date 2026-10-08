@@ -116,7 +116,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - เพิ่ม offline Worker tests สำหรับ auth, invalid input, duplicate/conflict, GitHub failure, status/report และ CORS
 - Workflow เพิ่ม `url`, `request_id`, `job_id` โดยยังรองรับ `urls` แบบ manual เดิม; Python report และ sanitized projection เพิ่ม `job_id`
 
-> Static UI ใน branch migration ถูกปรับเป็น Dashboard client ของ Cloudflare Control Worker; Worker, owner-only Access และ `GH_TOKEN` secret ตั้งแล้ว แต่ credential ต้อง rotate ก่อน production และยังไม่มี authenticated test. GitHub Pages บน `main` ยังเป็นหน้าเดิม เนื่องจาก PR #2 ยังไม่ merge
+> Static UI ใน branch migration ถูกปรับเป็น Dashboard client ของ Cloudflare Control Worker; Worker, owner-only Access และ `GH_TOKEN` secret ตั้งแล้ว. Authenticated health ผ่านและ read-only status lookup ยืนยัน GitHub Actions read ได้; credential ต้อง rotate ก่อน production. GitHub Pages บน `main` ยังเป็นหน้าเดิม เนื่องจาก PR #2 ยังไม่ merge
 
 ### Phase 6.1B: Report contract สำหรับ private control plane
 
@@ -126,7 +126,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
 - Cloudflare Control Worker ใช้ GitHub API credential ฝั่ง server เพื่ออ่าน artifact หลัง workflow เสร็จ
 
-> Data contract และ private artifact เสร็จแล้ว; `GH_TOKEN` ถูก provision เป็น `secret_text` แต่ยังไม่มี authenticated end-to-end test. ไม่มีการส่ง Telegram ระหว่าง migration นี้
+> Data contract และ private artifact เสร็จแล้ว; authenticated GitHub read-only lookup ผ่าน แต่ยังไม่มี dispatch/report/Telegram E2E. ไม่มีการส่ง Telegram ระหว่าง migration นี้
 
 ### Google Apps Script Backend: legacy/reference (ไม่ใช่เส้นทางใหม่)
 
@@ -149,7 +149,18 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
 - ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; `GH_TOKEN` อยู่ใน secret store แต่ควร rotate ก่อน production และ authenticated API test ยังรอ owner sign-in. Dashboard บน `main` ยังไม่เปลี่ยน
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in และ authenticated GitHub read-only lookup ผ่านแล้ว. `GH_TOKEN` ควร rotate ก่อน production; Dashboard บน `main` ยังไม่เปลี่ยน
+
+### Zone 7/8 hardening (source complete; production gates remain)
+
+- `src/dedupe.py` state v2 เพิ่ม SHA-256 content fingerprint ต่อ media และ migration path อ่าน completed-post records แบบ v1
+- `src/processor.py` ข้าม media ที่ส่งสำเร็จแล้วและ retry เฉพาะชิ้นที่ยังไม่สำเร็จ; tests ครอบ first/middle/last failure และ temporary URL rotation
+- `src/telegram_api.py`, `src/logging_utils.py`, `src/cli.py` ไม่ serialize Telegram token/raw response ใน errors และ redact ก่อน report/stdout
+- `src/downloader.py` ปิด auto-redirect และ validate HTTPS/host ทุก hop; Worker body cap อ่าน stream แบบ bounded; tests ครอบ oversized body และ per-isolate rate cap
+- Local validation ล่าสุด: Python **47 passed**, Worker **15 passed**, syntax/compile/diff checks ผ่าน
+- Worker security-hardening source ถูก deploy แล้ว (version `f32d10e4-c069-4ae4-84b3-79a409e59be0`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
+- Zone 8 audit: ยังไม่พร้อม production เพราะ `GH_TOKEN` ค่าแรกถูกเปิดเผยและต้อง revoke/rotate; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
+- Zone 9 E2E ยังไม่เริ่ม: ไม่มี workflow dispatch หรือ Telegram delivery จากการตรวจครั้งนี้
 
 ### Historical legacy note: Apps Script POST redirect
 
@@ -192,7 +203,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Cloudflare Worker/owner-only Access และ `GH_TOKEN` secret พร้อมแล้ว แต่ควร rotate token ก่อน production และทดสอบ authenticated read-only path หลัง owner sign-in. ห้าม trigger workflow หรือส่ง Telegram เป็นส่วนหนึ่งของ smoke test. เมื่อ verification ผ่านจึงพิจารณา merge PR และ deploy Dashboard; GitHub Actions UI เดิมยังเป็น fallback
+คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Cloudflare Worker/owner-only Access และ `GH_TOKEN` secret พร้อม; owner sign-in กับ GitHub read-only lookup ผ่านแล้ว. Rotate token ก่อน production. ขั้นถัดไปคือ E2E ด้วย X URL ที่เจ้าของอนุมัติ ซึ่งอาจ dispatch workflow และส่ง Telegram; ต้องเห็น payload/กลุ่มปลายทางและได้รับการยืนยันก่อนดำเนินการ. จากนั้นจึงทำ Zone 6, merge PR และ deploy Dashboard; GitHub Actions UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 

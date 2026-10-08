@@ -49,12 +49,15 @@ class TelegramClient:
                 timeout=self.timeout,
             )
             payload = response.json()
-        except (requests.RequestException, ValueError) as exc:
-            raise TelegramApiError(f"Telegram {method} request failed: {exc}") from exc
+        except (requests.RequestException, ValueError):
+            # requests exceptions can include the full API URL, which contains the bot token.
+            raise TelegramApiError(f"Telegram {method} request failed") from None
         if not response.ok or not payload.get("ok"):
-            description = payload.get("description", response.text[:300])
-            error_code = payload.get("error_code", response.status_code)
-            raise TelegramApiError(f"Telegram {method} failed ({error_code}): {description}")
+            error_code = payload.get("error_code")
+            if not isinstance(error_code, int) or not 100 <= error_code <= 599:
+                error_code = response.status_code
+            # Never persist Telegram's raw response description/body in reports or logs.
+            raise TelegramApiError(f"Telegram {method} failed (HTTP {error_code})")
         return payload
 
     def preflight(self) -> TelegramPreflight:
@@ -97,20 +100,26 @@ class TelegramClient:
                     )
                 try:
                     payload = response.json()
-                except ValueError as exc:
-                    raise TelegramApiError(f"Telegram {method} returned invalid JSON") from exc
+                except ValueError:
+                    raise TelegramApiError(f"Telegram {method} returned invalid JSON") from None
                 if response.ok and payload.get("ok"):
                     return int(payload["result"]["message_id"])
-                error_code = payload.get("error_code", response.status_code)
-                description = payload.get("description", response.text[:300])
+                error_code = payload.get("error_code")
+                if not isinstance(error_code, int) or not 100 <= error_code <= 599:
+                    error_code = response.status_code
                 retry_after = (payload.get("parameters") or {}).get("retry_after")
-                retryable = int(error_code) == 429 or int(error_code) >= 500
+                retryable = error_code == 429 or error_code >= 500
                 if not retryable or attempt + 1 >= self.max_retries:
-                    raise TelegramApiError(f"Telegram {method} failed ({error_code}): {description}")
-                time.sleep(min(int(retry_after or (2**attempt)), 60))
-            except (requests.RequestException, OSError) as exc:
+                    raise TelegramApiError(f"Telegram {method} failed (HTTP {error_code})")
+                try:
+                    delay = min(int(retry_after or (2**attempt)), 60)
+                except (TypeError, ValueError, OverflowError):
+                    delay = min(2**attempt, 60)
+                time.sleep(delay)
+            except (requests.RequestException, OSError):
                 if attempt + 1 >= self.max_retries:
-                    raise TelegramApiError(f"Telegram {method} request failed: {exc}") from exc
+                    # Do not include exception text: it may contain the tokenized request URL.
+                    raise TelegramApiError(f"Telegram {method} request failed") from None
                 time.sleep(min(2**attempt, 60))
         raise TelegramApiError(f"Telegram {method} failed")
 

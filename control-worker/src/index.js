@@ -131,6 +131,38 @@ function githubConfigError(env) {
   return !env.GH_TOKEN || !env.GH_OWNER || !env.GH_REPO || !env.GH_WORKFLOW_ID || !env.GH_REF;
 }
 
+async function readBoundedBody(request) {
+  const reader = request.body?.getReader();
+  if (!reader) return { raw: "" };
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > BODY_LIMIT) {
+        try { await reader.cancel(); } catch (_) { /* the size limit still applies */ }
+        return { tooLarge: true };
+      }
+      chunks.push(value);
+    }
+  } catch (_) {
+    return { invalid: true };
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return { raw: new TextDecoder("utf-8", { fatal: true }).decode(bytes) };
+  } catch (_) {
+    return { invalid: true };
+  }
+}
+
 async function github(env, path, options = {}) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...options,
@@ -173,11 +205,12 @@ function hasRequestIdConflict(runs, requestId, jobId) {
 async function dispatch(request, env, identity) {
   if (githubConfigError(env)) return errorResponse(request, env, 503, "backend_not_configured", "Control Worker is missing server configuration");
   if (!checkRate(identity.email)) return errorResponse(request, env, 429, "rate_limited", "Too many requests; retry later");
-  let length = Number(request.headers.get("Content-Length") || 0);
-  if (length > BODY_LIMIT) return errorResponse(request, env, 400, "request_too_large", "Request body is too large");
-  let raw;
-  try { raw = await request.text(); } catch (_) { return errorResponse(request, env, 400, "invalid_json", "Request body must be valid JSON"); }
-  if (new TextEncoder().encode(raw).length > BODY_LIMIT) return errorResponse(request, env, 400, "request_too_large", "Request body is too large");
+  const length = Number(request.headers.get("Content-Length") || 0);
+  if (Number.isFinite(length) && length > BODY_LIMIT) return errorResponse(request, env, 413, "request_too_large", "Request body is too large");
+  const bodyRead = await readBoundedBody(request);
+  if (bodyRead.tooLarge) return errorResponse(request, env, 413, "request_too_large", "Request body is too large");
+  if (bodyRead.invalid) return errorResponse(request, env, 400, "invalid_json", "Request body must be valid UTF-8 JSON");
+  const raw = bodyRead.raw;
   let body;
   try { body = JSON.parse(raw); } catch (_) { return errorResponse(request, env, 400, "invalid_json", "Request body must be valid JSON"); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return errorResponse(request, env, 400, "invalid_request", "Request must be a JSON object");

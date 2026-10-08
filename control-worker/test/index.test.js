@@ -109,6 +109,64 @@ test("malformed JSON is rejected with a bounded error", async () => {
   assert.equal((await response.json()).error.code, "invalid_json");
 });
 
+test("oversized declared body is rejected before reading or dispatch", async () => {
+  const req = request("/jobs", {
+    method: "POST", body: "{}", headers: { "Content-Length": "17000" },
+  });
+  const response = await worker.fetch(req, ENV);
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error.code, "request_too_large");
+  assert.equal(dispatches.length, 0);
+});
+
+test("oversized streamed body without Content-Length is cancelled before dispatch", async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("x".repeat(17000)));
+      controller.close();
+    },
+  });
+  const req = new Request("https://worker.test/jobs", {
+    method: "POST",
+    headers: {
+      Origin: ENV.DASHBOARD_ORIGIN,
+      "Content-Type": "application/json",
+      "Cf-Access-Jwt-Assertion": accessJwt(),
+    },
+    body: stream,
+    duplex: "half",
+  });
+  const response = await worker.fetch(req, ENV);
+  assert.equal(response.status, 413);
+  assert.equal((await response.json()).error.code, "request_too_large");
+  assert.equal(dispatches.length, 0);
+});
+
+test("per-isolate POST rate limit blocks the 21st request without dispatch", async () => {
+  const originalEmail = ENV.ACCESS_ALLOWED_EMAIL;
+  ENV.ACCESS_ALLOWED_EMAIL = "rate-test@example.com";
+  try {
+    const statuses = [];
+    for (let index = 0; index < 21; index += 1) {
+      const req = new Request("https://worker.test/jobs", {
+        method: "POST",
+        headers: {
+          Origin: ENV.DASHBOARD_ORIGIN,
+          "Content-Type": "application/json",
+          "Cf-Access-Jwt-Assertion": accessJwt("rate-test@example.com"),
+        },
+        body: "{}",
+      });
+      statuses.push((await worker.fetch(req, ENV)).status);
+    }
+    assert.deepEqual(statuses.slice(0, 20), Array(20).fill(400));
+    assert.equal(statuses[20], 429);
+    assert.equal(dispatches.length, 0);
+  } finally {
+    ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
+  }
+});
+
 test("unsupported client fields are rejected", async () => {
   const response = await worker.fetch(request("/jobs", { method: "POST", body: { url: "https://x.com/u/status/1", request_id: "fields-1", github_token: "not-accepted" } }), ENV);
   assert.equal(response.status, 400);

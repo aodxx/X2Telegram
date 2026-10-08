@@ -7,22 +7,25 @@ from typing import Any
 
 
 _SECRET_PATTERNS = (
-    re.compile(r"(bot\d{5,}:)[A-Za-z0-9_-]+", re.IGNORECASE),
+    re.compile(r"bot\d{5,}:[A-Za-z0-9_-]+", re.IGNORECASE),
     re.compile(r"([?&](?:token|api_key|apikey|auth|key)=)[^&\s]+", re.IGNORECASE),
 )
 
 
 def redact(value: Any) -> Any:
     if isinstance(value, dict):
-        return {str(k): redact(v) for k, v in value.items() if str(k).lower() not in {
-            "token", "bot_token", "api_key", "api_hash", "authorization"
-        }}
+        sensitive_terms = ("token", "secret", "api_key", "api_hash", "authorization", "password")
+        return {
+            str(k): redact(v)
+            for k, v in value.items()
+            if not any(term in str(k).lower() for term in sensitive_terms)
+        }
     if isinstance(value, list):
         return [redact(item) for item in value]
     if isinstance(value, str):
         result = value
         for pattern in _SECRET_PATTERNS:
-            result = pattern.sub(r"\1[REDACTED]", result)
+            result = pattern.sub("[REDACTED_BOT_TOKEN]", result)
         return result[:1000]
     return value
 

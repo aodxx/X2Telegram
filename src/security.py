@@ -7,7 +7,17 @@ ALLOWED_MEDIA_HOSTS = {"video.twimg.com", "pbs.twimg.com", "ton.twimg.com"}
 
 def validate_media_url(url: str) -> None:
     parts = urlsplit(url)
-    if parts.scheme != "https" or parts.hostname not in ALLOWED_MEDIA_HOSTS:
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise ValueError("Media URL has an invalid port") from exc
+    if (
+        parts.scheme.lower() != "https"
+        or (parts.hostname or "").lower() not in ALLOWED_MEDIA_HOSTS
+        or parts.username is not None
+        or parts.password is not None
+        or port not in (None, 443)
+    ):
         raise ValueError("Media URL host is not an approved X media host")
 
 

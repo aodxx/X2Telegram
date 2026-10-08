@@ -7,6 +7,7 @@ import pytest
 
 from src.logging_utils import configure_logging, redact
 from src.notifications import NotificationError, build_summary, send_webhook, write_github_summary
+from src.cli import _write_report
 
 
 def test_redact_removes_bot_token_and_query_secrets():
@@ -14,7 +15,27 @@ def test_redact_removes_bot_token_and_query_secrets():
     safe = redact(value)
     assert "SECRET" not in safe
     assert "hidden" not in safe
-    assert "[REDACTED]" in safe
+    assert "bot12345:" not in safe
+    assert "[REDACTED_BOT_TOKEN]" in safe
+
+
+def test_raw_report_redacts_bot_token_from_stdout_and_file(tmp_path: Path, capsys):
+    token = "123456789:REPORT_SUPERSECRET_TOKEN"
+    report_path = tmp_path / "report.json"
+    _write_report({
+        "status": "completed_with_errors",
+        "TELEGRAM_BOT_TOKEN": token,
+        "results": [{
+            "status": "telegram_error",
+            "error": f"request failed https://api.telegram.org/bot{token}/sendPhoto",
+        }],
+    }, str(report_path))
+    written = report_path.read_text(encoding="utf-8")
+    printed = capsys.readouterr().out
+    assert token not in written + printed
+    assert "REPORT_SUPERSECRET_TOKEN" not in written + printed
+    assert "TELEGRAM_BOT_TOKEN" not in written
+    assert "[REDACTED_BOT_TOKEN]" in written
 
 
 def test_build_summary_contains_counts_without_media_urls():

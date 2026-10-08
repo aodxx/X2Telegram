@@ -2,6 +2,8 @@
 
 เอกสารนี้อธิบายการนำ X2Telegram ไปใช้งานจริงผ่าน GitHub Actions ตั้งแต่การเตรียม Telegram ไปจนถึงการทดสอบและแก้ปัญหา
 
+> **สถานะ Dashboard migration (2026-10-08):** Control Worker และ owner-only Cloudflare Access deploy แล้ว แต่ GitHub Pages `main` ยังใช้หน้าเดิมและ PR #2 ยังไม่ merge. ค่า `GH_TOKEN` แรกถูกเปิดเผยระหว่าง setup จึงต้อง revoke/rotate ก่อน production; ยังไม่มี workflow dispatch หรือ Telegram E2E. ดู [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md), [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md) และ [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md). คู่มือด้านล่างยังครอบคลุม manual GitHub Actions flow ที่ใช้งานได้บน `main`.
+
 ## 1. ภาพรวมการเผยแพร่
 
 X2Telegram รุ่นนี้ **ไม่ต้องติดตั้งเซิร์ฟเวอร์แยก** ระบบทำงานบน GitHub Actions เมื่อผู้ใช้กด `Run workflow`:

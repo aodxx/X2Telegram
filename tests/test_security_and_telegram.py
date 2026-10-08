@@ -2,11 +2,12 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 from src.config import Config
 from src.downloader import MediaDownloader
 from src.security import validate_download, validate_media_url
-from src.telegram_api import TelegramClient
+from src.telegram_api import TelegramApiError, TelegramClient
 
 
 def telegram_response(payload, status=200):
@@ -63,6 +64,33 @@ def test_telegram_client_uses_custom_endpoint():
     assert client.base_url == "http://127.0.0.1:8081/bottoken"
 
 
+def test_telegram_transport_error_does_not_expose_tokenized_url():
+    token = "123456789:SUPERSENSITIVE_BOT_TOKEN"
+    client = TelegramClient(token, "-1003906817580")
+    failure = requests.ConnectionError(f"connection failed for https://api.telegram.org/bot{token}/getMe")
+    with patch("src.telegram_api.requests.post", side_effect=failure):
+        with pytest.raises(TelegramApiError) as raised:
+            client.preflight()
+    assert token not in str(raised.value)
+    assert "SUPERSENSITIVE_BOT_TOKEN" not in str(raised.value)
+    assert "api.telegram.org" not in str(raised.value)
+
+
+def test_telegram_error_response_does_not_expose_raw_description():
+    token = "123456789:SUPERSENSITIVE_BOT_TOKEN"
+    response = telegram_response(
+        {"ok": False, "error_code": 401,
+         "description": f"unauthorized at https://api.telegram.org/bot{token}/getMe"},
+        status=401,
+    )
+    with patch("src.telegram_api.requests.post", return_value=response):
+        with pytest.raises(TelegramApiError) as raised:
+            TelegramClient(token, "-1003906817580").preflight()
+    assert token not in str(raised.value)
+    assert "SUPERSENSITIVE_BOT_TOKEN" not in str(raised.value)
+    assert str(raised.value) == "Telegram getMe failed (HTTP 401)"
+
+
 def test_media_url_must_be_https_x_media_host():
     validate_media_url("https://video.twimg.com/ext_tw_video/1/vid/1280x720/video.mp4")
     with pytest.raises(ValueError):
@@ -90,4 +118,35 @@ def test_downloader_writes_atomic_mp4(tmp_path: Path):
     assert result.suffix == ".mp4"
     assert result.read_bytes() == b"xxxxftypxxxx"
     assert not result.with_suffix(".part").exists()
+    result.unlink()
+
+
+def test_downloader_rejects_redirect_to_unapproved_host():
+    redirect = Mock(status_code=302, headers={"location": "https://attacker.invalid/steal"})
+    redirect.__enter__ = Mock(return_value=redirect)
+    redirect.__exit__ = Mock(return_value=None)
+    downloader = MediaDownloader(max_retries=1)
+    with patch("src.downloader.requests.get", return_value=redirect) as get:
+        with pytest.raises(ValueError, match="approved X media host"):
+            downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert get.call_count == 1
+    assert get.call_args.kwargs["allow_redirects"] is False
+
+
+def test_downloader_follows_validated_media_redirect(tmp_path: Path):
+    redirect = Mock(status_code=302, headers={"location": "https://pbs.twimg.com/a.mp4"})
+    redirect.__enter__ = Mock(return_value=redirect)
+    redirect.__exit__ = Mock(return_value=None)
+    final = Mock(status_code=200, headers={"content-type": "video/mp4", "content-length": "12"})
+    final.__enter__ = Mock(return_value=final)
+    final.__exit__ = Mock(return_value=None)
+    final.raise_for_status.return_value = None
+    final.iter_content.return_value = [b"xxxxftypxxxx"]
+    downloader = MediaDownloader(max_retries=1)
+    with patch("src.downloader.requests.get", side_effect=[redirect, final]) as get:
+        result = downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert get.call_count == 2
+    assert all(call.kwargs["allow_redirects"] is False for call in get.call_args_list)
+    assert get.call_args_list[1].args[0] == "https://pbs.twimg.com/a.mp4"
+    assert result.read_bytes() == b"xxxxftypxxxx"
     result.unlink()
