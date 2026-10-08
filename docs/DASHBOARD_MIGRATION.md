@@ -36,12 +36,12 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 - Worker version `0a099878-485a-43ef-9097-cf4f44e24373` จาก PR #6 / commit `389621b`
 - Access authenticated Dashboard ถูกตรวจใน browser
 - Actions run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) ประมวลผล Download-only 2 URLs; report แสดง 2 ready files, media ZIP upload ผ่าน และ ZIP ดาวน์โหลดผ่าน protected Worker route ได้จริง (2 entries, CRC ผ่าน)
-- Run นี้ไม่ได้เลือก Telegram/MEGA; existing Telegram normal-path และ batch/no-resend evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
+- MEGA-only run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ผ่าน; Dashboard report แสดง upload success หนึ่งรายการ. Telegram normal-path และ batch/no-resend evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
 
 ## ข้อจำกัด
 
 - Batch เกิน 50 URLs ต้องแบ่งหลาย jobs
-- MEGA credentials ต้องตั้งใน GitHub Actions Secrets; live MEGA upload และ live combined destination send ยังไม่ยืนยัน
+- MEGA-only upload ผ่าน live แล้ว; live Telegram+MEGA combined send ยังไม่ยืนยัน เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น
 - Large-file mode และมือถือยังไม่ได้ live-test รอบนี้
 - Network timeout หลัง Telegram/MEGA รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry
 

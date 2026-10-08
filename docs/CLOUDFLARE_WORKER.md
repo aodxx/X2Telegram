@@ -9,6 +9,7 @@
 - Worker-hosted Dashboard แสดง Access session ผ่าน browser จริงและมี destination selectors
 - Live Download-only run #37843359593 ประมวลผล 2 URLs และ browser ดาวน์โหลด ZIP จริงผ่าน protected endpoint; report มี Download 2 files พร้อม ZIP CRC check ผ่าน
 - Live Telegram normal-path run #37807253687 และ Dashboard batch/no-resend run #37816856323 ยังคงเป็นหลักฐาน Telegram/batch ก่อน multi-destination
+- Live MEGA-only run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ผ่าน; Dashboard report แสดง MEGA สำเร็จ 1 รายการโดยไม่เลือก Telegram หรือ Browser ZIP
 
 ## Architecture
 
@@ -68,7 +69,7 @@ Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, 
 
 - Worker: `npm test --prefix control-worker` — **25 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, partial success, ZIP streaming และ missing artifact
 - Python: `python3 -m pytest -q` — **71 passed**, ครอบ per-destination retry/dedupe, MEGA/Download fakes, size limits และ sanitization
-- Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download ผ่าน
-- MEGA account upload, combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; MEGA ต้องมี repository Actions Secrets ตาม [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
+- Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download และ MEGA-only upload ผ่าน
+- Combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; การทดสอบปลายทางรวมมี automated coverage
 
 รายละเอียด API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); Access policy: [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md); ผลทดสอบ: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
