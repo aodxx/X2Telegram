@@ -126,7 +126,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
 - Cloudflare Control Worker ใช้ GitHub API credential ฝั่ง server เพื่ออ่าน artifact หลัง workflow เสร็จ
 
-> Data contract และ private artifact เสร็จแล้ว; authenticated GitHub read-only lookup ผ่าน แต่ยังไม่มี dispatch/report/Telegram E2E. ไม่มีการส่ง Telegram ระหว่าง migration นี้
+> **Historical status ณ เวลาจัดทำ Phase 6.1B:** Data contract และ private artifact เสร็จแล้ว; ขณะนั้นยังไม่มี dispatch/report/Telegram E2E. ผล normal-path E2E ที่ทำภายหลังบันทึกไว้ในส่วน Zone 9 ด้านล่าง
 
 ### Google Apps Script Backend: legacy/reference (ไม่ใช่เส้นทางใหม่)
 
@@ -149,7 +149,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
 - ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in, read-only lookup และ normal-path E2E หนึ่งรายการผ่านแล้ว (run `37807253687`, ส่งหนึ่ง MP4, message ID `347`). `GH_TOKEN` ยังไม่ได้ rotate ตามคำสั่งเจ้าของ; Dashboard บน `main` ยังไม่เปลี่ยน
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in, read-only lookup, normal-path E2E และ live Dashboard health ผ่านแล้ว (run `37807253687`, ส่งหนึ่ง MP4, message ID `347`; Pages deploy `37809007472`). PR #2 merged และหน้า live. `GH_TOKEN` ยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังมี P1 production blocker
 
 ### Zone 7/8 hardening (source complete; production gates remain)
 
@@ -160,7 +160,8 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - Local validation ล่าสุด: Python **47 passed**, Worker **15 passed**, syntax/compile/diff checks ผ่าน
 - Worker security-hardening source ถูก deploy แล้ว (version ปัจจุบัน `29a2c667-cce4-4da9-8bff-d93b89490e0f`, `GH_REF=main`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
 - Zone 9 normal-path E2E: run `37807253687` บน migration branch สำเร็จ; report ยืนยัน `sent=1`, `failed=0`, Telegram message ID `347`. Run แรก `37806865130` ล้มก่อน process เพราะ Worker ส่ง `url`/`urls` ซ้ำ; แก้ mapping และเพิ่ม regression test แล้ว. Worker ถูกคืน `GH_REF=main` หลังทดสอบ
-- ยังไม่พร้อม production: `GH_TOKEN` ค่าแรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติ rotate/revoke; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
+- PR #2 squash-merged เป็น `00936856a02261e1969d517157f5591d1a0d0c12`; GitHub Pages deploy run `37809007472` ผ่าน และ live dashboard health badge แสดง `Control Worker พร้อม`
+- ยังไม่ production-secure: `GH_TOKEN` ค่าแรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติ rotate/revoke; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
 - E2E scenarios ที่เหลือ: duplicate/no-resend live, multi-photo/multiple distinct media, partial-failure live recovery, large-file, browser refresh/UI และ mobile
 
 ### Historical legacy note: Apps Script POST redirect
@@ -204,7 +205,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Normal-path E2E ด้วย URL ที่เจ้าของอนุมัติผ่านแล้วหนึ่งครั้งและส่งหนึ่ง MP4 ไป Telegram; Worker ถูกคืน `GH_REF=main` หลังทดสอบ. อย่าใช้ Dashboard path ก่อน merge เพราะหน้า Pages บน `main` และ workflow interface ยังเป็น legacy. Production ยังถูกบล็อกโดย `GH_TOKEN` ที่เปิดเผยและยังไม่ได้ rotate (เจ้าของยังไม่อนุมัติ), รวมถึง scenarios ที่เหลือและ residual security findings. GitHub Actions manual UI เดิมยังเป็น fallback
+คง **GitHub Actions เป็น execution backend**. PR #2 merged และ Dashboard live แล้ว; Pages/Worker health ผ่าน. Normal-path E2E ส่งหนึ่ง MP4 สำเร็จ. ใช้งานได้ทางเทคนิค แต่ยังไม่ production-secure เพราะ `GH_TOKEN` ที่เปิดเผยยังไม่ rotate (เจ้าของยังไม่อนุมัติ), scenarios ที่เหลือและ residual findings ยังอยู่. คู่มือผู้ใช้: [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); GitHub Actions manual UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 

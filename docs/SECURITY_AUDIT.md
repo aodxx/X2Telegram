@@ -43,7 +43,7 @@
 
 1. ก่อน production ให้ revoke token ที่เปิดเผยและตั้ง fine-grained `GH_TOKEN` ใหม่ผ่าน Cloudflare Secret Store โดยไม่ส่งค่าในแชต; เจ้าของยังไม่อนุมัติขั้นนี้.
 2. E2E normal-path หนึ่ง URL ผ่านแล้ว; ทำ/บันทึก scenarios ที่เหลือตาม `docs/E2E_TEST_REPORT.md`.
-3. จัดการ residual P2 หรือยอมรับความเสี่ยงอย่างชัดเจนก่อน merge/public Dashboard.
-4. จึงพิจารณา Zone 6 (ลบ GAS), merge PR #2 และ production release.
+3. จัดการ residual P2 หรือยอมรับความเสี่ยงอย่างชัดเจนก่อนขยายการใช้งาน. Dashboard ถูก merge/deploy แล้วและถูกป้องกันด้วย owner-only Access.
+4. พิจารณา Zone 6 (ลบ GAS) และ production release หลัง credential risk และ E2E scenarios ที่เหลือได้รับการจัดการ.
 
 **ข้อสรุป:** security regression ที่แก้ได้ใน source มี tests ผ่าน และ normal-path live E2E ผ่านหนึ่งครั้ง แต่ยังห้ามประกาศ production-ready เพราะ `GH_TOKEN` ที่เปิดเผยยังไม่ถูก rotate และ full E2E/release review ยังไม่ครบ.

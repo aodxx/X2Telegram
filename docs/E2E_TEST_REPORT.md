@@ -14,7 +14,7 @@
 - Metadata มี video formats 2 รายการ; ระบบเลือก video variant สูงสุดหนึ่งรายการและส่งหนึ่งข้อความ/media ไปกลุ่มข้างต้น.
 - GitHub Actions persist step สำเร็จ; ตรวจ remote branch ภายหลังพบ `state/dedupe.json` version 2 มี completed record ของ post นี้และ media checkpoint 1 รายการ.
 - Dashboard-origin authenticated `GET /jobs/<job_id>` คืน HTTP `200` พร้อม sanitized report และ Telegram message ID.
-- หลัง run เสร็จได้คืน Worker `GH_REF` จาก branch ชั่วคราวเป็น `main` แล้ว (Worker version `29a2c667-cce4-4da9-8bff-d93b89490e0f`). GitHub Pages `main` และ PR #2 ยังไม่เปลี่ยน/merge.
+- หลัง run เสร็จได้คืน Worker `GH_REF` จาก branch ชั่วคราวเป็น `main` (Worker version `29a2c667-cce4-4da9-8bff-d93b89490e0f`). PR #2 ถูก squash-merge เป็น commit `00936856a02261e1969d517157f5591d1a0d0c12`; Pages deploy run #37809007472 สำเร็จ. ตรวจหน้า https://aodxx.github.io/X2Telegram/ ได้ HTTP 200, `config.js` ชี้ Worker, และ health badge แสดง `Control Worker พร้อม`.
 
 ### การลองครั้งแรกและการแก้ไข
 
@@ -49,6 +49,6 @@
 
 1. เจ้าของยังไม่อนุมัติ rotate/revoke `GH_TOKEN`; token ที่เคยเปิดเผยจึงยังเป็น **P1 blocker**. E2E นี้ใช้ secrets เดิมตามคำยืนยัน แต่ไม่ลบความเสี่ยงจากการเปิดเผย token.
 2. ทำ live duplicate/no-resend, multi-photo/multiple media, partial-failure recovery, refresh/UI, mobile และ large-file scenarios ตามที่มี test assets/credentials; อย่าส่งซ้ำหรือทดสอบส่งซ้ำโดยไม่มีการตรวจ dedupe state ก่อน.
-3. แก้/ยืนยัน residual security items ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นจึงพิจารณา Zone 6 GAS removal, merge PR #2 และเปลี่ยน GitHub Pages `main`.
+3. แก้/ยืนยัน residual security items ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นจึงพิจารณา Zone 6 GAS removal และการใช้งาน production ต่อเนื่อง. PR #2 และ Pages deploy เสร็จแล้ว.
 
 **Conclusion:** ได้พิสูจน์ normal path แบบ live แล้วหนึ่งครั้ง และมีหลักฐานการส่ง Telegram message ID `347`. นี่ไม่ใช่การรับรองว่า full Zone 9 matrix ผ่านหรือระบบพร้อม production; token rotation และ scenarios ที่เหลือยังค้าง.
