@@ -42,6 +42,6 @@ window.X2TELEGRAM_CONFIG = Object.freeze({
 ## ข้อจำกัดและการตรวจ
 
 - Batch มากกว่า 50 รายการต้องแบ่งเป็นหลายชุด
-- การตรวจหลาย URL ยังไม่เท่ากับการส่ง live; automated tests ครอบ contract/dispatch mock และต้องทำ controlled E2E แยกหากต้องการยืนยัน batch จริง
+- Live batch E2E run `37816856323` dispatch 2 URL ใน Actions run เดียวและจบสำเร็จ; ทั้งคู่มี completed dedupe records จึง `skipped_duplicate` และไม่มีการส่ง Telegram ซ้ำ. นี่ยืนยัน live batch dispatch/no-resend แต่ยังไม่ใช่การทดสอบส่ง media ใหม่หลายโพสต์ใน batch
 - สถานะงานล่าสุดเก็บใน browser `localStorage`; ไม่มี server-side history database
 - ผลการส่ง Telegram ดูจาก sanitized report artifact และ message IDs; network timeout หลัง Telegram รับไฟล์ยังต้องตรวจผลก่อน retry
