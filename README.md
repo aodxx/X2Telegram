@@ -65,7 +65,7 @@ The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
 
 The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The new Dashboard path submits one post per job through a Cloudflare Control Worker; GitHub Actions remains the execution plane. The source implementation and offline tests are in `control-worker/`, with the API contract and setup steps in [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), [`docs/CLOUDFLARE_WORKER.md`](docs/CLOUDFLARE_WORKER.md), and [`docs/CLOUDFLARE_ACCESS.md`](docs/CLOUDFLARE_ACCESS.md).
 
-**The Dashboard migration is not live yet.** The Worker has not been deployed, its Cloudflare Access application is not configured, and its GitHub `GH_TOKEN` secret has not been provisioned. Do not rely on the new Dashboard endpoint until those prerequisites are completed and authenticated end-to-end tests pass. The existing manual Actions flow remains the fallback.
+**Migration is partially deployed but not ready for use.** The Worker and owner-only Cloudflare Access application are live, but the Worker has no long-lived GitHub `GH_TOKEN`, so job dispatch/status are not operational. The existing GitHub Pages dashboard on `main` has not been switched to the new Worker, and the manual Actions flow remains available. Do not merge PR #2 or rely on the new Dashboard path until the token is provisioned securely and authenticated end-to-end tests pass.
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

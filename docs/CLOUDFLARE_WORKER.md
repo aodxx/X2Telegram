@@ -1,8 +1,13 @@
 # Cloudflare Control Worker — Zone 3
 
-## สถานะ
+## สถานะปัจจุบัน (2026-10-08)
 
-Implementation + offline tests เสร็จแล้ว; **ยังไม่ได้ deploy** ตามข้อกำหนด Zone 3. Worker source: `control-worker/src/index.js`; config: `control-worker/wrangler.toml`.
+- Worker `x2telegram-control-plane` deploy แล้วที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
+- Cloudflare Access ครอบ hostname นี้และบังคับ owner-only email OTP (ดู [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md))
+- Worker secret `ACCESS_ALLOWED_EMAIL` ถูกตั้งใน Cloudflare Secret Store; ไม่อยู่ใน source, Dashboard หรือ Git
+- **ยังไม่มี `GH_TOKEN`**: Worker จึงตอบ `503 backend_not_configured` หลังผ่าน Access และยัง dispatch/read GitHub Actions ไม่ได้
+- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะมี GitHub credential แบบ long-lived และผ่าน authenticated end-to-end tests
+- GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
 
 ## Architecture
 
@@ -10,50 +15,44 @@ Implementation + offline tests เสร็จแล้ว; **ยังไม่
 GitHub Pages → Cloudflare Access → x2telegram-control-plane Worker → GitHub Actions → Python worker → Telegram
 ```
 
-Worker เป็น API/control layer เท่านั้น ไม่ download media, ไม่ส่ง Telegram, ไม่มี database/Redis/queue และไม่มี backend framework. `fflate` ใช้แตก ZIP ของ GitHub Actions report artifact ใน Worker เพื่อคืนเฉพาะ sanitized dashboard report
+Worker เป็น API/control layer เท่านั้น ไม่ดาวน์โหลด media ไม่ส่ง Telegram ไม่มี database/Redis/queue/backend framework. `fflate` ใช้แตก ZIP ของ GitHub Actions report artifact ใน Worker เพื่อคืนเฉพาะ sanitized dashboard report
 
 ## Configuration
 
-`wrangler.toml` กำหนดชื่อ `x2telegram-control-plane`, main module, compatibility date, GitHub repository/workflow/ref และ exact Dashboard CORS origin. `workers.dev` host ตาม account subdomain ที่ตรวจแบบ read-only คือ:
-
-```text
-https://x2telegram-control-plane.pantipa3826.workers.dev
-```
-
-`web/config.js` ใช้ public API origin นี้; ไม่ใช่ credential. ชื่อ Worker ยังว่างในรายการ script ปัจจุบัน ณ วันที่ audit; ไม่มีการสร้าง resource ใน Cloudflare
-
-ตั้งค่า secret ด้วย Wrangler หลังมี fine-grained GitHub token ที่จำกัด repository `aodxx/X2Telegram`:
-
-```bash
-cd control-worker
-npx wrangler secret put GH_TOKEN
-```
-
-ห้ามพิมพ์หรือ commit token. สิทธิ์ที่ตั้งใจใช้: Actions read/write เพื่อ dispatch/read workflow runs/artifacts และ Metadata read; ต้องตรวจว่า token จริงให้สิทธิ์เท่านี้ก่อน deployment
-
-ตั้ง Worker vars ที่เหลือใน `wrangler.toml`/dashboard:
+`wrangler.toml` มี non-secret variables:
 
 - `GH_OWNER=aodxx`
 - `GH_REPO=X2Telegram`
 - `GH_WORKFLOW_ID=x2telegram.yml`
 - `GH_REF=main`
 - `DASHBOARD_ORIGIN=https://aodxx.github.io`
-- `ACCESS_TEAM_DOMAIN=https://<team>.cloudflareaccess.com`
-- `ACCESS_AUD=<Access application AUD>`
-- `ACCESS_ALLOWED_EMAIL=<owner email>`
+- `ACCESS_TEAM_DOMAIN=https://falling-sky-a8ee.cloudflareaccess.com`
+- `ACCESS_AUD` — audience ของ Access app ที่ตั้งไว้ใน config
 
-ค่า Access สามรายการสุดท้ายยังว่าง เพราะไม่มี Access application/AUD ที่อ่านได้ในบัญชีขณะตรวจ และ worker ยังไม่ deploy
+Cloudflare Worker Secrets:
+
+- `ACCESS_ALLOWED_EMAIL` — ตั้งไว้แล้ว; ใช้ตรวจ identity ซ้ำหลัง validate Access JWT
+- `GH_TOKEN` — **ยังต้อง provision** เป็น fine-grained GitHub credential จำกัดเฉพาะ repository `aodxx/X2Telegram` ด้วยสิทธิ์ `Actions: Read and write` และ `Metadata: Read-only`
+
+ห้ามใช้ GitHub CLI app user token (`ghu_…`) เป็น `GH_TOKEN`: token ของ integration เป็น credential สำหรับ session ชั่วคราว ไม่ใช่ secret ระยะยาวสำหรับ Worker. อย่าพิมพ์ token ลง chat หรือ commit ลง Git. เมื่อมี fine-grained PAT ให้เพิ่มผ่าน Cloudflare Worker secret prompt:
+
+```bash
+cd control-worker
+npx wrangler secret put GH_TOKEN --name x2telegram-control-plane
+```
+
+หลังตั้ง secret ให้ทดสอบ; ห้ามเริ่ม run ทดสอบด้วย URL จริงหรือส่ง Telegram โดยไม่มีการอนุมัติทดสอบแยกต่างหาก
 
 ## Endpoints
 
 | Method/path | Authentication | Behavior |
 |---|---|---|
-| `GET /health` | liveness only | คืน service/status โดยไม่เปิดเผย credential หรือสถานะ upstream |
+| `GET /health` | Cloudflare Access ที่ edge | คืน service/status โดยไม่เปิดเผย credential หรือสถานะ upstream |
 | `POST /jobs` | Cloudflare Access JWT | รับ JSON URL เดี่ยว; ตรวจ origin/schema/body size/URL/mode/request ID; ตรวจ run เดิม; dispatch GitHub Actions |
 | `GET /jobs/<job_id>` | Cloudflare Access JWT | ค้น run จาก workflow title, คืนสถานะและ sanitized artifact |
-| `OPTIONS *` | preflight | ตอบ CORS เฉพาะ Dashboard origin ที่ระบุไว้; Access app ต้องตั้งค่า OPTIONS preflight เพิ่มเติม |
+| `OPTIONS *` | CORS preflight | รับเฉพาะ Dashboard origin; Access application ตอบ preflight ด้วย CORS headers ที่กำหนด |
 
-Worker ตรวจ Access JWT signature RS256 กับ Cloudflare Access JWKS, issuer, audience, `exp`/`nbf`, และ email allowlist. GitHub token อยู่ใน Worker secret เท่านั้น. Error จาก GitHub ถูก sanitize ไม่คืน response body/token. API response ใช้ `Cache-Control: no-store` และ CORS ไม่ใช้ wildcard
+Worker ตรวจ Access JWT signature RS256 กับ Cloudflare Access JWKS, issuer, audience, `exp`/`nbf`, และ email allowlist. GitHub token อยู่ใน Worker secret เท่านั้น. GitHub errors ถูก sanitize; response ใช้ `Cache-Control: no-store`; CORS ไม่ใช้ wildcard
 
 ## Dispatch / idempotency / workflow interface
 
@@ -72,13 +71,10 @@ npm test --prefix control-worker
 
 Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied identity, invalid/malformed request, dispatch mapping, duplicate/conflict, GitHub failure, status/artifact, CORS. Tests ไม่เรียก GitHub จริง, ไม่ dispatch workflow และไม่ส่ง Telegram
 
-## Deployment checklist (ยังไม่ดำเนินการ)
+## ขั้นตอนที่ค้างก่อนเปิดใช้งาน
 
-1. สร้าง fine-grained GitHub credential ที่จำกัด repo/permissions ตามต้องการและเก็บเป็น `GH_TOKEN` Worker Secret
-2. สร้าง Access app/policy เฉพาะ Worker, ตั้ง owner identity allowlist, เปิด production Access
-3. ตั้ง Access team domain, AUD, email allowlist และ CORS จาก Dashboard origin
-4. ตรวจ exact host/origin และ Access login flow; ตั้งค่า `OPTIONS` preflight ใน Access ให้ตรงกับ Worker CORS (อย่า bypass โดยไม่มี origin check)
-5. ตั้ง secrets/vars และ deploy ด้วย `npx wrangler deploy`
-6. ทดสอบ `GET /health`, unauthenticated denial, authorized submit, duplicate, status/report ก่อนเปิด dashboard ใช้งาน
-
-Cloudflare docs: [Protect a Worker with Access](https://developers.cloudflare.com/workers/configuration/cloudflare-access/), [workers.dev URLs](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/), [Access CORS](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/cors/), [Validate Access JWT](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/).
+1. เจ้าของสร้าง GitHub fine-grained PAT จำกัด repository `aodxx/X2Telegram`, `Actions: Read and write`, `Metadata: Read-only`; ไม่ใช้ session token จาก `gh auth token`
+2. ตั้ง PAT เป็น Worker secret `GH_TOKEN` ตามคำสั่งข้างต้น โดยไม่ส่ง token ในแชต
+3. เจ้าของ sign in ที่ Worker ผ่าน email OTP; ตรวจว่าเข้าถึง `/health` ได้
+4. ทดสอบ submit แบบควบคุมโดยไม่มี URL จริง/ไม่มี Telegram delivery ก่อน; ตรวจ dispatch/status/report แล้วจึงตัดสินใจ merge PR #2 และเปิด Dashboard ใหม่
+5. ไม่เปลี่ยน main GitHub Pages/merge PR จนกว่าข้อ 1–4 ผ่าน
