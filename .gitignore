@@ -7,3 +7,5 @@ tmp/
 downloads/
 artifacts/
 state/*.lock
+control-worker/node_modules/
+.dev.vars

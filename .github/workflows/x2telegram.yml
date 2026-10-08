@@ -1,13 +1,19 @@
 name: X2Telegram
 
-run-name: ${{ inputs.request_id && format('X2Telegram {0}', inputs.request_id) || 'X2Telegram' }}
+run-name: ${{ inputs.request_id && inputs.job_id && format('X2Telegram {0} {1}', inputs.request_id, inputs.job_id) || inputs.job_id && format('X2Telegram {0}', inputs.job_id) || inputs.request_id && format('X2Telegram {0}', inputs.request_id) || 'X2Telegram' }}
 
 on:
   workflow_dispatch:
     inputs:
+      url:
+        description: "Single X post URL submitted by the control plane"
+        required: false
+        default: ""
+        type: string
       urls:
-        description: "Paste one or more X post URLs, one per line"
-        required: true
+        description: "Paste one or more X post URLs, one per line (manual/legacy input)"
+        required: false
+        default: ""
         type: string
       large_file_mode:
         description: "Use a Telegram Local Bot API Server for files above 50 MB"
@@ -15,13 +21,22 @@ on:
         default: false
         type: boolean
       request_id:
-        description: "Optional dashboard correlation ID (leave empty when running manually)"
+        description: "Dashboard correlation ID (leave empty when running manually)"
+        required: false
+        default: ""
+        type: string
+      job_id:
+        description: "Control-plane job ID (leave empty when running manually)"
         required: false
         default: ""
         type: string
 
 permissions:
   contents: write
+
+defaults:
+  run:
+    shell: bash
 
 concurrency:
   group: x2telegram-production
@@ -45,6 +60,9 @@ jobs:
 
       - name: Run automated tests
         run: python -m pip install pytest && pytest -q
+
+      - name: Run control Worker tests
+        run: npm ci --prefix control-worker && npm test --prefix control-worker
 
       - name: Start Telegram Local Bot API Server
         if: ${{ inputs.large_file_mode }}
@@ -70,7 +88,10 @@ jobs:
 
       - name: Process posts and send media
         env:
+          INPUT_URL: ${{ inputs.url }}
           INPUT_URLS: ${{ inputs.urls }}
+          JOB_ID: ${{ inputs.job_id }}
+          REQUEST_ID: ${{ inputs.request_id }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: "-1003906817580"
           LARGE_FILE_MODE: ${{ inputs.large_file_mode }}
@@ -78,11 +99,21 @@ jobs:
           TELEGRAM_API_BASE_URL: ${{ inputs.large_file_mode && 'http://127.0.0.1:8081' || 'https://api.telegram.org' }}
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           DEDUPE_STATE_PATH: state/dedupe.json
-          REQUEST_ID: ${{ inputs.request_id }}
         run: |
           test -n "$TELEGRAM_BOT_TOKEN" || (echo "Missing TELEGRAM_BOT_TOKEN secret" >&2; exit 1)
+          if [ -n "$INPUT_URL" ]; then
+            test -z "$INPUT_URLS" || (echo "Provide url or urls, not both" >&2; exit 1)
+            printf '%s\n' "$INPUT_URL" > /tmp/x2telegram-input-urls.txt
+          elif [ -n "$INPUT_URLS" ]; then
+            printf '%s\n' "$INPUT_URLS" > /tmp/x2telegram-input-urls.txt
+          else
+            echo "Provide url or urls" >&2
+            exit 1
+          fi
+          export REQUEST_ID="${REQUEST_ID:-$JOB_ID}"
+          export JOB_ID="${JOB_ID:-$REQUEST_ID}"
           mkdir -p state
-          printf '%s\n' "$INPUT_URLS" | python -m src.cli --report report.json --log run.jsonl --dedupe-state "$DEDUPE_STATE_PATH" | tee report-output.json
+          python -m src.cli --report report.json --log run.jsonl --dedupe-state "$DEDUPE_STATE_PATH" < /tmp/x2telegram-input-urls.txt | tee report-output.json
 
       - name: Stop Telegram Local Bot API Server
         if: ${{ always() && inputs.large_file_mode }}

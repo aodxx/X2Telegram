@@ -7,7 +7,7 @@ Paste one or many public X post URLs into one GitHub Actions run. The system par
 
 ## Project status
 
-See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and the Phase 6.1 private dashboard plan.
+See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the current implementation status, latest real-run evidence, production notes, and private Dashboard migration status.
 
 ## Principles
 - Simple setup: configure secrets once.
@@ -60,6 +60,12 @@ TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --prefl
 ```
 
 The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
+
+## Private Dashboard migration (in progress)
+
+The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The new Dashboard path submits one post per job through a Cloudflare Control Worker; GitHub Actions remains the execution plane. The source implementation and offline tests are in `control-worker/`, with the API contract and setup steps in [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), [`docs/CLOUDFLARE_WORKER.md`](docs/CLOUDFLARE_WORKER.md), and [`docs/CLOUDFLARE_ACCESS.md`](docs/CLOUDFLARE_ACCESS.md).
+
+**The Dashboard migration is not live yet.** The Worker has not been deployed, its Cloudflare Access application is not configured, and its GitHub `GH_TOKEN` secret has not been provisioned. Do not rely on the new Dashboard endpoint until those prerequisites are completed and authenticated end-to-end tests pass. The existing manual Actions flow remains the fallback.
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

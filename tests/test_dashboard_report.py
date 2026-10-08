@@ -1,4 +1,5 @@
 from src.cli import build_summary
+from src.cli import main
 from src.dashboard_report import sanitize_report
 
 
@@ -18,7 +19,7 @@ def test_build_summary_empty():
 
 def test_sanitize_is_allow_listed_for_apps_script():
     payload = {
-        "run_id": "1", "request_id": "gas-request-01", "status": "completed",
+        "run_id": "1", "request_id": "gas-request-01", "job_id": "dashboard-job-01", "status": "completed",
         "summary": {"total": 1},
         "telegram_preflight": {"chat_id": "-100", "member_status": "administrator"},
         "TELEGRAM_BOT_TOKEN": "secret",
@@ -33,6 +34,7 @@ def test_sanitize_is_allow_listed_for_apps_script():
     assert "telegram_preflight" not in clean
     assert "TELEGRAM_BOT_TOKEN" not in clean
     assert clean["request_id"] == "gas-request-01"
+    assert clean["job_id"] == "dashboard-job-01"
     item = clean["results"][0]
     assert "media_url" not in item
     assert "twimg" not in item["error"]
@@ -42,8 +44,9 @@ def test_sanitize_is_allow_listed_for_apps_script():
 
 
 def test_invalid_request_id_is_not_forwarded():
-    clean = sanitize_report({"request_id": "../../secret", "results": []})
+    clean = sanitize_report({"request_id": "../../secret", "job_id": "../secret", "results": []})
     assert clean["request_id"] is None
+    assert clean["job_id"] is None
 
 
 def test_summary_and_result_values_are_normalized():
@@ -56,3 +59,20 @@ def test_summary_and_result_values_are_normalized():
     }
     assert clean["results"][0]["media_count"] == 3
     assert clean["results"][0]["message_ids"] == [4]
+
+
+def test_cli_report_includes_job_id(tmp_path, monkeypatch):
+    import io
+    import json
+    import sys
+
+    report_path = tmp_path / "report.json"
+    monkeypatch.setenv("REQUEST_ID", "request-123")
+    monkeypatch.setenv("JOB_ID", "job-0123456789abcdef0123456789abcdef")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+    monkeypatch.setattr(sys, "stdin", io.StringIO("https://x.com/user/status/123\n"))
+    monkeypatch.setattr(sys, "argv", ["src.cli", "--parse-only", "--report", str(report_path)])
+    assert main() == 0
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["request_id"] == "request-123"
+    assert report["job_id"] == "job-0123456789abcdef0123456789abcdef"

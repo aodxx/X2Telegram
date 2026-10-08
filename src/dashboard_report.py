@@ -1,4 +1,4 @@
-"""Create the private, API-safe report consumed by Google Apps Script.
+"""Create the private, API-safe report consumed by the Control Worker.
 
 The full workflow report stays in the GitHub Actions artifact. This module
 creates an allow-listed projection for the backend; it must never be
@@ -19,7 +19,7 @@ _SECRET_RE = re.compile(
 _SAFE_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 _TOP_KEYS = (
-    "schema_version", "run_id", "request_id", "status", "started_at", "finished_at",
+    "schema_version", "run_id", "request_id", "job_id", "status", "started_at", "finished_at",
     "duration_seconds", "large_file_mode", "input_count", "valid_unique_posts",
     "dedupe_enabled", "summary", "error_code",
 )
@@ -80,9 +80,10 @@ def _safe_result(item: Any) -> dict[str, Any]:
 
 
 def sanitize_report(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return only the fields Google Apps Script needs from a workflow report."""
+    """Return only allow-listed fields needed by the private Dashboard API."""
     out: dict[str, Any] = {key: payload[key] for key in _TOP_KEYS if key in payload}
     out["request_id"] = _safe_request_id(payload.get("request_id"))
+    out["job_id"] = _safe_request_id(payload.get("job_id"))
     out["summary"] = _safe_summary(payload.get("summary"))
     if payload.get("error"):
         out["error"] = redact(payload["error"])

@@ -104,27 +104,31 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 เป้าหมายคือให้ผู้ใช้วางลิงก์และกด Run ผ่านหน้าจอที่ใช้งานง่าย โดยยังคงใช้ workflow และระบบความปลอดภัยเดิมเป็น backend หลัก
 
-### ความคืบหน้าล่าสุด: Phase 6.1A เสร็จแล้ว
+### ความคืบหน้าล่าสุด: Phase 6.1A–1E implementation เสร็จใน repository
 
 - สร้าง Static Dashboard ที่ `web/index.html` ด้วย responsive UI สำหรับ desktop และมือถือ
 - เพิ่มการตรวจ X URL ฝั่ง browser, การนับ valid/invalid/duplicate และหน้าสรุปรายการก่อนส่ง
 - เพิ่มตัวเลือก `large_file_mode` และแสดงปลายทาง Telegram ที่ล็อกไว้
-- เพิ่มปุ่มเปิด GitHub Actions workflow โดยไม่ฝัง GitHub หรือ Telegram token ในหน้าเว็บ
+- เพิ่มปุ่มเปิด GitHub Actions workflow และลิงก์ลงชื่อเข้าใช้ Cloudflare Access โดยไม่ฝัง GitHub หรือ Telegram token ในหน้าเว็บ
 - เพิ่ม `.github/workflows/pages.yml` สำหรับ deploy โฟลเดอร์ `web/` ไปยัง GitHub Pages อัตโนมัติเมื่อ push เข้า `main`
+- เพิ่ม `docs/CONTROL_PLANE_CONTRACT.md` เป็น API/state/idempotency contract ของ Control Plane
+- เพิ่ม `control-worker/` สำหรับ Cloudflare Worker ที่ตรวจ Access JWT, validate URL, dispatch/read GitHub Actions, อ่าน sanitized report artifact และบังคับ exact-origin CORS
+- เพิ่ม offline Worker tests สำหรับ auth, invalid input, duplicate/conflict, GitHub failure, status/report และ CORS
+- Workflow เพิ่ม `url`, `request_id`, `job_id` โดยยังรองรับ `urls` แบบ manual เดิม; Python report และ sanitized projection เพิ่ม `job_id`
 
-> Phase 6.1A เป็น Static UI ที่ปลอดภัย ปุ่ม Run จะเปิดหน้า GitHub Actions ให้ผู้ใช้กด `Run workflow` ต่อเอง การเรียก workflow จากหน้าเว็บโดยตรงยังไม่เปิดใช้งานจนกว่าจะมี backend/serverless API ที่เก็บ credential อย่างปลอดภัยใน Phase 6.1B
+> Static UI เดิมถูกยกระดับเป็น Dashboard client ของ Cloudflare Control Worker แล้ว แต่ยังไม่เปิด production เพราะ Worker และ Access policy ยังไม่ได้ deploy/configure
 
-### Phase 6.1B: เตรียม report contract สำหรับ Google Apps Script
+### Phase 6.1B: Report contract สำหรับ private control plane
 
 - เพิ่ม `request_id`, summary และ filenames ใน workflow report
 - เพิ่ม `src/dashboard_report.py` เพื่อสร้าง report แบบ allow-list สำหรับ Backend
 - ไม่ push report ไปยัง public branch `dashboard-data`
 - อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
-- Google Apps Script สามารถใช้ GitHub API ที่มี credential ฝั่ง server เพื่อดาวน์โหลด artifact หลัง workflow เสร็จ
+- Cloudflare Control Worker ใช้ GitHub API credential ฝั่ง server เพื่ออ่าน artifact หลัง workflow เสร็จ
 
-> Phase 6.1B ส่วนนี้เป็น data contract และการจัดเก็บ report ฝั่ง private เท่านั้น ยังไม่ใช่ Apps Script API หรือการเชื่อม Dashboard แบบ end-to-end
+> ส่วนนี้เป็น data contract และการจัดเก็บ report ฝั่ง private; browser-to-Cloudflare/GitHub/Telegram end-to-end ยังรอ deployment และ Access configuration
 
-### Google Apps Script Backend: โครงร่าง API พร้อมพัฒนา
+### Google Apps Script Backend: legacy/reference (ไม่ใช่เส้นทางใหม่)
 
 - เพิ่ม `gas/Code.gs` สำหรับ `doGet`/`doPost`
 - รองรับ `health`, `start`, `status` และ `report`
@@ -134,32 +138,32 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - เรียก GitHub Actions API และดาวน์โหลด sanitized dashboard artifact แบบ authenticated
 - เพิ่ม `gas/README.md` และ `gas/appsscript.json` สำหรับ deployment/configuration
 
-> ยังต้องทดสอบ deployment จริงเรื่อง Google account access และ CORS ระหว่าง GitHub Pages กับ Apps Script ก่อนเปิดใช้งาน production
+> `gas/` คงไว้เพื่อ reference/rollback เท่านั้น Dashboard ใหม่ไม่เรียก GAS แล้ว; ไม่ควร deploy เป็น production endpoint คู่ขนานโดยไม่มีเหตุผล
 
-### Dashboard integration: เชื่อมต่อ API แล้ว
+### Dashboard integration: เชื่อมต่อ Control Worker แล้วใน source
 
-- หน้า `web/index.html` เรียก Google Apps Script Web App โดยตรง
+- หน้า `web/index.html` เรียก Cloudflare Control Worker REST API โดยตรงผ่าน `web/config.js`
 - รองรับการเริ่มงานจากหน้า Dashboard โดยไม่ต้องเปิด GitHub Actions เอง
 - แสดง request ID, run ID, สถานะ queued/in progress/completed และลิงก์ workflow
-- polling สถานะทุก 7–10 วินาที และหยุดเมื่อ workflow จบ
+- polling สถานะทุก 5–7 วินาทีและหยุดเมื่อ workflow จบ; current job/recent jobs เก็บใน browser localStorage
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
-- ปุ่มเริ่มงานส่งเฉพาะ URL ที่ผ่านการตรวจฝั่ง browser และส่ง `idempotency_key`
+- ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> การใช้งานจริงต้องเปิด Dashboard ด้วย Google account ที่อยู่ใน `ALLOWED_EMAILS` และต้องยืนยันการเรียกข้าม origin ระหว่าง GitHub Pages กับ Apps Script ใน browser จริง
+> การใช้งานจริงต้องเปิด Dashboard ผ่าน Cloudflare Access identity ที่ allowlist และต้องยืนยัน CORS preflight ระหว่าง GitHub Pages กับ Worker ใน browser จริง
 
-### Dashboard troubleshooting: Apps Script POST redirect
+### Historical legacy note: Apps Script POST redirect
 
 - ตรวจพบว่า Apps Script Web App ตอบ `health` แบบ GET ได้ แต่ POST ที่ตาม redirect อาจจบด้วย HTTP 405 ใน browser
 - เพิ่ม `GET action=start` ที่รับ JSON แบบ base64url เป็น fallback สำหรับเริ่ม workflow
 - Dashboard เปลี่ยนการเริ่มงานมาใช้ GET fallback เพื่อลดปัญหา POST redirect
 - Dashboard อ่าน response แบบ text ก่อน parse JSON และแสดงข้อความภาษาไทยเมื่อพบ CORS, 405 หรือ response ที่ไม่ใช่ JSON
-- ต้องนำ `gas/Code.gs` รุ่นล่าสุดไปวางใน Apps Script และสร้าง deployment version ใหม่ก่อนทดสอบอีกครั้ง
+- ข้อควรจำ: รายการนี้เป็น history ของ GAS path เดิม ไม่ใช่ขั้นตอน deploy Dashboard/Control Worker รุ่นปัจจุบัน
 
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
-2. textarea สำหรับวาง X URL หลายรายการ หนึ่ง URL ต่อบรรทัด
-3. ตรวจและนับ URL ที่ valid / duplicate / invalid ก่อนเริ่ม
+2. รับ X URL หนึ่งรายการต่อหนึ่ง job ผ่าน Dashboard; manual GitHub workflow ยังคงรับ batch URLs ได้
+3. ตรวจ X URL ก่อนเริ่ม และให้ Worker ตรวจซ้ำฝั่ง server
 4. หน้าสรุปให้ review รายการก่อนกดส่ง
 5. ปุ่มเริ่ม workflow ผ่าน backend ที่ปลอดภัย
 6. ตัวเลือก `large_file_mode` พร้อมคำเตือนเรื่อง credentials/ขนาดไฟล์
@@ -188,7 +192,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-เริ่ม Phase 6.1 เป็น **private dashboard MVP** โดยให้ GitHub Actions เป็น execution backend ต่อไปก่อน วิธีนี้ลดการเปลี่ยนแปลงในแกนที่ผ่านการทดสอบแล้ว และทำให้สามารถ rollback กลับไปใช้ GitHub Actions UI ได้ง่ายหาก dashboard มีปัญหา
+คง **GitHub Actions เป็น execution backend** และเปิด Dashboard เมื่อ deployment prerequisites พร้อมเท่านั้น ขั้นถัดไปคือกำหนด Cloudflare Access policy สำหรับ Worker, provision GitHub Actions fine-grained token ใน Worker secret, deploy/ตรวจ Worker และทดสอบ browser-to-GitHub end-to-end ก่อนเปิดใช้ การ rollback ทำได้โดยกลับไปใช้ GitHub Actions UI เดิม
 
 ## จุดอ้างอิงสำคัญใน repository
 

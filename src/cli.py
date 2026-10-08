@@ -57,6 +57,7 @@ def main() -> int:
         "schema_version": 1,
         "run_id": os.getenv("GITHUB_RUN_ID"),
         "request_id": os.getenv("REQUEST_ID") or None,
+        "job_id": os.getenv("JOB_ID") or os.getenv("REQUEST_ID") or None,
         "large_file_mode": os.getenv("LARGE_FILE_MODE", "").lower() == "true",
         "started_at": started_at,
         "status": "completed",

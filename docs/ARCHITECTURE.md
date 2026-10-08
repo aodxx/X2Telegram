@@ -37,3 +37,15 @@ Produce Markdown/JSON summaries with per-post status, media count, message IDs, 
 - Use GitHub Actions Secrets.
 - Never persist downloaded media in the repository.
 - Keep workflow permissions minimal.
+
+## Private Dashboard control plane (migration implementation)
+
+Target flow:
+
+```text
+GitHub Pages → Cloudflare Access → Cloudflare Control Worker → GitHub Actions → X2Telegram Python worker → Telegram
+```
+
+GitHub Actions remains the execution plane and retains the Telegram bot credential, fixed Telegram destination, media processing, concurrency and persisted duplicate state. The Cloudflare Worker validates Access JWTs and exact Dashboard origin, maps one X post request to `workflow_dispatch`, finds the run by deterministic job fingerprint, and returns only the sanitized private dashboard artifact. It stores no jobs/database/queue and receives no Telegram secret.
+
+The Dashboard implementation, API contract, workflow input compatibility and offline tests are in this repository (`control-worker/`, `docs/CONTROL_PLANE_CONTRACT.md`, `docs/CLOUDFLARE_WORKER.md`, `docs/CLOUDFLARE_ACCESS.md`). **This is source-level migration only, not a live deployment**: the Worker has not been deployed and Access policy/GitHub Worker secret are not provisioned. The existing GitHub Actions manual batch entry remains available. The `gas/` implementation is legacy/reference, not the new Dashboard API path.

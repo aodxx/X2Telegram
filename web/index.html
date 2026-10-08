@@ -120,6 +120,9 @@
     .result-row .status-dot { margin-top: 5px; }
     .result-row b { display: block; color: var(--text); }
     .result-row span { color: var(--muted); }
+    .recent-job { display: grid; gap: 5px; width: 100%; text-align: left; white-space: normal; }
+    .recent-job b { overflow-wrap: anywhere; font-size: 12px; }
+    .recent-job span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
     .result-ok { color: var(--green) !important; }
     .result-bad { color: var(--red) !important; }
     @media (max-width: 820px) { .hero, .grid { grid-template-columns: 1fr; } .hero { gap: 18px; margin-bottom: 20px; } }
@@ -131,24 +134,24 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="mark">X→T</div><div><strong>X2Telegram</strong><span>Private media bridge</span></div></div>
-      <div class="top-actions"><span class="pill version-pill">Dashboard v1.2.2 · build 2026-10-03</span><span class="pill backend-pill" id="backendPill"><i class="pulse"></i>กำลังตรวจ Backend...</span><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
+      <div class="top-actions"><span class="pill version-pill">Dashboard v1.3 · Control Plane</span><span class="pill backend-pill" id="backendPill"><i class="pulse"></i>กำลังตรวจ Worker...</span><a class="ghost" id="accessLogin" href="#" target="_blank" rel="noreferrer">ลงชื่อเข้าใช้ API ↗</a><a class="ghost" href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml" target="_blank" rel="noreferrer">เปิด Actions ↗</a></div>
     </header>
 
     <section class="hero">
-      <div><div class="eyebrow">Phase 6.1 · Dashboard v1.2.2</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X หลายรายการ ตรวจสอบก่อนส่ง และเปิด workflow ที่ปลอดภัยจากจุดเดียว</p></div>
+      <div><div class="eyebrow">X2Telegram · Control Plane</div><h1>ส่ง media จาก X<br>เข้า Telegram อย่างเป็นระบบ</h1><p>วางลิงก์โพสต์ X ตรวจสอบ แล้วส่งงานผ่าน Cloudflare Access และ GitHub Actions</p></div>
       <aside class="hero-note"><b>ปลายทางที่ล็อกไว้</b><span>Telegram Supergroup · <code>-1003906817580</code></span></aside>
     </section>
 
     <section class="grid">
       <div class="card">
         <h2>สร้างรายการส่งใหม่</h2>
-        <p class="card-intro">วาง public X post URL — หนึ่งลิงก์ต่อหนึ่งบรรทัด</p>
+        <p class="card-intro">วาง public X post URL หนึ่งรายการต่อการส่ง</p>
         <div class="input-wrap"><textarea id="urls" aria-label="X post URLs" placeholder="https://x.com/username/status/1234567890?s=20&#10;https://x.com/username/status/1234567891"></textarea></div>
         <div class="under-input"><span><span id="lineHint">ยังไม่มีรายการ</span> · <span class="review-state" id="reviewState">พร้อมตรวจสอบ</span></span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
         <div class="toggle-row"><div><b>Large-file mode</b><span>เปิดเมื่อไฟล์มีขนาดมากกว่า 50 MB</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
         <div class="target"><div class="target-icon">✓</div><div><small>ส่งไปยัง Telegram เท่านั้น</small><code>-1003906817580</code></div></div>
         <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button">เริ่มส่งเข้า Telegram</button></div>
-        <div class="notice">หน้าเว็บนี้ไม่เก็บ GitHub หรือ Telegram token การเริ่มงานจะส่งคำขอผ่าน Google Apps Script ที่ตรวจสิทธิ์ แล้วให้ GitHub Actions ประมวลผลต่อ</div>
+        <div class="notice">หน้าเว็บไม่เก็บ GitHub หรือ Telegram token การเริ่มงานเรียก Cloudflare Worker ซึ่งป้องกันด้วย Cloudflare Access แล้วส่งต่อให้ GitHub Actions</div>
       </div>
 
       <div class="card">
@@ -171,14 +174,22 @@
         <div class="flow"><div class="flow-item"><div class="flow-icon">✓</div><div><b>ปลายทางถูกล็อก</b><span>ส่งเฉพาะกลุ่ม Telegram ที่กำหนด</span></div></div><div class="flow-item"><div class="flow-icon">✓</div><div><b>ไม่เก็บไฟล์ถาวร</b><span>ไฟล์ชั่วคราวถูกลบหลังการส่ง</span></div></div><div class="flow-item"><div class="flow-icon">✓</div><div><b>รายงานตรวจสอบได้</b><span>มี report.json และ message ID ต่อรายการ</span></div></div></div>
         <div class="notice">ใช้เฉพาะ media ที่คุณมีสิทธิ์ดาวน์โหลดและเผยแพร่ และปฏิบัติตามกฎหมายกับเงื่อนไขของแพลตฟอร์ม</div>
       </div>
+      <div class="card">
+        <h2>งานล่าสุด</h2>
+        <p class="card-intro">รายการงานที่บันทึกไว้ในเบราว์เซอร์นี้</p>
+        <div class="review-list" id="recentJobs"><div class="empty">ยังไม่มีงานล่าสุด</div></div>
+      </div>
     </section>
     <footer class="footer"><span>X2Telegram · Private Dashboard</span><a href="https://github.com/aodxx/X2Telegram/blob/main/docs/PROJECT_STATUS.md" target="_blank" rel="noreferrer">ดูสถานะโครงการ ↗</a></footer>
   </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="./config.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const urls = $('urls');
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxTOxxR2Q8MSUWBmRehlRc5Brf4CecrERtQ9d167GyD0SsAC8aBUPrKM9NCgq9nuZje/exec';
+    const API_URL = String(window.X2TELEGRAM_CONFIG?.apiBase || '').replace(/\/+$/, '');
+    const CURRENT_KEY = 'x2telegram.currentJob.v1';
+    const RECENT_KEY = 'x2telegram.recentJobs.v1';
     let activeRun = null;
     let pollTimer = null;
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
@@ -211,40 +222,71 @@
     }
     function escapeHtml(value) { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
     async function api(path, options = {}) {
+      if (!API_URL) throw new Error('ยังไม่ได้ตั้งค่า URL ของ Cloudflare Worker');
       let response;
-      try { response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=utf-8', ...(options.headers || {}) } }); }
-      catch (_) { throw new Error('เชื่อมต่อ Google Apps Script ไม่ได้ กรุณาตรวจว่า Web App ตั้งสิทธิ์เป็น Anyone และใช้ deployment รุ่น public-api-2026-10-03'); }
-      const raw = await response.text();
-      let data;
-      try { data = JSON.parse(raw); } catch (_) { throw new Error(`Google Apps Script ตอบกลับไม่ถูกต้อง (HTTP ${response.status}) กรุณาตรวจ Deployment และสิทธิ์การเข้าถึง`); }
-      if (!data.ok) {
-        const messages = { unauthorized: 'Backend ยังเป็นรุ่นตรวจ Google account กรุณา Deploy Code.gs รุ่น public-api-2026-10-03', google_identity_unavailable: 'Backend ยังเป็นรุ่นตรวจ Google session กรุณา Deploy Code.gs รุ่น public-api-2026-10-03', backend_not_configured: 'Backend ยังตั้งค่าไม่ครบ กรุณาตรวจ Script Properties', invalid_url: 'มี URL ที่ไม่ใช่ลิงก์โพสต์ X ที่ถูกต้อง', invalid_urls: 'รายการ URL ไม่ถูกต้อง', too_many_urls: 'จำนวน URL เกินขีดจำกัด', invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง', request_too_large: 'คำขอมีขนาดใหญ่เกินไป', busy: 'มีงานอื่นกำลังเริ่มอยู่ กรุณาลองใหม่อีกครั้ง', github_api_error: 'GitHub API ปฏิเสธคำขอ กรุณาตรวจ token และ workflow', run_not_found: 'ยังไม่พบ workflow run กรุณารอสักครู่', report_not_found: 'ยังไม่มี dashboard report', artifact_download_failed: 'ดาวน์โหลด report จาก GitHub ไม่สำเร็จ' };
-        throw new Error(messages[data.error?.code] || data.error?.message || data.error?.code || 'เรียก Backend ไม่สำเร็จ');
+      try {
+        const headers = { ...(options.headers || {}) };
+        if (options.body !== undefined) headers['Content-Type'] = 'application/json';
+        response = await fetch(`${API_URL}${path}`, { ...options, credentials: 'include', headers, cache: 'no-store' });
+      } catch (_) {
+        throw new Error('เรียก Control Worker ไม่สำเร็จ หากยังไม่ได้ลงชื่อเข้าใช้ ให้เปิด “ลงชื่อเข้าใช้ API” แล้วกลับมาโหลดหน้า Dashboard ใหม่');
       }
-      return data.data;
+      let data;
+      try { data = await response.json(); }
+      catch (_) { throw new Error(`Worker ตอบกลับไม่ใช่ JSON (HTTP ${response.status}); ตรวจ Access, CORS และ endpoint`); }
+      if (!response.ok) {
+        const messages = {
+          unauthorized: 'ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access หรือ session หมดอายุ',
+          forbidden: 'บัญชีนี้ไม่ได้รับอนุญาตให้ใช้ Dashboard',
+          invalid_url: 'กรุณาใช้ HTTPS X post URL ที่ถูกต้อง',
+          invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง',
+          invalid_request_id: 'ไม่พบ Request ID ที่ถูกต้อง',
+          idempotency_conflict: 'Request ID นี้ถูกใช้กับข้อมูลอื่นแล้ว กรุณาเริ่มรายการใหม่',
+          rate_limited: 'ส่งคำขอเร็วเกินไป กรุณารอสักครู่',
+          job_not_found: 'ยังไม่พบงานใน GitHub Actions กำลังลองค้นหาอีกครั้ง',
+          github_dispatch_failed: 'GitHub Actions รับงานไม่ได้ กรุณาตรวจสถานะระบบ',
+          backend_not_configured: 'Cloudflare Worker ยังตั้งค่าไม่ครบ',
+        };
+        const error = new Error(messages[data.error?.code] || data.error?.message || 'เรียก Control Worker ไม่สำเร็จ');
+        error.status = response.status; error.code = data.error?.code;
+        throw error;
+      }
+      return data;
     }
     function makeId(prefix) { const random = window.crypto?.randomUUID ? crypto.randomUUID().replaceAll('-', '') : `${Date.now()}${Math.random().toString(16).slice(2)}`; return `${prefix}-${random.slice(0, 24)}`; }
-    function encodePayload(value) { return btoa(unescape(encodeURIComponent(JSON.stringify(value)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, ''); }
+    function getRecentJobs() { try { const value = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(value) ? value : []; } catch (_) { return []; } }
+    function saveRecentJob(job) {
+      const recent = getRecentJobs().filter((item) => item.request_id !== job.request_id);
+      recent.unshift({ ...job, saved_at: new Date().toISOString() });
+      localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, 10)));
+      renderRecentJobs();
+    }
+    function renderRecentJobs() {
+      const jobs = getRecentJobs();
+      $('recentJobs').innerHTML = jobs.length ? jobs.map((job) => `<button class="ghost recent-job" type="button" data-job-id="${escapeHtml(job.job_id || '')}" data-request-id="${escapeHtml(job.request_id || '')}" data-url="${escapeHtml(job.url || '')}"><b>${escapeHtml(job.url || 'X post')}</b><span>Job ${escapeHtml(job.job_id || job.request_id || '')} · ${escapeHtml(job.saved_at || '')}</span></button>`).join('') : '<div class="empty">ยังไม่มีงานล่าสุด</div>';
+    }
     async function checkBackend() {
       const pill = $('backendPill');
+      $('accessLogin').href = API_URL ? `${API_URL}/health` : '#';
+      if (!API_URL) { pill.textContent = 'ยังไม่ได้ตั้งค่า Worker API'; pill.title = 'กำหนด web/config.js ก่อนใช้งาน'; return; }
       try {
-        const data = await api('?action=health');
-        const current = data.backend_revision === 'public-api-2026-10-03';
-        pill.innerHTML = `<i class="pulse"></i>${current ? 'Backend ใหม่พร้อมใช้' : 'Backend รุ่นเก่า · กรุณา Deploy ใหม่'}`;
-        pill.title = `Apps Script: ${data.backend_revision || 'ไม่ระบุ revision'}`;
-        if (!current) showToast('พบ Apps Script รุ่นเก่า กรุณา Deploy เป็น New version ก่อนเริ่มงาน');
+        const data = await api('/health');
+        pill.innerHTML = `<i class="pulse"></i>${data.status === 'ok' ? 'Control Worker พร้อม' : 'Worker health ผิดปกติ'}`;
+        pill.title = 'Cloudflare Control Worker';
       } catch (error) {
-        pill.innerHTML = '<i class="pulse"></i>ตรวจ Backend ไม่สำเร็จ';
+        pill.innerHTML = '<i class="pulse"></i>ตรวจ Worker ไม่สำเร็จ';
         pill.title = error.message;
       }
     }
     function renderRun(data) {
-      activeRun = data;
-      const status = data.status || 'queued';
-      const percent = status === 'queued' ? 28 : status === 'in_progress' ? 62 : (status === 'success' ? 100 : 92);
-      $('progressText').textContent = status === 'queued' ? 'เข้าคิวแล้ว' : status === 'in_progress' ? 'กำลังประมวลผล' : status === 'success' ? 'เสร็จสิ้น' : `จบด้วย ${status}`;
+      activeRun = { ...(activeRun || {}), ...data };
+      localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
+      const status = data.state || 'accepted';
+      const percent = status === 'accepted' || status === 'duplicate' ? 28 : status === 'processing' ? 62 : status === 'completed' ? 100 : 92;
+      const labels = { accepted: 'เข้าคิวแล้ว', duplicate: 'พบงานเดิม · กำลังติดตาม', processing: 'กำลังประมวลผล', completed: 'เสร็จสิ้น', failed: 'ล้มเหลว' };
+      $('progressText').textContent = labels[status] || status;
       $('progressBar').style.width = `${percent}%`;
-      $('runMeta').innerHTML = `<strong>Run ID: ${escapeHtml(data.run_id || 'กำลังค้นหา...')}</strong><span>Request: ${escapeHtml(data.request_id || '—')} · สถานะ: ${escapeHtml(status)}</span>${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">เปิดรายละเอียดบน GitHub ↗</a>` : ''}`;
+      $('runMeta').innerHTML = `<strong>Job ID: ${escapeHtml(data.job_id || activeRun.job_id || 'กำลังลงทะเบียน...')}</strong><span>Request: ${escapeHtml(data.request_id || activeRun.request_id || '—')} · สถานะ: ${escapeHtml(status)}</span>${data.run_id ? `<span>GitHub Run: ${escapeHtml(data.run_id)}</span>` : ''}${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">เปิดรายละเอียดบน GitHub ↗</a>` : ''}`;
     }
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
@@ -258,38 +300,66 @@
       showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0}`);
     }
     async function pollRun() {
-      if (!activeRun) return;
+      if (!activeRun || !activeRun.job_id) return;
       try {
-        const query = activeRun.run_id ? `run_id=${encodeURIComponent(activeRun.run_id)}` : `request_id=${encodeURIComponent(activeRun.request_id)}`;
-        const status = await api(`?action=status&${query}`);
+        const status = await api(`/jobs/${encodeURIComponent(activeRun.job_id)}`);
         renderRun(status);
-        if (status.completed) {
-          if (status.conclusion === 'success') {
-            const result = await api(`?action=report&run_id=${encodeURIComponent(status.run_id)}`);
-            if (result.report) renderReport(result.report);
-          } else showToast(`Workflow จบด้วยสถานะ ${status.conclusion || status.status}`);
+        if (status.result) renderReport(status.result);
+        if (status.state === 'completed' || status.state === 'failed') {
+          if (status.state === 'failed') showToast(status.error?.message || 'Workflow ทำงานไม่สำเร็จ');
           setBusy(false); clearTimeout(pollTimer); return;
         }
-        pollTimer = setTimeout(pollRun, status.status === 'queued' ? 10000 : 7000);
-      } catch (error) { setBusy(false); showToast(error.message); clearTimeout(pollTimer); }
+        pollTimer = setTimeout(pollRun, status.state === 'accepted' ? 7000 : 5000);
+      } catch (error) {
+        if (error.code === 'job_not_found') { pollTimer = setTimeout(pollRun, 3000); return; }
+        setBusy(false); showToast(error.message); clearTimeout(pollTimer);
+      }
     }
     async function startJob() {
       const r = review();
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
+      if (r.lines.length !== 1 || r.validLines.length !== 1) { showToast('ส่งทีละหนึ่ง X URL ที่ถูกต้องต่อหนึ่งงาน'); return; }
       setBusy(true); $('progressText').textContent = 'กำลังส่งคำขอ'; $('progressBar').style.width = '22%'; $('resultList').innerHTML = '';
       const requestId = makeId('dashboard');
+      const payload = { url: r.validLines[0], large_file_mode: $('largeMode').checked, request_id: requestId };
+      activeRun = { ...payload, request_id: requestId };
+      localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
       try {
-        const payload = { action: 'start', urls: r.validLines, large_file_mode: $('largeMode').checked, request_id: requestId, idempotency_key: requestId };
-        const data = await api(`?action=start&payload=${encodeURIComponent(encodePayload(payload))}`);
-        renderRun(data); showToast('รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
+        const data = await api('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+        saveRecentJob({ ...payload, job_id: data.job_id });
+        renderRun(data); showToast(data.duplicate ? 'พบงานเดิม กำลังเปิดสถานะเดิม' : 'รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
       } catch (error) { setBusy(false); $('progressText').textContent = 'พร้อมเริ่ม'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
+    }
+    async function restoreCurrentJob() {
+      let saved;
+      try { saved = JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); } catch (_) { saved = null; }
+      if (!saved || !saved.request_id) return;
+      activeRun = saved;
+      if (saved.url) urls.value = saved.url;
+      review(); renderRun(saved); setBusy(true);
+      try {
+        if (!saved.job_id && saved.url) {
+          const recovered = await api('/jobs', { method: 'POST', body: JSON.stringify({ url: saved.url, large_file_mode: Boolean(saved.large_file_mode), request_id: saved.request_id }) });
+          renderRun(recovered); saveRecentJob({ ...saved, job_id: recovered.job_id });
+        }
+        pollRun();
+      } catch (error) { setBusy(false); showToast(error.message); }
     }
     urls.addEventListener('input', review);
     $('reviewBtn').addEventListener('click', () => { const r = review(); $('reviewBtn').textContent = r.valid ? `ตรวจแล้ว · ${r.valid} รายการ` : 'ตรวจสอบรายการ'; showToast(r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
-    $('clearBtn').addEventListener('click', () => { urls.value = ''; activeRun = null; clearTimeout(pollTimer); $('resultList').innerHTML = ''; $('runMeta').innerHTML = '<strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span>'; $('reviewBtn').textContent = 'ตรวจสอบรายการ'; review(); urls.focus(); });
+    $('clearBtn').addEventListener('click', () => { urls.value = ''; $('reviewBtn').textContent = 'ตรวจสอบรายการ'; review(); urls.focus(); });
+    $('recentJobs').addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-job-id]'); if (!button) return;
+      const saved = getRecentJobs().find((job) => job.job_id === button.dataset.jobId); if (!saved) return;
+      activeRun = saved; if (saved.url) urls.value = saved.url; setBusy(true);
+      try { const data = await api(`/jobs/${encodeURIComponent(saved.job_id)}`); renderRun(data); if (data.result) renderReport(data.result); pollRun(); }
+      catch (error) { setBusy(false); showToast(error.message); }
+    });
     $('runBtn').addEventListener('click', startJob);
     review();
+    renderRecentJobs();
     checkBackend();
+    restoreCurrentJob();
   </script>
 </body>
 </html>

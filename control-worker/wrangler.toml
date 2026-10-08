@@ -1,0 +1,15 @@
+name = "x2telegram-control-plane"
+main = "src/index.js"
+compatibility_date = "2026-10-08"
+workers_dev = true
+
+[vars]
+GH_OWNER = "aodxx"
+GH_REPO = "X2Telegram"
+GH_WORKFLOW_ID = "x2telegram.yml"
+GH_REF = "main"
+# Configure these after creating the Access application and choosing the dashboard/API host.
+DASHBOARD_ORIGIN = "https://aodxx.github.io"
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+ACCESS_ALLOWED_EMAIL = ""
