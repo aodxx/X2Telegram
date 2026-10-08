@@ -2,7 +2,7 @@
 
 เอกสารนี้อธิบายการนำ X2Telegram ไปใช้งานจริงผ่าน GitHub Actions ตั้งแต่การเตรียม Telegram ไปจนถึงการทดสอบและแก้ปัญหา
 
-> **สถานะ Dashboard migration (2026-10-08):** PR #2 merged; GitHub Pages Dashboard live ที่ <https://aodxx.github.io/X2Telegram/> และ Pages deploy run #37809007472 สำเร็จ. Normal-path E2E หนึ่ง run ส่งหนึ่ง MP4 สำเร็จ (ดู [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)). ค่า `GH_TOKEN` แรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติให้ rotate จึงยังไม่ควรถือว่า production-secure. วิธีใช้อยู่ใน [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); ดู [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md) และ [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md). คู่มือด้านล่างยังครอบคลุม manual GitHub Actions flow.
+> **สถานะ Dashboard migration (2026-10-09):** PR #2 merged; GitHub Pages Dashboard live ที่ <https://aodxx.github.io/X2Telegram/>. UX update ใน branch ปัจจุบันย้ายหน้าเว็บมา Worker origin เพื่อให้ Access login ใช้ same-origin session และเพิ่ม batch submission สูงสุด 50 URL ต่อ workflow run; live deployment/verification กำลังดำเนินการ. Normal-path E2E เดิมส่งหนึ่ง MP4 สำเร็จ (ดู [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)). วิธีใช้อยู่ใน [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); รายละเอียด Security Audit อยู่ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md). คู่มือด้านล่างยังครอบคลุม manual GitHub Actions flow.
 
 ## 1. ภาพรวมการเผยแพร่
 

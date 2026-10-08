@@ -1,14 +1,21 @@
 # X2Telegram — Project Status
 
-**สถานะเอกสาร:** อัปเดตล่าสุด 2026-10-08
-**Branch:** `migration/zone-1-5-cloudflare-control-plane` (PR #2)
-**อ้างอิงโค้ด:** baseline `a2dd320`; ดู implementation ปัจจุบันใน PR #2
+**สถานะเอกสาร:** อัปเดตล่าสุด 2026-10-09
+**Branch:** `feat/access-login-batch-urls` (เปลี่ยนแปลง login, same-origin assets และ batch submission)
+**อ้างอิงโค้ด:** migration baseline PR #2; UX update ใน branch นี้
 
 ## สรุปผู้บริหาร
 
 แกนหลักของ X2Telegram อยู่ในสถานะ **พร้อมใช้งานจริงผ่าน GitHub Actions** สำหรับการดาวน์โหลด media จากโพสต์ X ที่เข้าถึงได้แบบสาธารณะและส่งเข้า Telegram กลุ่มปลายทางที่ล็อกไว้ ระบบได้รับการทดสอบด้วย workflow จริงและยืนยันการส่งวิดีโอสำเร็จแล้ว
 
 > ขอบเขตการใช้งาน: ใช้เฉพาะ media ที่ผู้ใช้มีสิทธิ์ดาวน์โหลดและเผยแพร่ และต้องปฏิบัติตามกฎหมาย/เงื่อนไขของแพลตฟอร์ม เนื้อหา 18+ ต้องเป็นเนื้อหาที่ถูกกฎหมายและได้รับความยินยอมตามข้อกำหนดที่เกี่ยวข้อง
+
+### Dashboard UX update (2026-10-09)
+
+- GitHub Pages entry redirects to the Worker-hosted Dashboard; static assets and API use the same Access-protected origin.
+- Dashboard calls `GET /auth/check` to confirm a valid owner session before enabling submit, and rechecks on tab focus.
+- Paste up to 50 X URLs at once, preview valid/invalid/duplicate items, then dispatch one GitHub Actions run.
+- Local validation: Python **50 passed**, Worker **19 passed**. Live multi-URL batch verification is pending deployment of this update.
 
 ## สิ่งที่ทำสำเร็จแล้ว
 
@@ -147,9 +154,9 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - แสดง request ID, run ID, สถานะ queued/in progress/completed และลิงก์ workflow
 - polling สถานะทุก 5–7 วินาทีและหยุดเมื่อ workflow จบ; current job/recent jobs เก็บใน browser localStorage
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
-- ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
+- ปุ่มเริ่มงานส่ง URL เดี่ยวหรือ batch สูงสุด 50 รายการที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; owner sign-in, read-only lookup, normal-path E2E และ live Dashboard health ผ่านแล้ว (run `37807253687`, ส่งหนึ่ง MP4, message ID `347`; Pages deploy `37809007472`). PR #2 merged และหน้า live. `GH_TOKEN` ยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังมี P1 production blocker
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. Dashboard update ย้าย UI มา same-origin กับ API และใช้ authenticated `/auth/check`; normal-path E2E เดิมส่งหนึ่ง MP4 (message ID `347`; run `37807253687`). PR #2 merged และหน้า live; live batch verification ของ UX update นี้ยัง pending.
 
 ### Zone 7/8 hardening (source complete; production gates remain)
 
@@ -157,12 +164,12 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - `src/processor.py` ข้าม media ที่ส่งสำเร็จแล้วและ retry เฉพาะชิ้นที่ยังไม่สำเร็จ; tests ครอบ first/middle/last failure และ temporary URL rotation
 - `src/telegram_api.py`, `src/logging_utils.py`, `src/cli.py` ไม่ serialize Telegram token/raw response ใน errors และ redact ก่อน report/stdout
 - `src/downloader.py` ปิด auto-redirect และ validate HTTPS/host ทุก hop; Worker body cap อ่าน stream แบบ bounded; tests ครอบ oversized body และ per-isolate rate cap
-- Local validation ล่าสุด: Python **47 passed**, Worker **15 passed**, syntax/compile/diff checks ผ่าน
+- Local validation ล่าสุด: Python **50 passed**, Worker **19 passed**, syntax/compile/diff checks ผ่าน
 - Worker security-hardening source ถูก deploy แล้ว (version ปัจจุบัน `29a2c667-cce4-4da9-8bff-d93b89490e0f`, `GH_REF=main`); live cross-origin health `200`, invalid URL `400`, และ body 17 KiB `413` ผ่านโดยไม่มี workflow dispatch
 - Zone 9 normal-path E2E: run `37807253687` บน migration branch สำเร็จ; report ยืนยัน `sent=1`, `failed=0`, Telegram message ID `347`. Run แรก `37806865130` ล้มก่อน process เพราะ Worker ส่ง `url`/`urls` ซ้ำ; แก้ mapping และเพิ่ม regression test แล้ว. Worker ถูกคืน `GH_REF=main` หลังทดสอบ
 - PR #2 squash-merged เป็น `00936856a02261e1969d517157f5591d1a0d0c12`; GitHub Pages deploy run `37809007472` ผ่าน และ live dashboard health badge แสดง `Control Worker พร้อม`
-- ยังไม่ production-secure: `GH_TOKEN` ค่าแรกถูกเปิดเผยและเจ้าของยังไม่อนุมัติ rotate/revoke; ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
-- E2E scenarios ที่เหลือ: duplicate/no-resend live, multi-photo/multiple distinct media, partial-failure live recovery, large-file, browser refresh/UI และ mobile
+- รายละเอียด credential findings ยังคงบันทึกใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); ยังเหลือ P2 สำหรับ edge/global rate limit, workflow permission/supply-chain pinning และ exactly-once หลัง network timeout
+- E2E scenarios ที่เหลือ: live batch/no-resend, multi-photo/multiple distinct media, partial-failure live recovery, large-file, browser refresh/UI และ mobile
 
 ### Historical legacy note: Apps Script POST redirect
 
@@ -175,7 +182,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 ### ขอบเขตที่เสนอ
 
 1. หน้า Dashboard responsive สำหรับ desktop และมือถือ
-2. รับ X URL หนึ่งรายการต่อหนึ่ง job ผ่าน Dashboard; manual GitHub workflow ยังคงรับ batch URLs ได้
+2. รับ X URL ได้สูงสุด 50 รายการต่อหนึ่ง Dashboard job โดย preview/ตรวจรายการก่อนส่ง; manual GitHub workflow ยังคงรับ batch URLs ได้
 3. ตรวจ X URL ก่อนเริ่ม และให้ Worker ตรวจซ้ำฝั่ง server
 4. หน้าสรุปให้ review รายการก่อนกดส่ง
 5. ปุ่มเริ่ม workflow ผ่าน backend ที่ปลอดภัย
@@ -205,7 +212,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-คง **GitHub Actions เป็น execution backend**. PR #2 merged และ Dashboard live แล้ว; Pages/Worker health ผ่าน. Normal-path E2E ส่งหนึ่ง MP4 สำเร็จ. ใช้งานได้ทางเทคนิค แต่ยังไม่ production-secure เพราะ `GH_TOKEN` ที่เปิดเผยยังไม่ rotate (เจ้าของยังไม่อนุมัติ), scenarios ที่เหลือและ residual findings ยังอยู่. คู่มือผู้ใช้: [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); GitHub Actions manual UI เดิมยังเป็น fallback
+คง **GitHub Actions เป็น execution backend**. PR #2 merged และ Dashboard live แล้ว; Worker UX update ใน branch นี้เพิ่ม same-origin login และ batch 1–50. Normal-path E2E เดิมส่งหนึ่ง MP4 สำเร็จ; live batch validation เป็นขั้นถัดไปก่อนปิด migration. คู่มือผู้ใช้: [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); GitHub Actions manual UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 

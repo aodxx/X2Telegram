@@ -1,18 +1,19 @@
 # X2Telegram Control Plane Contract — Zone 1
 
-สถานะ: **contract สำหรับ implementation** (ยังไม่ใช่ production deployment)
+สถานะ: **contract ปัจจุบัน** — Dashboard assets และ API อยู่บน Cloudflare Worker origin เดียวกัน; GitHub Pages redirect มายัง origin นี้
 
 ## เป้าหมายและหลัก
 
 ```text
-GitHub Pages Dashboard → Cloudflare Access → Control Worker → GitHub Actions → X2Telegram → Telegram
+GitHub Pages redirect → Cloudflare Access + Worker-hosted Dashboard/API → GitHub Actions → X2Telegram → Telegram
 ```
 
-- Dashboard ส่ง X post URL หนึ่งรายการต่อหนึ่ง job ตาม scope ใน Master Plan
+- Dashboard ส่ง X post URL ได้ 1–50 รายการต่อหนึ่ง job; แต่ละบรรทัดคือหนึ่งโพสต์และรายงานแยกผลต่อโพสต์
 - GitHub Actions ยังคงเป็น execution plane; Python worker และ Telegram credentials ไม่ย้ายเข้า browser
 - ไม่เพิ่ม database, Redis หรือ queue service
-- `request_id` เป็น client-generated idempotency key ที่ Dashboard สร้างครั้งเดียวต่อ logical submit และ persist ไว้; `job_id` เป็น opaque deterministic ID ที่ Worker คำนวณจาก `request_id`, normalized URL และ `large_file_mode`
-- Worker map `url` จาก public API ไปยัง workflow input เดิม `urls` (หนึ่ง URL/บรรทัด) เพื่อรักษา workflow/manual compatibility
+- `request_id` เป็น client-generated idempotency key ที่ Dashboard สร้างครั้งเดียวต่อ logical submit และ persist ไว้; `job_id` เป็น opaque deterministic ID ที่ Worker คำนวณจาก `request_id`, ordered normalized URL list และ `large_file_mode`
+- หน้า Dashboard และ API ใช้ Worker origin เดียวกันเพื่อให้ Access cookie เป็น first-party; `/auth/check` ยืนยัน JWT ก่อนเปิดปุ่มส่ง
+- Worker map URL เดี่ยวไปยัง workflow input `url`; batch ไปยัง `urls` (หนึ่ง URL/บรรทัด) โดยไม่เปลี่ยน Python input contract
 
 ## Resource และ API
 
@@ -26,7 +27,10 @@ Request JSON:
 
 ```json
 {
-  "url": "https://x.com/account/status/1234567890",
+  "urls": [
+    "https://x.com/account/status/1234567890",
+    "https://x.com/account/status/1234567891"
+  ],
   "large_file_mode": false,
   "request_id": "dashboard-<random-id>"
 }
@@ -34,11 +38,12 @@ Request JSON:
 
 | Field | Required | Validation |
 |---|---:|---|
-| `url` | yes | HTTPS URL ของ `x.com`, `www.x.com`, `mobile.x.com`, `twitter.com`, `www.twitter.com` หรือ `mobile.twitter.com`; path ต้องมี `/status/<digits>`; normalize เป็น `https://x.com/<user>/status/<id>` |
+| `url` | one of `url` / `urls` | URL เดี่ยวรูปแบบ HTTPS ของ X/Twitter post; ยอมรับเป็น backward-compatible input และ normalize เป็น `https://x.com/<user>/status/<id>` |
+| `urls` | one of `url` / `urls` | JSON array จำนวน 1–50 URL; validate และ normalize ทุก URL; ปฏิเสธ post ID ซ้ำใน batch |
 | `large_file_mode` | no | Boolean เท่านั้น; default `false` |
 | `request_id` | yes | 1–128 ตัวอักษร `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`; client ต้อง reuse ค่านี้เมื่อ retry logical submit เดิม |
 
-ขนาด body สูงสุด 16 KiB; JSON ต้องเป็น object; ไม่รับ arbitrary workflow input, chat ID, secret, GitHub ref หรือ URL list จาก client
+ขนาด body สูงสุด 16 KiB; JSON ต้องเป็น object และต้องส่ง `url` หรือ `urls` อย่างใดอย่างหนึ่งเท่านั้น; ไม่รับ arbitrary workflow input, chat ID, secret หรือ GitHub ref จาก client
 
 ### POST response
 
@@ -78,6 +83,10 @@ Request JSON:
 
 ไม่มีข้อมูล config/account และไม่เรียก GitHub API; ตอบ HTTP `200` `{"status":"ok","service":"x2telegram-control"}`. เป็น liveness endpoint เท่านั้น ไม่ยืนยันว่า GitHub, Telegram หรือ Actions พร้อมทำงาน
 
+### `GET /auth/check`
+
+ต้องผ่าน Cloudflare Access JWT และ Worker email allowlist; ตอบ `{"status":"ok","authenticated":true}`. Dashboard ใช้ endpoint นี้แทน liveness check เพื่อไม่แสดงว่า login สำเร็จจากการตรวจ `/health` เพียงอย่างเดียว
+
 ## State และ error schema
 
 สถานะภายนอก: `accepted`, `processing`, `completed`, `failed`, `duplicate`, `invalid_request`.
@@ -99,7 +108,7 @@ Error object:
 | 502 | `github_dispatch_failed`, `github_read_failed`, `report_unavailable` เมื่อ dependency ภายนอกล้มเหลว |
 | 500 | `internal_error` พร้อมข้อความกลางที่ไม่เปิดเผยข้อมูลลับ |
 
-Response ทุกกรณีใส่ `Content-Type: application/json`, `Cache-Control: no-store`; CORS อนุญาตเฉพาะ origin ของ Dashboard ที่ตั้งค่าไว้ ไม่ใช้ wildcard และรองรับ `OPTIONS` สำหรับ preflight. Access CORS configuration ต้องเปิดทางให้ OPTIONS preflight ตามเอกสาร Cloudflare; request จริงยังต้องผ่าน policy/JWT validation.
+Response API ใส่ `Content-Type: application/json`, `Cache-Control: no-store`; Worker อนุญาตเฉพาะ `DASHBOARD_ORIGIN` ที่ตั้งค่าไว้และไม่ใช้ wildcard. ปัจจุบัน Dashboard/API เป็น same-origin จึงไม่ต้องพึ่ง cross-origin preflight; `OPTIONS` ยังคงจำกัด origin เพื่อ compatibility และ request จริงต้องผ่าน Access/JWT validation. Static assets ต้องผ่าน Worker JWT verification ก่อน `env.ASSETS.fetch`.
 
 ## Authentication / security boundary
 
@@ -130,4 +139,4 @@ Response ทุกกรณีใส่ `Content-Type: application/json`, `Cache
 
 ## Compatibility
 
-Control Worker ส่ง GitHub Actions inputs `url`, `urls`, `large_file_mode`, `request_id`, `job_id` ตามที่ workflow รองรับหลัง Zone 2. `job_id` เป็น deterministic fingerprint และแยกจาก request ID. สำหรับ manual workflow dispatch เดิม `urls` ยังใช้งานได้; `url`/`job_id` เป็น optional compatibility additions. Python processing worker ยังคงรับ URL batch ผ่าน `INPUT_URLS` และไม่เปลี่ยน contract ภายใน
+Control Worker ส่ง GitHub Actions input `url` เมื่อมีโพสต์เดียว หรือ `urls` ที่คั่นด้วย newline เมื่อเป็น batch; ส่ง `large_file_mode`, `request_id`, `job_id` ตาม workflow contract ด้วย. `job_id` เป็น deterministic fingerprint และแยกจาก request ID. Manual workflow `urls` เดิมยังใช้งานได้, `url` ยังคง optional compatibility input, และ Python processing worker ยังคงอ่าน batch ผ่าน `INPUT_URLS` โดยไม่เปลี่ยน contract ภายใน

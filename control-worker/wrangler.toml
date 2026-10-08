@@ -8,6 +8,12 @@ GH_OWNER = "aodxx"
 GH_REPO = "X2Telegram"
 GH_WORKFLOW_ID = "x2telegram.yml"
 GH_REF = "main"
-DASHBOARD_ORIGIN = "https://aodxx.github.io"
+DASHBOARD_ORIGIN = "https://x2telegram-control-plane.pantipa3826.workers.dev"
 ACCESS_TEAM_DOMAIN = "https://falling-sky-a8ee.cloudflareaccess.com"
 ACCESS_AUD = "28c95cefdac506b1cc3f66746de3d3d2a85c6ea91a78777827f4497b6bffa64e"
+
+[assets]
+directory = "../web"
+binding = "ASSETS"
+run_worker_first = true
+not_found_handling = "404-page"

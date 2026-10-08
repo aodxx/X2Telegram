@@ -24,11 +24,11 @@
 - หลัง deploy hardening ทดสอบจาก GitHub Pages origin: `GET /health` ได้ `200`, invalid URL POST ได้ `400 invalid_url`, body 17 KiB ได้ `413 request_too_large`; ทั้งสอง POST ถูกปฏิเสธก่อน dispatch
 - Normal-path E2E ผ่านเมื่อ 2026-10-08: run `37807253687` สำเร็จ, sanitized report คืน `sent=1`, Telegram `message_id=347`; Worker ถูกคืน `GH_REF=main` หลังทดสอบ
 
-## CORS จาก GitHub Pages
+## Dashboard origin และ login flow
 
-Dashboard ใหม่ใช้ cross-origin `fetch(..., credentials: 'include')`; browser ต้องมี `CF_Authorization` cookie สำหรับ Worker host. การเปิดลิงก์ login ใน Dashboard จะไปยังหน้า Access; sign in ด้วย email OTP แล้วกลับมา refresh Dashboard.
+Dashboard assets และ API อยู่บน Worker hostname เดียวกันเพื่อให้ `CF_Authorization` cookie เป็น first-party. GitHub Pages URL ทำหน้าที่ redirect ไปยัง Worker-hosted Dashboard ก่อนมีการเรียก API. Worker ตรวจ Access JWT สำหรับ static assets และ API; Dashboard ใช้ `GET /auth/check` แทนการอนุมานสถานะ login จาก liveness endpoint.
 
-Access application ตอบ preflight ตามค่าที่ระบุไว้ข้างต้น. Worker ยังตรวจ exact `Origin` เพิ่มอีกชั้น; CORS ไม่แทน authentication. หากเปลี่ยน custom domain ของ GitHub Pages ต้องปรับ CORS ใน Access app, `DASHBOARD_ORIGIN` ใน `wrangler.toml`, frontend config และ tests ให้ตรงกัน
+Worker ตั้ง `DASHBOARD_ORIGIN` เป็น `https://x2telegram-control-plane.pantipa3826.workers.dev` และตรวจ exact origin. Access app ยังคงมี CORS allowlist เดิมสำหรับ GitHub Pages เพื่อ compatibility; same-origin Dashboard ไม่พึ่ง cross-origin preflight. CORS ไม่แทน authentication. หากเปลี่ยน Worker host ให้ปรับ Access app, `DASHBOARD_ORIGIN`, frontend config และ tests ให้ตรงกัน
 
 ## Rate limiting
 
@@ -36,10 +36,10 @@ Worker มี best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่�
 
 ## ขั้นตอนเข้าใช้งานครั้งแรกของเจ้าของ
 
-1. เปิด <https://x2telegram-control-plane.pantipa3826.workers.dev/health> หรือกดลิงก์ **ลงชื่อเข้าใช้ API** ใน Dashboard
+1. เปิด <https://aodxx.github.io/X2Telegram/>; ระบบจะ redirect ไปยัง Worker-hosted Dashboard หรือกดลิงก์ **ลงชื่อเข้าใช้** ใน Dashboard เพื่อเปิด origin เดียวกันในแท็บใหม่
 2. ใส่อีเมลที่ได้รับอนุญาต แล้วกด **Send login code**
 3. เปิดอีเมลจาก Cloudflare, นำ One-time PIN มากรอก และกด sign in; PIN ใช้ครั้งเดียวและหมดอายุใน 10 นาที
-4. กลับไป Dashboard แล้ว refresh; Cloudflare session มีอายุ 24 ชั่วโมง
+4. หลังยืนยัน OTP จะกลับมายัง Dashboard. เมื่อกลับไปแท็บเดิม ระบบตรวจ `/auth/check` ซ้ำอัตโนมัติ; Cloudflare session มีอายุ 24 ชั่วโมง
 
 ยังไม่มีการส่ง OTP ระหว่างตั้งค่า; จะส่งก็ต่อเมื่อเจ้าของกด Send login code เอง.
 

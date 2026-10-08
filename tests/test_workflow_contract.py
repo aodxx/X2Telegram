@@ -9,7 +9,7 @@ def test_workflow_dispatch_keeps_manual_urls_and_adds_control_inputs():
     inputs = text.split("  workflow_dispatch:", 1)[1].split("\npermissions:", 1)[0]
     for name in ("url", "urls", "large_file_mode", "request_id", "job_id"):
         assert f"      {name}:" in inputs
-    assert 'description: "Paste one or more X post URLs, one per line (manual/legacy input)"' in inputs
+    assert 'description: "One or more X post URLs, one per line (Dashboard batch or manual input)"' in inputs
 
 
 def test_workflow_requires_exactly_one_url_input_and_correlates_job():

@@ -1,23 +1,35 @@
-# Dashboard Migration — Zone 5
+# Dashboard Migration — Access UX และ URL batches
 
-## เปลี่ยนแปลง
+## สถาปัตยกรรมปัจจุบัน
 
-`web/index.html` เปลี่ยนจาก Apps Script action API ไปยัง Cloudflare Control Worker:
+```text
+GitHub Pages link → redirect → Cloudflare Access + Worker-hosted Dashboard/API → GitHub Actions → X2Telegram → Telegram
+```
 
-- health check: `GET /health`
-- submit: `POST /jobs` พร้อม JSON `{url, large_file_mode, request_id}`
-- poll/restore: `GET /jobs/<job_id>`
-- browser fetch ใช้ `credentials: include` สำหรับ Cloudflare Access cookie; ไม่มี GitHub/Telegram credential
-- request body ไม่ใส่ X URL ใน query string
-- Dashboard บังคับหนึ่ง X URL ต่อหนึ่ง job ตาม Zone 1 contract
-- `request_id` ถูก persist ไว้ก่อนส่งเพื่อให้ refresh/network retry ใช้ ID เดิม
-- current job เก็บใน localStorage และ recover โดย retry POST ด้วย request ID เดิมเมื่อ response แรกสูญหาย
-- recent jobs สูงสุด 10 รายการเก็บเฉพาะใน browser localStorage; กดรายการเพื่อโหลด status/report จาก Worker
-- แสดง accepted/duplicate/processing/completed/failed พร้อม error ภาษาอ่านง่าย, result, Telegram message IDs และ GitHub run link เมื่อมี
-- เพิ่ม link เปิด `/health` ของ API เพื่อให้ลงชื่อเข้าใช้ Access ก่อนเรียก cross-origin API
-- `web/config.js` มีเฉพาะ public API base URL; ห้ามใส่ secrets
+หน้าเดิมจาก GitHub Pages ต่าง origin กับ `workers.dev`; browser บางตัวจึงไม่ส่ง Access cookie ใน cross-site fetch ทำให้ login แล้วหน้าเดิมยังมองว่าไม่ได้ login. Dashboard assets ถูกเสิร์ฟจาก Cloudflare Worker host ที่ป้องกันด้วย Access เดียวกับ API; GitHub Pages URL ทำหน้าที่พาไป origin นี้. Worker ตรวจ JWT ทั้งบนหน้า static assets และ API routes.
 
-## Settings
+## API และ authentication
+
+- `GET /auth/check`: endpoint ที่ต้องผ่าน Access JWT; Dashboard ใช้ยืนยันว่าลงชื่อเข้าใช้จริงก่อนเปิดปุ่มส่ง
+- `GET /health`: liveness endpoint สำหรับตรวจว่า Worker ตอบสนอง
+- `POST /jobs`: รับ `url` หนึ่งรายการเพื่อ backward compatibility หรือ `urls` array 1–50 รายการ; ห้ามส่งทั้งสองแบบพร้อมกัน
+- `GET /jobs/<job_id>`: อ่านสถานะและ sanitized report
+- Dashboard ใช้ `credentials: include`; เมื่อเสิร์ฟหน้าและ API จาก Worker origin เดียวกัน cookie เป็น first-party ไม่พึ่ง third-party-cookie behavior
+- ปุ่ม Access เปิด Worker-hosted Dashboard ในแท็บใหม่; เมื่อกลับแท็บเดิม ระบบตรวจสถานะอีกครั้งบน focus/visibility change
+
+## Batch behavior
+
+- วางหนึ่ง URL ต่อบรรทัด; limit สูงสุด 50 รายการต่อ job
+- Frontend preview แสดงจำนวน, URL ที่ผ่าน, URL ผิด และ duplicate; รายการผิด/ซ้ำหรือเกิน limit จะปิดปุ่มส่ง
+- Worker ตรวจชนิด/รูปแบบ URL ซ้ำอีกครั้ง และปฏิเสธ duplicate post ID
+- Worker normalize URL แล้ว map หนึ่ง URL ไปยัง workflow input `url`; หลาย URL ไปยัง workflow input `urls` แบบหนึ่ง URL ต่อบรรทัด
+- หนึ่ง batch เป็นหนึ่ง GitHub Actions run; report แสดงผลแยกรายโพสต์
+- `request_id` ถูก persist ก่อนส่ง; `job_id` เป็น deterministic fingerprint จาก request ID, URL ที่ normalize แล้วเรียงตาม input, และโหมด large-file
+- Workflow รองรับ `url`/`urls` อยู่แล้ว; Python worker ยังคงอ่าน batch จาก `INPUT_URLS`
+
+## Static assets และ settings
+
+`control-worker/wrangler.toml` ผูก `../web` เป็น Static Assets และตั้ง `run_worker_first = true`; Worker ตรวจ Access ก่อนเรียก `env.ASSETS.fetch(request)`. `DASHBOARD_ORIGIN` เป็น Worker origin เดียวกับ `apiBase`:
 
 ```js
 window.X2TELEGRAM_CONFIG = Object.freeze({
@@ -25,25 +37,11 @@ window.X2TELEGRAM_CONFIG = Object.freeze({
 });
 ```
 
-Worker URL เป็นค่าที่คำนวณจาก account `workers.dev` subdomain และ Wrangler Worker name; endpoint **ยังไม่ได้ deploy** ใน Zone 1–5. Dashboard จึงยังเรียก production API ไม่ได้จนกว่าจะ deploy/ผูก Access/ตั้ง GitHub secret ตาม checklist ใน `docs/CLOUDFLARE_WORKER.md` และ `docs/CLOUDFLARE_ACCESS.md`
+หน้า GitHub Pages จะ redirect เฉพาะ repository path `/X2Telegram` ไปยัง Worker dashboard. Static assets ไม่มี GitHub/Telegram credentials.
 
-## UI states
+## ข้อจำกัดและการตรวจ
 
-- Idle / URL review / Submitting
-- Accepted / Duplicate / Processing
-- Completed / Failed
-- Invalid URL, Unauthorized, Forbidden, Rate limited, Worker/GitHub error
-- Worker/API not configured or unreachable
-
-## Security notes
-
-- Frontend เก็บ `request_id`, job IDs, URL ที่ผู้ใช้ submit และ recent-job metadata ใน localStorage ของ browser เครื่องนั้น; ไม่มี server-side recent jobs
-- API ใช้ exact-origin CORS และ `credentials: include`; Cloudflare Access ต้องตั้ง CORS preflight OPTIONS สำหรับ Pages origin แยกต่างหาก
-- การเปิด API URL ผ่าน link ช่วยสร้าง Access session สำหรับ Worker hostname; หลัง login ให้กลับมา refresh Dashboard
-- Dashboard result เป็น sanitized artifact เท่านั้น; ไม่แสดง Telegram token, GitHub token, raw logs หรือ media URLs
-
-## Verification
-
-- ตรวจ HTML/JS syntax และ static source checks
-- Offline Worker tests ครอบคลุม API shape, dispatch/status/report, auth validation และ CORS
-- Browser-to-Worker, real Access login, GitHub dispatch และ Telegram delivery ยังไม่ได้ทดสอบ end-to-end เพราะ Worker ยังไม่ deploy/Access configuration ยังติด permission
+- Batch มากกว่า 50 รายการต้องแบ่งเป็นหลายชุด
+- การตรวจหลาย URL ยังไม่เท่ากับการส่ง live; automated tests ครอบ contract/dispatch mock และต้องทำ controlled E2E แยกหากต้องการยืนยัน batch จริง
+- สถานะงานล่าสุดเก็บใน browser `localStorage`; ไม่มี server-side history database
+- ผลการส่ง Telegram ดูจาก sanitized report artifact และ message IDs; network timeout หลัง Telegram รับไฟล์ยังต้องตรวจผลก่อน retry

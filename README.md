@@ -61,11 +61,11 @@ TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --prefl
 
 The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
 
-## Private Dashboard (deployed; security gate remains)
+## Private Dashboard (deployed; batch support)
 
-The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The new Dashboard path submits one post per job through a Cloudflare Control Worker; GitHub Actions remains the execution plane. The source implementation and offline tests are in `control-worker/`, with the API contract and setup steps in [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), [`docs/CLOUDFLARE_WORKER.md`](docs/CLOUDFLARE_WORKER.md), and [`docs/CLOUDFLARE_ACCESS.md`](docs/CLOUDFLARE_ACCESS.md).
+The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The Dashboard accepts up to 50 X post URLs per batch and creates one GitHub Actions run for the batch. Dashboard static assets and API are served on the same Access-protected Worker origin; the GitHub Pages URL redirects there so browsers do not depend on cross-site Access cookies. GitHub Actions remains the execution plane. See the [Thai user guide](docs/USER_GUIDE_TH.md), [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), and [`docs/DASHBOARD_MIGRATION.md`](docs/DASHBOARD_MIGRATION.md).
 
-**Dashboard is live at [aodxx.github.io/X2Telegram](https://aodxx.github.io/X2Telegram/).** PR #2 is merged; Pages deploy run #37809007472 succeeded and the owner-only Worker health check passed from the deployed page. The normal-path E2E delivered one MP4 to the locked Telegram group; see [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md) and the [Thai user guide](docs/USER_GUIDE_TH.md). **It is operationally available but not production-secure:** the first `GH_TOKEN` value was exposed during setup and remains unrotated because the owner has not authorized changing it. Rotate/revoke it before ongoing production use. Remaining security and E2E gates are listed in [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md). The manual Actions flow remains available.
+**Dashboard:** [aodxx.github.io/X2Telegram](https://aodxx.github.io/X2Telegram/) (redirects to the Access-protected Worker-hosted app). It verifies the Access session through `/auth/check`, and supports batches up to 50 URLs. The earlier normal-path E2E delivered one MP4 to the locked Telegram group; automated tests now cover batch validation/dispatch behavior. Live dispatch of a multi-URL batch has not yet been performed. See [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md); the manual Actions flow remains available.
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

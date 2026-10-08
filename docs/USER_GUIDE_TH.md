@@ -1,66 +1,58 @@
 # คู่มือใช้งาน X2Telegram Dashboard
 
-**สถานะ:** หน้า Dashboard เผยแพร่แล้ว และผ่านการตรวจ `Control Worker พร้อม` จาก GitHub Pages origin  
-**Dashboard:** <https://aodxx.github.io/X2Telegram/>  
-**Pages deploy:** [GitHub Actions run #37809007472](https://github.com/aodxx/X2Telegram/actions/runs/37809007472)  
-**PR ที่นำ migration ขึ้น main:** [PR #2 (merged)](https://github.com/aodxx/X2Telegram/pull/2)
+**หน้าใช้งาน:** <https://aodxx.github.io/X2Telegram/> — ระบบจะพาไปยัง Dashboard บน Cloudflare Access/Worker origin เดียวกันโดยอัตโนมัติ เพื่อให้ browser ใช้ login session ได้ตรงกัน
 
-> **คำเตือนความปลอดภัย P1:** ค่า GitHub `GH_TOKEN` ที่ใช้กับ Worker เคยถูกส่งในแชตและยังไม่ได้ rotate/revoke ตามคำสั่งก่อนหน้าของเจ้าของ. หน้าเว็บและ Worker ทำงานทางเทคนิคแล้ว แต่ยังไม่ควรถือว่าเป็น production-secure จนกว่าจะเปลี่ยน token. อย่าส่ง token มาในแชต; ขั้นตอนแนะนำอยู่ท้ายคู่มือนี้.
+## ลงชื่อเข้าใช้
 
-## เริ่มส่งหนึ่งโพสต์
+1. เปิด [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/). ถ้า Access session หมดอายุ ระบบจะพาไปหน้า Cloudflare Access ก่อน แล้วกลับมาที่ Dashboard หลังยืนยันอีเมลและ OTP
+2. ถ้า Dashboard เปิดอยู่แต่แถบด้านบนแจ้งว่ายังไม่ได้ยืนยัน Access ให้กด **ลงชื่อเข้าใช้ ↗**. จะเปิด Dashboard/Access ในแท็บใหม่
+3. ใส่อีเมลที่ได้รับอนุญาต กดส่งรหัส OTP และกรอกรหัสจากอีเมล เมื่อแท็บใหม่กลับมาแสดง Dashboard ให้กลับแท็บเดิมได้ ระบบจะตรวจ session ซ้ำเมื่อกลับมาที่หน้าเดิม
+4. สถานะที่ถูกต้องคือ **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**. ถ้าแจ้งว่าบัญชีไม่ได้รับอนุญาต ให้ตรวจว่าใช้อีเมลเดียวกับที่ผู้ดูแลอนุญาต
 
-1. เปิด [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/).
-2. ดูแถบสถานะด้านบน ถ้าเห็น **Control Worker พร้อม** แปลว่า browser เข้าถึง API ได้แล้ว. ถ้าไม่พร้อม ให้กด **ลงชื่อเข้าใช้ API ↗**.
-3. ที่หน้า Cloudflare Access ใส่อีเมลเจ้าของที่ได้รับอนุญาต แล้วกด **Send login code**. เปิดอีเมลจาก Cloudflare, กรอกรหัส OTP และกลับมา refresh Dashboard. Session มีอายุประมาณ 24 ชั่วโมง.
-4. วาง URL สาธารณะของโพสต์ X หนึ่งรายการ เช่น `https://x.com/username/status/1234567890`.
-5. กด **ตรวจสอบรายการ** และแก้รายการที่แสดงว่าไม่ถูกต้องก่อน.
-6. ตรวจปลายทางที่ล็อกไว้ให้ถูกต้อง: Telegram Supergroup `-1003906817580`.
-7. กด **เริ่มส่งเข้า Telegram** เมื่อพร้อมส่งจริง. ปุ่มนี้เริ่ม GitHub Actions และอาจส่ง media เข้า Telegram; ไม่มีโหมด dry-run ในปุ่มนี้.
-8. รอให้สถานะจบเป็น `completed` หรือ `failed`. เปิดลิงก์ Run ได้จากงานนั้น และดูผล `sent`/`skipped_duplicate`/ข้อผิดพลาด รวมถึง Telegram message ID.
+## ส่งหลายโพสต์ในครั้งเดียว
 
-Dashboard ตั้งใจให้ **หนึ่งโพสต์ต่อหนึ่งงาน**. หากต้องการหลายโพสต์ ให้ตรวจและเริ่มทีละ URL เพื่อแยกสถานะและข้อผิดพลาด. งานล่าสุดและสถานะบางส่วนเก็บใน `localStorage` ของ browser; หลีกเลี่ยงคอมพิวเตอร์สาธารณะหรือ profile browser ที่แชร์กับผู้อื่น.
+1. วาง URL สาธารณะของโพสต์ X **หนึ่ง URL ต่อหนึ่งบรรทัด** ในช่องรายการ วางได้สูงสุด **50 URL ต่อชุด** ตัวอย่าง:
 
-## สิ่งที่ทดสอบแล้วและข้อจำกัด
+   ```text
+   https://x.com/username/status/1234567890
+   https://x.com/username/status/1234567891
+   https://twitter.com/another/status/1234567892
+   ```
 
-- [Normal-path E2E run #37807253687](https://github.com/aodxx/X2Telegram/actions/runs/37807253687) ส่ง MP4 หนึ่งรายการจากโพสต์ทดสอบไปยังกลุ่มที่ล็อกไว้; รายงานยืนยัน message ID `347` และ state v2 ถูกบันทึก.
-- โพสต์ทดสอบนั้นถูกบันทึกใน duplicate-prevention state บน `main` แล้ว; **อย่าใช้โพสต์เดิมเป็นการทดสอบส่งซ้ำ**—ระบบควรข้ามเป็น duplicate.
-- หลัง merge, Pages deploy run #37809007472 สำเร็จ; หน้าเว็บตอบ `200`, config ชี้ Worker ถูกต้อง, และ health indicator ในหน้าแสดง **Control Worker พร้อม**. ไม่มีการสร้างงาน/ส่ง Telegram เพิ่มระหว่างตรวจหลัง deploy.
-- ยังไม่ได้ทดสอบ live: การโหลดหน้าใหม่ระหว่าง run, mobile, large-file mode, multi-photo/หลาย media, partial-failure recovery และ duplicate run เพิ่มเติม. ดู [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md).
+2. กด **ตรวจสอบรายการ** หรือดูผล preview ที่อัปเดตอัตโนมัติ ระบบแสดงจำนวนทั้งหมด รายการที่พร้อมใช้ URL ผิดรูปแบบ และ URL ซ้ำ
+3. ต้องแก้/ลบ URL ที่ผิดหรือซ้ำทั้งหมดก่อน ปุ่มส่งจะเปิดใช้เมื่อ Access ผ่านและรายการทุกบรรทัดถูกต้อง ไม่เกิน 50 รายการ
+4. ตรวจปลายทางที่ล็อกไว้ให้ถูกต้อง: Telegram Supergroup `-1003906817580`. เปิด **Large-file mode** เฉพาะกรณีไฟล์เกิน 50 MB
+5. กด **เริ่มส่ง N รายการเข้า Telegram** เพียงครั้งเดียว หนึ่งชุดจะเป็นหนึ่ง GitHub Actions run และระบบทำงานแต่ละโพสต์ในชุดแยกผลลัพธ์ให้
+6. ติดตามสถานะจาก Dashboard; ผลลัพธ์จะแสดงแยกตามโพสต์ รวมจำนวน media, message ID หรือเหตุขัดข้อง
 
-## Large-file mode
+การกดปุ่มเป็นการเริ่มงานจริงและอาจส่ง media เข้า Telegram. ระหว่างที่สถานะกำลังทำงานอย่ากดเริ่มชุดเดิมซ้ำ ให้เปิด Job ID/Run link และดูผลก่อน
 
-เปิดตัวเลือก **Large-file mode** เฉพาะเมื่อ media เกิน 50 MB. Workflow ต้องมี secrets `TELEGRAM_API_ID` และ `TELEGRAM_API_HASH` พร้อม Docker Local Bot API Server; scenario นี้ยังไม่ได้ทดสอบจริงครบ. ถ้าไม่แน่ใจให้ปิดตัวเลือกและอย่ากดส่งจนกว่าจะตรวจว่า secrets/runner พร้อม.
+## ติดตามงานและรายการล่าสุด
+
+- งานปัจจุบันและงานล่าสุดเก็บไว้ใน local storage ของ browser เครื่องนี้ เพื่อให้กลับมาตรวจสถานะได้หลัง refresh
+- เลือกงานใน **งานล่าสุด** เพื่อโหลดสถานะ/report กลับมา
+- หากใช้เครื่องหรือ browser profile ร่วมกับผู้อื่น ให้ sign out/ปิดหน้าต่างเมื่อใช้งานเสร็จ และหลีกเลี่ยงเครื่องสาธารณะ
 
 ## แก้ปัญหาเบื้องต้น
 
-| อาการ | แนวทาง |
+| อาการ | วิธีแก้ |
 |---|---|
-| แถบสถานะไม่ขึ้น **Control Worker พร้อม** | กด **ลงชื่อเข้าใช้ API**, ใช้อีเมล owner ที่ allowlist ไว้, กรอก OTP แล้วกลับมา refresh หน้า |
-| URL ถูกปฏิเสธ | ใช้ URL `https://x.com/.../status/<id>` หรือ `https://twitter.com/.../status/<id>` ของโพสต์สาธารณะ ไม่ใช้หน้าโปรไฟล์หรือโพสต์ส่วนตัว |
-| ได้ 401/403 หรือวนกลับหน้า login | ยืนยันว่าใช้บัญชี/อีเมลที่ได้รับอนุญาต และ Access session ยังไม่หมดอายุ |
-| Workflow จบ `failed` | เปิด Run link และอ่าน step ที่ล้มเหลว; อย่ากดส่งซ้ำทันทีหากยังไม่รู้ว่า Telegram รับไฟล์ไปแล้วหรือไม่ |
-| ขึ้น `skipped_duplicate` | โพสต์หรือ media ถูกส่งไปแล้ว; ตรวจ Telegram message ID/ปลายทางก่อน ไม่ต้องส่งซ้ำ |
-| ไม่มี media หรือโพสต์อ่านไม่ได้ | โพสต์อาจเป็น private, ถูกลบ, จำกัดการเข้าถึง หรือไม่มี media รูปแบบที่รองรับ |
-| ไฟล์เกิน 50 MB | ต้องใช้ Large-file mode และ secrets ที่กล่าวไว้ข้างต้น; ถ้าไม่มี อย่าลองส่งซ้ำหลายครั้ง |
+| ยังไม่ได้ยืนยัน Access | กด **ลงชื่อเข้าใช้ ↗**, ทำ OTP ในแท็บใหม่ แล้วกลับแท็บ Dashboard; ระบบตรวจซ้ำเมื่อกลับมาหน้าเดิม |
+| บัญชีนี้ยังไม่ได้รับอนุญาต | ใช้อีเมลที่ได้รับอนุญาต หากยังไม่ได้ให้ผู้ดูแลเพิ่มอีเมลนั้นใน Access policy |
+| หน้า login วนกลับหรือไม่กลับ Dashboard | เปิด URL Dashboard เดิมอีกครั้งในแท็บใหม่; หลัง OTP ควรกลับมาที่ origin `x2telegram-control-plane.pantipa3826.workers.dev` |
+| ปุ่มส่งยังใช้ไม่ได้ | ตรวจว่าทุกบรรทัดเป็น URL ของโพสต์ที่ลงท้ายด้วย `/status/<เลข>` ไม่มีรายการซ้ำ และจำนวนไม่เกิน 50 |
+| URL ถูกปฏิเสธ | ใช้โพสต์สาธารณะรูปแบบ `https://x.com/.../status/<id>` หรือ `https://twitter.com/.../status/<id>` ไม่ใช้หน้าโปรไฟล์ |
+| Workflow จบ `failed` | เปิด GitHub Run link และตรวจผลรายโพสต์ก่อนเริ่มงานใหม่ |
+| ขึ้น `skipped_duplicate` | โพสต์/media นี้ถูกส่งแล้ว ระบบข้ามเพื่อป้องกันการส่งซ้ำ |
+| ไม่พบ media หรืออ่านโพสต์ไม่ได้ | โพสต์อาจ private/ถูกลบ/จำกัดการเข้าถึง หรือไม่มี media ที่รองรับ |
+| ไฟล์เกิน 50 MB | เปิด Large-file mode เฉพาะเมื่อ workflow มีความพร้อมสำหรับไฟล์ขนาดใหญ่ |
 
-**หลังการส่งไม่แน่ใจ:** เปิด Run ที่สัมพันธ์กับงานและตรวจ result/message ID ใน Dashboard ก่อน retry. ระบบมี per-media dedupe แต่ไม่รับประกัน exactly-once ในกรณี Telegram รับไฟล์แล้ว connection ขาดก่อนระบบบันทึก checkpoint.
+## ใช้ GitHub Actions โดยตรง
 
-## ถ้าจำเป็นต้องใช้ GitHub Actions โดยตรง
+เป็นทางเลือกสำรอง: เปิด [X2Telegram workflow](https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml), เลือก branch `main`, กด **Run workflow** แล้วใส่ URL เดียวใน `url` หรือหลาย URL ใน `urls` โดยวางหนึ่ง URL ต่อบรรทัด ห้ามกรอกทั้งสองช่องพร้อมกัน ปลายทาง Telegram ยังคงล็อกไว้ที่กลุ่มเดิม
 
-กด **เปิด Actions ↗**, เลือก workflow **X2Telegram**, เลือก branch `main`, แล้วกด **Run workflow**. สำหรับโพสต์เดียวใช้ input `url`; สำหรับ batch ใช้ `urls` โดยวางหนึ่ง URL ต่อบรรทัด. **ห้ามกรอก `url` และ `urls` พร้อมกัน.** ปลายทาง Telegram ยังล็อกไว้ที่กลุ่มเดิม.
+## ขอบเขตการทดสอบ
 
-## คำแนะนำก่อนใช้ต่อเนื่อง/production
+ชุดทดสอบอัตโนมัติครอบคลุมการตรวจ Access, การรับ batch, การปฏิเสธ URL ซ้ำ/เกิน 50 รายการ และการ dispatch mock โดยไม่ส่ง Telegram. มี E2E ก่อนหน้าที่ส่งหนึ่งโพสต์สำเร็จ แต่ batch 2–50 รายการยังต้องมีการทดสอบส่งจริงแยกต่างหากก่อนอ้างว่า live batch ผ่านแล้ว
 
-### P1 — ทำก่อนใช้งานจริงต่อเนื่อง
-
-1. **Rotate/revoke `GH_TOKEN` ที่เปิดเผย**. สร้าง Fine-grained PAT ใหม่ จำกัดเฉพาะ repository `aodxx/X2Telegram`, ให้ `Actions: Read and write` และ `Metadata: Read-only`, ตั้งวันหมดอายุ แล้วบันทึกค่าใหม่เป็น Worker Secret ชื่อ `GH_TOKEN` ใน Cloudflare Dashboard (`Workers & Pages` → `x2telegram-control-plane` → `Settings` → `Variables and Secrets`). ตรวจว่า Worker ใช้ secret ใหม่แล้วจึง revoke token เดิม. อย่าพิมพ์ token ในแชต, source code, screenshot หรือ log.
-2. ใช้เฉพาะโพสต์ที่มีสิทธิ์ดาวน์โหลดและเผยแพร่ และทวน URL ก่อนกดส่ง เพราะการกดปุ่มเริ่มงานเป็นการส่งจริง.
-
-### P2 — ลดความเสี่ยงที่ยังเหลือ
-
-- ตั้ง/ทดสอบ global หรือ edge rate limiting; limit ปัจจุบันเป็น best-effort ต่อ Worker isolate.
-- จำกัด `contents: write` ใน GitHub Actions ให้แคบลง และ pin Actions/container image เป็น immutable SHA/digest แทน mutable tags.
-- ทดสอบ duplicate/no-resend, multi-media, partial failure, refresh, mobile และ large-file ใน test cases ที่ควบคุมได้.
-- อย่าสมมติว่าการ retry ปลอด duplicate ในทุก network timeout; ตรวจ Telegram ก่อน retry เมื่อสถานะไม่ชัด.
-
-ดูผลตรวจรายละเอียดใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md), [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md) และ [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md).
+อ่านรายละเอียดระบบใน [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md), [`DASHBOARD_MIGRATION.md`](DASHBOARD_MIGRATION.md) และ [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md).

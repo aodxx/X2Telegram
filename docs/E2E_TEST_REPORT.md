@@ -1,9 +1,9 @@
 # X2Telegram End-to-End Test Report — Zone 9
 
-**วันที่:** 2026-10-08
-**สถานะ:** **Normal-path E2E ผ่าน 1 รายการ; Zone 9 scenarios อื่นยังไม่ครบ**
+**วันที่:** 2026-10-09
+**สถานะ:** **Normal-path E2E เดิมผ่าน 1 URL; Dashboard batch 1–50 URLs ผ่าน offline tests แต่ยังไม่มี live multi-URL dispatch**
 **ปลายทาง:** Telegram group `-1003906817580` (ล็อกไว้ใน workflow)
-**Credential:** ใช้ secrets ที่ตั้งอยู่แล้วตามคำยืนยันของเจ้าของ; `GH_TOKEN` ที่เคยเปิดเผยยังไม่ได้ rotate/revoke ตามคำสั่งก่อนหน้า จึงยังไม่พร้อม production.
+**Credential:** ใช้ secrets ที่ตั้งอยู่แล้วตามคำยืนยันของเจ้าของ; รายละเอียดการทบทวน credential อยู่ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md).
 
 ## ผล normal-path E2E
 
@@ -36,19 +36,19 @@
 | 9. Telegram failure | Fake Telegram failure และ redaction tests ผ่าน; ไม่มีการทดสอบให้ Telegram API ล้มเหลวจริง | **PASS (local/mock only)** |
 | 10. Browser refresh/recovery | Worker status endpoint ถูกเรียกหลัง run และคืน report; ยังไม่ได้ทดสอบ reload Dashboard UI ระหว่าง run จริง | **PARTIAL** |
 | 11. Mobile browser | ยังไม่ได้ทดสอบบนอุปกรณ์/browser มือถือจริง | **NOT RUN** |
+| 12. Dashboard batch submit (1–50 URLs) | Worker tests ตรวจ batch workflow input, canonicalization, duplicate rejection และเพดาน 50; ยังไม่ได้ dispatch multi-URL batch ไป Telegram | **PASS (local/mock; live not run)** |
 
 ## Validation evidence
 
-- Python: `python3 -m pytest -q` — **47 passed**.
-- Control Worker: `npm test --prefix control-worker` — **15 passed** หลังแก้ single-URL dispatch contract.
+- Python: `python3 -m pytest -q` — **50 passed**.
+- Control Worker: `npm test --prefix control-worker` — **19 passed**, รวม auth-check, protected asset serving และ batch validation/dispatch mocks.
 - Python compile, JavaScript syntax, workflow YAML, Wrangler TOML, `git diff --check`, credential-literal scan และ Wrangler dry-run ผ่าน.
 - Live safe checks ก่อน E2E: cross-origin `GET /health` ได้ `200`; invalid URL ได้ `400`; body 17 KiB ได้ `413`; ทั้งหมดไม่ dispatch.
 - GitHub Actions แจ้ง non-blocking migration advisories สำหรับ Node 20 → 24 และ `ubuntu-latest` → Ubuntu 26; ไม่ทำให้ run ล้มเหลว.
 
 ## คงค้างก่อน production
 
-1. เจ้าของยังไม่อนุมัติ rotate/revoke `GH_TOKEN`; token ที่เคยเปิดเผยจึงยังเป็น **P1 blocker**. E2E นี้ใช้ secrets เดิมตามคำยืนยัน แต่ไม่ลบความเสี่ยงจากการเปิดเผย token.
-2. ทำ live duplicate/no-resend, multi-photo/multiple media, partial-failure recovery, refresh/UI, mobile และ large-file scenarios ตามที่มี test assets/credentials; อย่าส่งซ้ำหรือทดสอบส่งซ้ำโดยไม่มีการตรวจ dedupe state ก่อน.
-3. แก้/ยืนยัน residual security items ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นจึงพิจารณา Zone 6 GAS removal และการใช้งาน production ต่อเนื่อง. PR #2 และ Pages deploy เสร็จแล้ว.
+1. ทำ live batch dispatch (2+ URL), multi-photo/multiple media, partial-failure recovery, refresh/UI, mobile และ large-file scenarios ตาม test assets/credentials; ตรวจ dedupe state ก่อนทดสอบเพื่อไม่ส่งซ้ำ.
+2. ทบทวน residual security findings ตาม [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นพิจารณา Zone 6 GAS removal. PR #2 และ Pages deploy เดิมเสร็จแล้ว.
 
-**Conclusion:** ได้พิสูจน์ normal path แบบ live แล้วหนึ่งครั้ง และมีหลักฐานการส่ง Telegram message ID `347`. นี่ไม่ใช่การรับรองว่า full Zone 9 matrix ผ่านหรือระบบพร้อม production; token rotation และ scenarios ที่เหลือยังค้าง.
+**Conclusion:** ได้พิสูจน์ normal path แบบ live แล้วหนึ่งครั้งและมีหลักฐาน Telegram message ID `347`; Dashboard batch implementation ผ่าน local/mock tests. Full Zone 9 matrix ยังมี live scenarios ที่ต้องยืนยันก่อนปิด migration.
