@@ -5,8 +5,9 @@
 - Worker `x2telegram-control-plane` deploy แล้วที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
 - Cloudflare Access ครอบ hostname นี้และบังคับ owner-only email OTP (ดู [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md))
 - Worker secret `ACCESS_ALLOWED_EMAIL` ถูกตั้งใน Cloudflare Secret Store; ไม่อยู่ใน source, Dashboard หรือ Git
-- **ยังไม่มี `GH_TOKEN`**: Worker จึงตอบ `503 backend_not_configured` หลังผ่าน Access และยัง dispatch/read GitHub Actions ไม่ได้
-- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะมี GitHub credential แบบ long-lived และผ่าน authenticated end-to-end tests
+- `GH_TOKEN` ถูกตั้งเป็น Worker secret ชนิด `secret_text` แล้ว แต่ยังไม่ได้ยืนยัน authenticated GitHub API access ผ่าน Worker
+- **ก่อนใช้งานจริงให้ rotate GH_TOKEN เป็นค่าใหม่**; ค่าแรกถูกส่งผ่านแชตระหว่าง setup และไม่ควรใช้ต่อใน production
+- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะ rotate credential และผ่าน authenticated verification
 - GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
 
 ## Architecture
@@ -32,7 +33,7 @@ Worker เป็น API/control layer เท่านั้น ไม่ดา�
 Cloudflare Worker Secrets:
 
 - `ACCESS_ALLOWED_EMAIL` — ตั้งไว้แล้ว; ใช้ตรวจ identity ซ้ำหลัง validate Access JWT
-- `GH_TOKEN` — **ยังต้อง provision** เป็น fine-grained GitHub credential จำกัดเฉพาะ repository `aodxx/X2Telegram` ด้วยสิทธิ์ `Actions: Read and write` และ `Metadata: Read-only`
+- `GH_TOKEN` — ตั้งแล้วเป็น `secret_text`; ควร rotate ก่อน production เป็น fine-grained credential จำกัดเฉพาะ repository `aodxx/X2Telegram` ด้วยสิทธิ์ `Actions: Read and write` และ `Metadata: Read-only`
 
 ห้ามใช้ GitHub CLI app user token (`ghu_…`) เป็น `GH_TOKEN`: token ของ integration เป็น credential สำหรับ session ชั่วคราว ไม่ใช่ secret ระยะยาวสำหรับ Worker. อย่าพิมพ์ token ลง chat หรือ commit ลง Git. เมื่อมี fine-grained PAT ให้เพิ่มผ่าน Cloudflare Worker secret prompt:
 
@@ -73,8 +74,7 @@ Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied id
 
 ## ขั้นตอนที่ค้างก่อนเปิดใช้งาน
 
-1. เจ้าของสร้าง GitHub fine-grained PAT จำกัด repository `aodxx/X2Telegram`, `Actions: Read and write`, `Metadata: Read-only`; ไม่ใช้ session token จาก `gh auth token`
-2. ตั้ง PAT เป็น Worker secret `GH_TOKEN` ตามคำสั่งข้างต้น โดยไม่ส่ง token ในแชต
-3. เจ้าของ sign in ที่ Worker ผ่าน email OTP; ตรวจว่าเข้าถึง `/health` ได้
-4. ทดสอบ submit แบบควบคุมโดยไม่มี URL จริง/ไม่มี Telegram delivery ก่อน; ตรวจ dispatch/status/report แล้วจึงตัดสินใจ merge PR #2 และเปิด Dashboard ใหม่
-5. ไม่เปลี่ยน main GitHub Pages/merge PR จนกว่าข้อ 1–4 ผ่าน
+1. Rotate `GH_TOKEN` เป็นค่าใหม่โดยไม่ส่ง token ผ่านแชต และเก็บผ่าน Cloudflare Worker Secret เท่านั้น
+2. เจ้าของ sign in ที่ Worker ผ่าน email OTP; ตรวจว่าเข้าถึง `/health` ได้
+3. ทำ authenticated read-only verification กับ GitHub API ผ่าน Worker; ห้าม dispatch URL จริงหรือส่ง Telegram ในขั้นตรวจนี้
+4. เมื่อ verification ผ่านแล้วจึงพิจารณา merge PR #2 และเปลี่ยน Dashboard production

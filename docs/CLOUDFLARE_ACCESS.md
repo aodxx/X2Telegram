@@ -19,7 +19,8 @@
 - เปิด Worker hostname ใน browser แล้วถูกพาไปหน้า Access login; หลังตั้ง One-time PIN หน้าลงชื่อเข้าใช้แสดงฟอร์ม email และปุ่มส่งรหัส
 - ทดสอบ unauthenticated POST จาก origin `https://aodxx.github.io`: browser ส่งต่อจนได้ opaque redirect จาก Access; ไม่มี Access session จึงไม่เข้าถึง API และไม่มี GitHub workflow ถูก dispatch
 - ตั้งค่า preflight headers ใน Access app และ Worker exact-origin enforcement; ไม่ได้ใช้ wildcard origin
-- ยังไม่ได้ sign in ด้วย OTP จริง และยังไม่มี `GH_TOKEN`; จึงยังไม่ทดสอบ API/job ที่ authenticated จนครบวงจร
+- `GH_TOKEN` อยู่ใน Worker เป็น secret ชนิด `secret_text`; ต้อง rotate ก่อน production เนื่องจากค่าแรกถูกแชร์ระหว่าง setup
+- ยังไม่ได้ sign in ด้วย OTP จริง จึงยังไม่ทดสอบ API/job ที่ authenticated; ไม่มี workflow dispatch หรือ Telegram delivery
 
 ## CORS จาก GitHub Pages
 
@@ -48,9 +49,10 @@ Worker มี best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่�
 - [x] Access CORS origin/method/header/credentials ตรงกับ Dashboard
 - [x] Browser unauthenticated request ถูก redirect ไปหน้า Access login
 - [ ] เจ้าของ sign in ด้วย OTP สำเร็จและ authenticated `GET /health` ผ่าน
-- [ ] GitHub Actions fine-grained credential ถูกเก็บเป็น Worker secret `GH_TOKEN`
+- [x] GitHub Actions credential ถูกเก็บเป็น Worker secret `GH_TOKEN` (`secret_text`)
+- [ ] Rotate `GH_TOKEN` เป็นค่าใหม่ก่อน production
 - [ ] Authenticated submit/status/report ผ่านด้วย test case ที่ไม่ส่ง Telegram
 - [ ] ทดสอบ burst/rate-limit ที่ production configuration
 - [ ] ไม่พบ credential ใน network responses/frontend/logs
 
-**ข้อจำกัดปัจจุบัน:** Worker deploy และ Access พร้อม แต่ `GH_TOKEN` ยังไม่มี; endpoint จึงไม่พร้อม dispatch workflow. อย่า merge PR #2 หรือเปลี่ยนหน้า GitHub Pages production จนกว่าจะตั้ง token และทำ authenticated tests ครบ.
+**ข้อจำกัดปัจจุบัน:** Worker deploy, Access และ `GH_TOKEN` secret พร้อม แต่ยังไม่มี authenticated test; token ปัจจุบันควรถูก rotate ก่อน production. อย่า merge PR #2 หรือเปลี่ยนหน้า GitHub Pages production จนกว่าเจ้าของจะ sign in, rotate token และผ่าน authenticated verification.

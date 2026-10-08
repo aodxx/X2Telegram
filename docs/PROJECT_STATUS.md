@@ -116,7 +116,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - เพิ่ม offline Worker tests สำหรับ auth, invalid input, duplicate/conflict, GitHub failure, status/report และ CORS
 - Workflow เพิ่ม `url`, `request_id`, `job_id` โดยยังรองรับ `urls` แบบ manual เดิม; Python report และ sanitized projection เพิ่ม `job_id`
 
-> Static UI ใน branch migration ถูกปรับเป็น Dashboard client ของ Cloudflare Control Worker; Worker และ owner-only Access application deploy/configure แล้ว แต่ยังไม่พร้อม dispatch เพราะไม่มี `GH_TOKEN`. GitHub Pages บน `main` ยังเป็นหน้าเดิม เนื่องจาก PR #2 ยังไม่ merge
+> Static UI ใน branch migration ถูกปรับเป็น Dashboard client ของ Cloudflare Control Worker; Worker, owner-only Access และ `GH_TOKEN` secret ตั้งแล้ว แต่ credential ต้อง rotate ก่อน production และยังไม่มี authenticated test. GitHub Pages บน `main` ยังเป็นหน้าเดิม เนื่องจาก PR #2 ยังไม่ merge
 
 ### Phase 6.1B: Report contract สำหรับ private control plane
 
@@ -126,7 +126,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อัปโหลด sanitized report เป็น private GitHub Actions artifact ชื่อ `x2telegram-dashboard-report-<run_id>` โดยเก็บ 30 วัน
 - Cloudflare Control Worker ใช้ GitHub API credential ฝั่ง server เพื่ออ่าน artifact หลัง workflow เสร็จ
 
-> Data contract และ private artifact เสร็จแล้ว; Worker deploy แล้ว แต่ยังอ่าน/dispatch GitHub ไม่ได้จนกว่าจะ provision `GH_TOKEN`. ยังไม่มี authenticated end-to-end test และไม่มีการส่ง Telegram ระหว่าง migration นี้
+> Data contract และ private artifact เสร็จแล้ว; `GH_TOKEN` ถูก provision เป็น `secret_text` แต่ยังไม่มี authenticated end-to-end test. ไม่มีการส่ง Telegram ระหว่าง migration นี้
 
 ### Google Apps Script Backend: legacy/reference (ไม่ใช่เส้นทางใหม่)
 
@@ -149,7 +149,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 - อ่าน sanitized report และแสดงผลรายโพสต์/summary ในหน้าเดียว
 - ปุ่มเริ่มงานส่งหนึ่ง URL ที่ผ่านการตรวจฝั่ง browser พร้อม `request_id`; Worker ตรวจซ้ำและคำนวณ `job_id`
 
-> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; การทดสอบ authenticated API ยังรอ owner sign-in และ `GH_TOKEN`. Dashboard บน `main` ยังไม่เปลี่ยน
+> Access owner-only และ email OTP ตั้งแล้ว; browser ที่ไม่มี session ถูก redirect ไปหน้า login. CORS ถูกจำกัดที่ `https://aodxx.github.io`; `GH_TOKEN` อยู่ใน secret store แต่ควร rotate ก่อน production และ authenticated API test ยังรอ owner sign-in. Dashboard บน `main` ยังไม่เปลี่ยน
 
 ### Historical legacy note: Apps Script POST redirect
 
@@ -192,7 +192,7 @@ Workflow run ล่าสุดที่ใช้โค้ด `a2dd320`:
 
 ## Decision ที่แนะนำ
 
-คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Cloudflare Worker/owner-only Access ถูก deploy แล้ว แต่ขาด fine-grained GitHub credential แบบ long-lived ใน Worker secret `GH_TOKEN`; GitHub CLI session token (`ghu_…`) ไม่เหมาะใช้เป็น secret ถาวร. ขั้นถัดไปคือเจ้าของสร้าง PAT จำกัด repository `aodxx/X2Telegram` โดยให้ `Actions: Read and write` และ `Metadata: Read-only`, ตั้งใน Cloudflare Worker secret โดยไม่ส่งผ่าน chat, จากนั้นทดสอบ authenticated status/dispatch ด้วย case ที่ไม่มี Telegram delivery. เมื่อผ่านจึงพิจารณา merge PR และ deploy Dashboard; GitHub Actions UI เดิมยังเป็น fallback
+คง **GitHub Actions เป็น execution backend** และยังไม่ merge PR #2. Cloudflare Worker/owner-only Access และ `GH_TOKEN` secret พร้อมแล้ว แต่ควร rotate token ก่อน production และทดสอบ authenticated read-only path หลัง owner sign-in. ห้าม trigger workflow หรือส่ง Telegram เป็นส่วนหนึ่งของ smoke test. เมื่อ verification ผ่านจึงพิจารณา merge PR และ deploy Dashboard; GitHub Actions UI เดิมยังเป็น fallback
 
 ## จุดอ้างอิงสำคัญใน repository
 
