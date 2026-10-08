@@ -566,6 +566,50 @@
       ],
       "completed": true,
       "updated_at": "2026-10-08T19:39:05.468971+00:00"
+    },
+    "2108234782203387942": {
+      "media": {
+        "59b0c7402c2a0e8f740337c25702ef016880b355416376efa9eec6751dded0d2": {
+          "kind": "video",
+          "filename": "Prito534008_2108234782203387942_01.mp4",
+          "destinations": {
+            "mega": {
+              "status": "success",
+              "filename": "Prito534008_2108234782203387942_01.mp4",
+              "delivered_at": "2026-10-08T22:16:10.509498+00:00",
+              "remote_folder": "/X2Telegram/2026-10-08"
+            }
+          }
+        }
+      },
+      "post_id": "2108234782203387942",
+      "username": "Prito534008",
+      "source_url": "https://x.com/Prito534008/status/2108234782203387942",
+      "message_ids": [],
+      "completed": true,
+      "updated_at": "2026-10-08T22:16:10.534969+00:00"
+    },
+    "2108290374049608178": {
+      "media": {
+        "fea581374cc3e2a094bee29fd2312cd136fa8e5594f5515ab62e639c0f478f0f": {
+          "kind": "video",
+          "filename": "vaelourin_2108290374049608178_01.mp4",
+          "destinations": {
+            "mega": {
+              "status": "success",
+              "filename": "vaelourin_2108290374049608178_01.mp4",
+              "delivered_at": "2026-10-08T22:16:14.130446+00:00",
+              "remote_folder": "/X2Telegram/2026-10-08"
+            }
+          }
+        }
+      },
+      "post_id": "2108290374049608178",
+      "username": "vaelourin",
+      "source_url": "https://x.com/vaelourin/status/2108290374049608178",
+      "message_ids": [],
+      "completed": true,
+      "updated_at": "2026-10-08T22:16:14.137864+00:00"
     }
   }
 }
