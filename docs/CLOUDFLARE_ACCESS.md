@@ -62,4 +62,4 @@ Worker มี best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่�
 - [ ] ทดสอบ edge/global burst limit ที่ production configuration
 - [ ] ไม่พบ credential ใน network responses/frontend/logs
 
-**ข้อจำกัดปัจจุบัน:** Normal-path E2E หนึ่งรายการผ่าน แต่ `GH_TOKEN` ที่เคยเปิดเผยยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังไม่พร้อม production. อย่า merge PR #2 หรือเปลี่ยนหน้า GitHub Pages production จนกว่าจะจัดการ credential risk และทบทวน scenarios ที่ค้าง.
+**ข้อจำกัดปัจจุบัน:** PR #2 merged และ GitHub Pages Dashboard live แล้ว; health badge จากหน้า deployed แสดง `Control Worker พร้อม`. Normal-path E2E หนึ่งรายการผ่าน แต่ `GH_TOKEN` ที่เคยเปิดเผยยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังไม่ควรถือว่า production-secure. ก่อนใช้ต่อเนื่องให้จัดการ credential risk และทบทวน scenarios ที่ค้าง.

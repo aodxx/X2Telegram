@@ -61,11 +61,11 @@ TELEGRAM_BOT_TOKEN='set-locally-and-do-not-commit' scripts/local_test.sh --prefl
 
 The local runner never calls `sendVideo`, `sendPhoto`, or `sendDocument`.
 
-## Private Dashboard migration (in progress)
+## Private Dashboard (deployed; security gate remains)
 
 The GitHub Actions manual workflow above remains available and keeps its batch `urls` input. The new Dashboard path submits one post per job through a Cloudflare Control Worker; GitHub Actions remains the execution plane. The source implementation and offline tests are in `control-worker/`, with the API contract and setup steps in [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md), [`docs/CLOUDFLARE_WORKER.md`](docs/CLOUDFLARE_WORKER.md), and [`docs/CLOUDFLARE_ACCESS.md`](docs/CLOUDFLARE_ACCESS.md).
 
-**Normal-path E2E passed once, but migration is not production-ready.** The owner-approved X URL completed on the migration branch and delivered one MP4 to the locked Telegram group; see [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md). The first `GH_TOKEN` value was exposed during setup and the owner declined rotation; rotate/revoke it before production. The Worker has been restored to `GH_REF=main`, but GitHub Pages `main` still uses the legacy dashboard and PR #2 is unmerged; do not rely on the new Dashboard path until the credential risk and remaining release gates are addressed. The manual Actions flow remains available. See [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md).
+**Dashboard is live at [aodxx.github.io/X2Telegram](https://aodxx.github.io/X2Telegram/).** PR #2 is merged; Pages deploy run #37809007472 succeeded and the owner-only Worker health check passed from the deployed page. The normal-path E2E delivered one MP4 to the locked Telegram group; see [`docs/E2E_TEST_REPORT.md`](docs/E2E_TEST_REPORT.md) and the [Thai user guide](docs/USER_GUIDE_TH.md). **It is operationally available but not production-secure:** the first `GH_TOKEN` value was exposed during setup and remains unrotated because the owner has not authorized changing it. Rotate/revoke it before ongoing production use. Remaining security and E2E gates are listed in [`docs/SECURITY_AUDIT.md`](docs/SECURITY_AUDIT.md). The manual Actions flow remains available.
 
 Before downloading media, the worker verifies the token, target chat, bot membership, and send permission through the Telegram Bot API. The system processes posts independently: an unavailable or private post is reported without stopping other URLs.
 

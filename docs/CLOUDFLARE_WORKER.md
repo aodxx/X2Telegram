@@ -9,7 +9,7 @@
 - Worker source รุ่น security hardening deploy แล้ว; cross-origin `GET /health` จาก Pages ได้ `200`, invalid URL ถูกปฏิเสธ `400 invalid_url`, และ oversized body 17 KiB ได้ `413 request_too_large` ก่อน live E2E run ที่บันทึกไว้ด้านบน
 - Normal-path E2E ผ่านหนึ่งรายการบน migration branch; Worker ถูกคืน `GH_REF=main` แล้ว. รายงาน: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
 - **ก่อน production ให้ rotate/revoke GH_TOKEN**; ค่าแรกถูกส่งผ่านแชตระหว่าง setup และเจ้าของยังไม่อนุมัติให้เปลี่ยน
-- ห้าม merge PR #2 หรือเปลี่ยน Dashboard production ให้เรียก Worker จนกว่าจะจัดการ credential risk และทบทวน release gates ที่เหลือ
+- PR #2 merged และ GitHub Pages Dashboard live แล้ว; health badge ตรวจจาก origin จริงผ่าน. อย่างไรก็ตามอย่าถือว่า production-secure จนกว่าจะจัดการ credential risk และทบทวน release gates ที่เหลือ
 - GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
 
 ## Architecture
@@ -79,4 +79,4 @@ Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied id
 1. Rotate/revoke `GH_TOKEN` ที่เปิดเผยก่อน production; เจ้าของยังไม่ได้อนุมัติการเปลี่ยน credential
 2. Normal-path E2E หนึ่ง URL ผ่านแล้ว; ทำ scenarios ที่เหลือตาม [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) โดยไม่ส่งซ้ำโดยไม่ตรวจ dedupe state
 3. จัดการ residual findings ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md)
-4. หลัง credential และ release gates ผ่าน จึงพิจารณา Zone 6 (ลบ GAS), merge PR #2 และเปลี่ยน Dashboard production
+4. หลัง credential และ release gates ผ่าน จึงพิจารณา Zone 6 (ลบ GAS) และการใช้งาน production ต่อเนื่อง; PR #2/Pages deploy เสร็จแล้ว
