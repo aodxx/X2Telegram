@@ -8,7 +8,8 @@
 - `GH_TOKEN` ถูกตั้งเป็น Worker secret ชนิด `secret_text`; authenticated `GET /health` และ read-only job lookup ผ่าน. Normal-path E2E run #37807253687 dispatch สำเร็จและ report ยืนยันส่งหนึ่ง MP4 (message ID 347); รายละเอียดใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
 - Worker source รุ่น security hardening deploy แล้ว; cross-origin `GET /health` จาก Pages ได้ `200`, invalid URL ถูกปฏิเสธ `400 invalid_url`, และ oversized body 17 KiB ได้ `413 request_too_large` ก่อน live E2E run ที่บันทึกไว้ด้านบน
 - Normal-path E2E ผ่านหนึ่งรายการบน migration branch; Worker ถูกคืน `GH_REF=main` แล้ว. รายงาน: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
-- PR #2 merged และ Dashboard live แล้ว. รุ่นปัจจุบันเพิ่ม protected same-origin assets, session probe, และ batch submit สูงสุด 50 URL; ดูผล deploy/validation ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
+- PR #4 merged; Pages deploy run `37816537609` ผ่าน และ Worker version `9641c2a5-eda8-4eef-b7ba-6667461de2d3` deploy แล้ว. Dashboard เสิร์ฟ assets/API จาก Access-protected origin เดียวกัน, `/auth/check` ผ่าน browser session จริง และ batch submit รองรับสูงสุด 50 URL
+- Live batch run `37816856323` สำเร็จสำหรับ 2 URLs; ทั้งคู่ถูกข้ามด้วย completed dedupe state (`sent=0`, `skipped_duplicate=2`, `failed=0`), จึงไม่มี Telegram send ซ้ำ. ยังไม่ใช่การทดสอบ fresh multi-post media delivery
 - GitHub Actions manual flow เดิมบน `main` ยังเป็นทางเลือกใช้งานได้
 
 ## Architecture
@@ -74,8 +75,8 @@ npm test --prefix control-worker
 
 Unit tests mock GitHub/JWKS; ครอบคลุม unauthenticated, denied identity, invalid/malformed/oversized body, per-isolate rate cap, dispatch mapping, duplicate/conflict, GitHub failure, status/artifact, CORS. Tests ไม่เรียก GitHub จริง, ไม่ dispatch workflow และไม่ส่ง Telegram. Python tests ยังครอบ token redaction, validated redirects และ partial-media retry
 
-## ขั้นตอนที่ค้างก่อนเปิดใช้งาน
+## ผลตรวจสอบและขั้นตอนต่อไป
 
-1. ยืนยันการ deploy same-origin Dashboard/API รุ่นปัจจุบันและทดสอบ login session จาก browser จริง
-2. ทำ live batch run ด้วย URL ที่มี completed dedupe state เพื่อยืนยัน dispatch และ no-resend; ทบทวนผลใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
-3. ทำ live scenarios ที่เหลือตาม E2E report และพิจารณา Zone 6 (ลบ GAS) เมื่อ batch/migration tests ผ่าน
+1. Deployment, owner Access session check, 1–50 URL UI และ live 2-URL dispatch/no-resend ผ่านแล้ว
+2. ทำ scenarios ที่ยังเหลือตาม [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md): fresh multi-post delivery, multi-photo, partial-failure recovery, large-file, refresh และ mobile
+3. พิจารณา Zone 6 (ลบ GAS) หลังทบทวน migration/E2E coverage; ปัจจุบัน `gas/` เป็น legacy/reference และ Dashboard ไม่เรียกใช้

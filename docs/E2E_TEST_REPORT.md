@@ -1,7 +1,7 @@
 # X2Telegram End-to-End Test Report — Zone 9
 
 **วันที่:** 2026-10-09
-**สถานะ:** **Normal-path E2E เดิมผ่าน 1 URL; Dashboard batch 1–50 URLs ผ่าน offline tests แต่ยังไม่มี live multi-URL dispatch**
+**สถานะ:** **Normal-path 1 URL ผ่าน live; live 2-URL batch dispatch ผ่านและข้าม completed posts ทั้งคู่โดยไม่ส่งซ้ำ; fresh multi-item delivery ยังไม่ทดสอบ**
 **ปลายทาง:** Telegram group `-1003906817580` (ล็อกไว้ใน workflow)
 **Credential:** ใช้ secrets ที่ตั้งอยู่แล้วตามคำยืนยันของเจ้าของ; รายละเอียดการทบทวน credential อยู่ใน [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md).
 
@@ -15,6 +15,7 @@
 - GitHub Actions persist step สำเร็จ; ตรวจ remote branch ภายหลังพบ `state/dedupe.json` version 2 มี completed record ของ post นี้และ media checkpoint 1 รายการ.
 - Dashboard-origin authenticated `GET /jobs/<job_id>` คืน HTTP `200` พร้อม sanitized report และ Telegram message ID.
 - หลัง run เสร็จได้คืน Worker `GH_REF` จาก branch ชั่วคราวเป็น `main` (Worker version `29a2c667-cce4-4da9-8bff-d93b89490e0f`). PR #2 ถูก squash-merge เป็น commit `00936856a02261e1969d517157f5591d1a0d0c12`; Pages deploy run #37809007472 สำเร็จ. ตรวจหน้า https://aodxx.github.io/X2Telegram/ ได้ HTTP 200, `config.js` ชี้ Worker, และ health badge แสดง `Control Worker พร้อม`.
+- PR #4 รวมเข้า `main` เป็น `2e0cfc0e3dea3c8dd46f5b2e193ea8d693b2435e`; Pages deploy run #37816537609 ผ่าน และ Worker version `9641c2a5-eda8-4eef-b7ba-6667461de2d3` เสิร์ฟ assets/API บน Access-protected origin เดียวกัน. Browser session ตรวจ `/auth/check` ผ่านและ Dashboard แสดง **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**.
 
 ### การลองครั้งแรกและการแก้ไข
 
@@ -36,7 +37,7 @@
 | 9. Telegram failure | Fake Telegram failure และ redaction tests ผ่าน; ไม่มีการทดสอบให้ Telegram API ล้มเหลวจริง | **PASS (local/mock only)** |
 | 10. Browser refresh/recovery | Worker status endpoint ถูกเรียกหลัง run และคืน report; ยังไม่ได้ทดสอบ reload Dashboard UI ระหว่าง run จริง | **PARTIAL** |
 | 11. Mobile browser | ยังไม่ได้ทดสอบบนอุปกรณ์/browser มือถือจริง | **NOT RUN** |
-| 12. Dashboard batch submit (1–50 URLs) | Worker tests ตรวจ batch workflow input, canonicalization, duplicate rejection และเพดาน 50; ยังไม่ได้ dispatch multi-URL batch ไป Telegram | **PASS (local/mock; live not run)** |
+| 12. Dashboard batch submit (1–50 URLs) | Run [#37816856323](https://github.com/aodxx/X2Telegram/actions/runs/37816856323) รับ 2 URLs ใน workflow เดียวและสำเร็จ; report `sent=0`, `skipped_duplicate=2`, `failed=0`; ทั้งสอง URL มี completed dedupe records จึงไม่มี Telegram send ซ้ำ | **PASS (live dispatch + no-resend)** |
 
 ## Validation evidence
 
@@ -46,9 +47,9 @@
 - Live safe checks ก่อน E2E: cross-origin `GET /health` ได้ `200`; invalid URL ได้ `400`; body 17 KiB ได้ `413`; ทั้งหมดไม่ dispatch.
 - GitHub Actions แจ้ง non-blocking migration advisories สำหรับ Node 20 → 24 และ `ubuntu-latest` → Ubuntu 26; ไม่ทำให้ run ล้มเหลว.
 
-## คงค้างก่อน production
+## Scenarios ที่ยังต้องทดสอบเพิ่มเติม
 
-1. ทำ live batch dispatch (2+ URL), multi-photo/multiple media, partial-failure recovery, refresh/UI, mobile และ large-file scenarios ตาม test assets/credentials; ตรวจ dedupe state ก่อนทดสอบเพื่อไม่ส่งซ้ำ.
-2. ทบทวน residual security findings ตาม [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นพิจารณา Zone 6 GAS removal. PR #2 และ Pages deploy เดิมเสร็จแล้ว.
+1. Live batch ที่มี fresh/unprocessed posts, multi-photo/multiple media, partial-failure recovery, refresh/UI, mobile และ large-file scenarios ยังไม่ครอบคลุม; ตรวจ dedupe state ก่อนทดสอบเพื่อไม่ส่งซ้ำ.
+2. ทบทวน residual security findings ตาม [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md); จากนั้นพิจารณา Zone 6 GAS removal.
 
-**Conclusion:** ได้พิสูจน์ normal path แบบ live แล้วหนึ่งครั้งและมีหลักฐาน Telegram message ID `347`; Dashboard batch implementation ผ่าน local/mock tests. Full Zone 9 matrix ยังมี live scenarios ที่ต้องยืนยันก่อนปิด migration.
+**Conclusion:** พิสูจน์ normal path แบบ live (หนึ่ง MP4, message ID `347`) และ Dashboard batch dispatch แบบ live (2 URLs ในหนึ่ง run, ทั้งคู่ skipped duplicate, ไม่มีการส่งซ้ำ) แล้ว. ยังไม่ได้ทดสอบ batch ที่มีหลายโพสต์ใหม่ซึ่งจะส่ง media จริง หรือ full Zone 9 matrix.

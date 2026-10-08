@@ -53,6 +53,6 @@
 
 ## ขอบเขตการทดสอบ
 
-ชุดทดสอบอัตโนมัติครอบคลุมการตรวจ Access, การรับ batch, การปฏิเสธ URL ซ้ำ/เกิน 50 รายการ และการ dispatch mock โดยไม่ส่ง Telegram. มี E2E ก่อนหน้าที่ส่งหนึ่งโพสต์สำเร็จ แต่ batch 2–50 รายการยังต้องมีการทดสอบส่งจริงแยกต่างหากก่อนอ้างว่า live batch ผ่านแล้ว
+ชุดทดสอบอัตโนมัติครอบคลุมการตรวจ Access, การรับ batch, การปฏิเสธ URL ซ้ำ/เกิน 50 รายการ และการ dispatch mock. Live batch run `37816856323` ทดสอบ 2 URLs ใน workflow เดียวและจบสำเร็จ; ทั้งคู่เป็น completed posts จึงถูกข้าม (`sent=0`, `skipped_duplicate=2`, `failed=0`) เพื่อป้องกันการส่งซ้ำ. E2E เดิมยืนยันการส่ง media ใหม่หนึ่งโพสต์; ยังไม่ได้ยืนยันการส่ง fresh media หลายโพสต์ใน batch เดียว
 
 อ่านรายละเอียดระบบใน [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md), [`DASHBOARD_MIGRATION.md`](DASHBOARD_MIGRATION.md) และ [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md).
