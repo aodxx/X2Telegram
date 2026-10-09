@@ -47,7 +47,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y /tmp/megacmd.deb
 
-      - name: Upload two versions, verify both remotely, and compare downloaded bytes
+      - name: Diagnose MEGA upload and remote listing output
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
@@ -89,7 +89,7 @@ jobs:
                   secret = os.environ.get(secret_name, "")
                   if secret:
                       text = text.replace(secret, "[REDACTED]")
-              return text[:1200].replace("\\n", " | ")
+              return text[:1200].replace("\n", " | ")
 
           try:
               uploader._ensure_login()
