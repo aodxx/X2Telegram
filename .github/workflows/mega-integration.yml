@@ -47,7 +47,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y /tmp/megacmd.deb
 
-      - name: Diagnose MEGA upload and remote listing output
+      - name: Upload two versions, verify both remotely, and compare downloaded bytes
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
@@ -82,30 +82,32 @@ jobs:
 
           uploader = MegaUploader(timeout_seconds=300)
           remote_folder = None
-
-          def safe_output(value):
-              text = value or ""
-              for secret_name in ("MEGA_EMAIL", "MEGA_PASSWORD", "MEGA_TOTP_SECRET"):
-                  secret = os.environ.get(secret_name, "")
-                  if secret:
-                      text = text.replace(secret, "[REDACTED]")
-              return text[:1200].replace("\n", " | ")
-
           try:
-              uploader._ensure_login()
-              root_folder = uploader._clean_remote_folder(uploader.remote_folder)
-              day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-              remote_folder = f"/{root_folder}/{day}"
               for name, (path, _data) in files.items():
-                  put = uploader._run(["mega-put", "-c", str(path), remote_folder], timeout=300)
-                  print(f"PUT_RESULT name={name} rc={put.returncode} stdout={safe_output(put.stdout)} stderr={safe_output(put.stderr)}")
-                  if put.returncode != 0:
-                      raise SystemExit(f"MEGA diagnostic failed: mega-put returned {put.returncode} for {name}.")
-                  exact = uploader._run(["mega-ls", f"{remote_folder}/{name}"], timeout=120)
-                  listing = uploader._run(["mega-ls", remote_folder], timeout=120)
-                  print(f"EXACT_LOOKUP name={name} rc={exact.returncode} stdout={safe_output(exact.stdout)} stderr={safe_output(exact.stderr)}")
-                  print(f"FOLDER_LOOKUP name={name} rc={listing.returncode} stdout={safe_output(listing.stdout)} stderr={safe_output(listing.stderr)}")
-              print("MEGA_DIAGNOSTICS_COMPLETE")
+                  remote_folder = uploader.upload(path, name)
+                  print(f"UPLOAD_VERIFIED name={name} remote_folder={remote_folder}")
+
+              uploader._run(["mega-reload"], timeout=120)
+              listing = uploader._run(["mega-ls", f"{remote_folder}/"], timeout=120)
+              if listing.returncode != 0:
+                  raise SystemExit("MEGA integration failed: remote folder listing failed.")
+              missing = [name for name in files if name not in (listing.stdout or "")]
+              if missing:
+                  raise SystemExit("MEGA integration failed: one or more versioned files disappeared from the remote listing: " + ", ".join(missing))
+
+              with tempfile.TemporaryDirectory(prefix="x2telegram-mega-download-") as download_dir:
+                  for name, (_path, expected) in files.items():
+                      remote_path = f"{remote_folder}/{name}"
+                      result = uploader._run(["mega-get", remote_path, download_dir], timeout=300)
+                      downloaded = Path(download_dir) / name
+                      if result.returncode != 0 or not downloaded.is_file():
+                          raise SystemExit(f"MEGA integration failed: could not download verified object {name}.")
+                      actual = downloaded.read_bytes()
+                      if actual != expected:
+                          raise SystemExit(f"MEGA integration failed: remote bytes did not match uploaded content for {name}.")
+                      print(f"CONTENT_VERIFIED name={name} bytes={len(actual)} sha256={sha256(actual).hexdigest()}")
+
+              print("MEGA_VERSION_RETENTION_TEST=PASS")
           finally:
               # Remove only this run's isolated test directory; never touch production folders.
               if remote_folder:
