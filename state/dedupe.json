@@ -647,45 +647,65 @@
       "media": {
         "df63003d5132a0c3d5d1959e0a279211b9afb9592df0a3af5418f73cdc9f43e8": {
           "kind": "video",
-          "filename": "CyndiFerguson61_2106644488336941452_01_df63003d51.mp4",
+          "filename": "CyndiFerguson61_2106644488336941452_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "CyndiFerguson61_2106644488336941452_01_df63003d51.mp4",
               "delivered_at": "2026-10-09T18:35:43.277845+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "CyndiFerguson61_2106644488336941452_01.mp4",
+              "delivered_at": "2026-10-09T18:37:33.274342+00:00",
+              "message_id": 377
             }
-          }
+          },
+          "message_id": 377,
+          "sent_at": "2026-10-09T18:37:33.274342+00:00"
         }
       },
       "post_id": "2106644488336941452",
       "username": "CyndiFerguson61",
       "source_url": "https://x.com/CyndiFerguson61/status/2106644488336941452",
-      "message_ids": [],
-      "completed": false,
-      "updated_at": "2026-10-09T18:35:43.277862+00:00"
+      "message_ids": [
+        377
+      ],
+      "completed": true,
+      "updated_at": "2026-10-09T18:37:33.279330+00:00"
     },
     "2108606651276394498": {
       "media": {
         "e7e92cc2314b03e123599f6015196cc5b79cabc38602d1f8326cf6f9888e15be": {
           "kind": "video",
-          "filename": "Trsetea_2108606651276394498_01_e7e92cc231.mp4",
+          "filename": "Trsetea_2108606651276394498_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "Trsetea_2108606651276394498_01_e7e92cc231.mp4",
               "delivered_at": "2026-10-09T18:35:57.993510+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "Trsetea_2108606651276394498_01.mp4",
+              "delivered_at": "2026-10-09T18:37:43.246016+00:00",
+              "message_id": 378
             }
-          }
+          },
+          "message_id": 378,
+          "sent_at": "2026-10-09T18:37:43.246016+00:00"
         }
       },
       "post_id": "2108606651276394498",
       "username": "Trsetea",
       "source_url": "https://x.com/Trsetea/status/2108606651276394498",
-      "message_ids": [],
-      "completed": false,
-      "updated_at": "2026-10-09T18:35:57.993528+00:00"
+      "message_ids": [
+        378
+      ],
+      "completed": true,
+      "updated_at": "2026-10-09T18:37:43.253260+00:00"
     },
     "2108578189123756092": {
       "media": {
@@ -717,7 +737,7 @@
         376
       ],
       "completed": true,
-      "updated_at": "2026-10-09T18:36:05.248322+00:00"
+      "updated_at": "2026-10-09T18:37:44.224523+00:00"
     }
   }
 }
