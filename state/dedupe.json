@@ -610,6 +610,38 @@
       "message_ids": [],
       "completed": true,
       "updated_at": "2026-10-09T16:06:54.761039+00:00"
+    },
+    "2107965640325972318": {
+      "media": {
+        "2ccc44154bc9c3d1374c4e7211ab3c0309b6df924964f667ab98417dae5f9023": {
+          "kind": "video",
+          "filename": "reefdeennoo_2107965640325972318_01.mp4",
+          "destinations": {
+            "telegram": {
+              "status": "success",
+              "filename": "reefdeennoo_2107965640325972318_01.mp4",
+              "delivered_at": "2026-10-09T18:32:01.837567+00:00",
+              "message_id": 375
+            },
+            "mega": {
+              "status": "success",
+              "filename": "reefdeennoo_2107965640325972318_01_2ccc44154b.mp4",
+              "delivered_at": "2026-10-09T18:32:05.752045+00:00",
+              "remote_folder": "/X2Telegram/2026-10-09"
+            }
+          },
+          "message_id": 375,
+          "sent_at": "2026-10-09T18:32:01.837567+00:00"
+        }
+      },
+      "post_id": "2107965640325972318",
+      "username": "reefdeennoo",
+      "source_url": "https://x.com/reefdeennoo/status/2107965640325972318",
+      "message_ids": [
+        375
+      ],
+      "completed": true,
+      "updated_at": "2026-10-09T18:32:05.755345+00:00"
     }
   }
 }
