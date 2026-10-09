@@ -48,6 +48,15 @@ def _write_report(payload: dict, path: str) -> str:
     return output
 
 
+def _has_destination_failure(results: list[dict]) -> bool:
+    """Return true when any selected destination failed, including partial delivery."""
+    return any(
+        value.get("status") in {"failed", "partial_success"}
+        for item in results
+        for value in (item.get("destinations") or {}).values()
+    )
+
+
 def build_summary(results: list[dict]) -> dict:
     """Aggregate post-level and per-destination statuses for dashboards."""
     failed_statuses = {"metadata_error", "download_error", "telegram_error", "error", "failed", "partial_success"}
@@ -162,11 +171,7 @@ def main() -> int:
             payload["results"] = [asdict(worker.process(post)) for post in posts]
             for item in payload["results"]:
                 item["status"] = item["status"].value
-            any_failure = any(
-                value.get("status") in {"failed", "partial_success"}
-                for item in payload["results"]
-                for value in (item.get("destinations") or {}).values()
-            )
+            any_failure = _has_destination_failure(payload["results"])
             any_delivery = any(
                 value.get("status") in {"success", "ready", "duplicate", "partial_success"}
                 for item in payload["results"]
@@ -174,6 +179,7 @@ def main() -> int:
             )
             if any_failure and any_delivery:
                 payload["status"] = "partial_success"
+                exit_code = 1
             elif any_failure:
                 payload["status"] = "completed_with_errors"
                 exit_code = 1
