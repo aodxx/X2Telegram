@@ -131,13 +131,13 @@ class MegaUploader:
         # contract correct for other callers too: MEGAcmd uploads using the local
         # basename, not the separate filename argument.
         if source.name == requested_name:
-            result = self._run(["mega-put", "-c", str(source), remote_folder])
+            result = self._run(["mega-put", "-c", str(source), f"{remote_folder}/"])
         else:
             # Stage only mismatched names; do not rename or mutate the caller's file.
             with tempfile.TemporaryDirectory(prefix="x2telegram-mega-") as staging_dir:
                 staged_path = Path(staging_dir) / requested_name
                 shutil.copy2(source, staged_path)
-                result = self._run(["mega-put", "-c", str(staged_path), remote_folder])
+                result = self._run(["mega-put", "-c", str(staged_path), f"{remote_folder}/"])
 
         if result.returncode != 0:
             raise DestinationError(
