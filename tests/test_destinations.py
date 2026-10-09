@@ -262,6 +262,24 @@ def test_mega_upload_uses_requested_filename_without_mutating_source(tmp_path):
     uploader.close()
 
 
+def test_mega_upload_fails_if_remote_file_cannot_be_verified(tmp_path):
+    media_path = tmp_path / "safe_name.mp4"
+    media_path.write_bytes(b"video")
+
+    def runner(args, **kwargs):
+        if args[0] == "mega-ls":
+            return SimpleNamespace(returncode=0, stdout="/X2Telegram/2026-10-09/other_file.mp4", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    uploader = MegaUploader(
+        email="owner@example.com", password="p", runner=runner, which=lambda _name: True,
+    )
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
+    assert raised.value.code == "mega_upload_verification_failed"
+    uploader.close()
+
+
 def test_mega_upload_rejects_filename_path_components(tmp_path):
     media_path = tmp_path / "clip.mp4"
     media_path.write_bytes(b"video")
