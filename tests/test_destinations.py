@@ -214,7 +214,8 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
 
     def runner(args, **kwargs):
         calls.append(args)
-        return SimpleNamespace(returncode=0, stdout="session details", stderr="")
+        output = "safe_name.mp4" if args[0] == "mega-ls" else "session details"
+        return SimpleNamespace(returncode=0, stdout=output, stderr="")
 
     media_path = tmp_path / "safe_name.mp4"
     media_path.write_bytes(b"video")
@@ -226,6 +227,7 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
     assert remote == "/X2Telegram/2026-10-09"
     assert calls[0][0] == "mega-login"
     assert calls[1] == ["mega-put", "-c", str(media_path.resolve()), "/X2Telegram/2026-10-09"]
+    assert calls[2] == ["mega-ls", "/X2Telegram/2026-10-09/safe_name.mp4"]
     uploader.close()
     assert calls[-1] == ["mega-logout"]
 
@@ -242,6 +244,8 @@ def test_mega_upload_uses_requested_filename_without_mutating_source(tmp_path):
             assert staged.name == "safe_name.mp4"
             assert staged.read_bytes() == b"video"
             return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args[0] == "mega-ls":
+            return SimpleNamespace(returncode=0, stdout="/X2Telegram/2026-10-09/safe_name.mp4", stderr="")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     source = tmp_path / "temporary-download.mp4"
