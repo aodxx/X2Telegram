@@ -159,6 +159,41 @@ def test_download_only_does_not_persist_delivery_dedupe(tmp_path):
     assert store.get("125") is None
 
 
+def test_mega_reuploads_when_saved_checkpoint_uses_legacy_filename(tmp_path):
+    from hashlib import sha256
+
+    store = DedupeStore(tmp_path / "dedupe.json")
+    media_bytes = b"valid-enough-test-fixture"
+    fingerprint = sha256(b"video\\0" + media_bytes).hexdigest()
+    post = parse_x_url("https://x.com/user/status/456")
+    store.mark_destination_sent(
+        "456", fingerprint, destination="mega", post_id="456", username="user",
+        source_url=post.normalized_url, kind="video",
+        filename=f"user_456_01_{fingerprint[:10]}.mp4",
+        details={"remote_folder": "/X2Telegram/2026-10-09"},
+    )
+
+    mega = FakeMega()
+    processor, media_path = make_processor(tmp_path, ["mega"], mega=mega, dedupe=store)
+    with patch.object(processor.downloader, "download", return_value=media_path):
+        result = processor.process(post)
+
+    expected_filename = f"user_456_01_{fingerprint}.mp4"
+    assert mega.calls == 1
+    assert mega.requested_filenames == [expected_filename]
+    assert result.destinations["mega"]["items"][0]["status"] == "success"
+    saved = store.get_destination("456", fingerprint, "mega")
+    assert saved["filename"] == expected_filename
+
+    # After the migration upload, retries use the new checkpoint and do not re-upload.
+    retry_mega = FakeMega()
+    retry, retry_path = make_processor(tmp_path, ["mega"], mega=retry_mega, dedupe=store)
+    with patch.object(retry.downloader, "download", return_value=retry_path):
+        retried = retry.process(post)
+    assert retry_mega.calls == 0
+    assert retried.destinations["mega"]["items"][0]["status"] == "duplicate"
+
+
 def test_failed_mega_does_not_resend_telegram_on_retry(tmp_path):
     store = DedupeStore(tmp_path / "dedupe.json")
     telegram = FakeTelegram()
