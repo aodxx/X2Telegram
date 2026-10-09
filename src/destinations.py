@@ -144,16 +144,23 @@ class MegaUploader:
                 "mega_upload_failed", "MEGA upload failed. Check available storage, account access, and network status."
             )
 
-        # Do not report success merely because mega-put returned zero. Verify that
-        # the exact requested object is visible at its expected remote path.
-        verification = self._run(["mega-ls", f"{remote_folder}/{requested_name}"])
-        visible_output = (verification.stdout or "") + "\\n" + (verification.stderr or "")
-        if verification.returncode != 0 or requested_name not in visible_output:
-            raise DestinationError(
-                "mega_upload_verification_failed",
-                "MEGA reported upload completion, but the remote file could not be verified.",
-            )
-        return remote_folder
+        # Do not report success merely because mega-put returned zero. MEGAcmd's
+        # mega-ls treats a directory path without a trailing slash as a lookup of
+        # that directory itself, not its contents. Refresh the remote cache and
+        # verify the exact filename in the directory listing.
+        for attempt in range(5):
+            self._run(["mega-reload"], timeout=60)
+            verification = self._run(["mega-ls", f"{remote_folder}/"], timeout=120)
+            visible_output = (verification.stdout or "") + "\\n" + (verification.stderr or "")
+            if verification.returncode == 0 and requested_name in visible_output:
+                return remote_folder
+            if attempt < 4:
+                time.sleep(1)
+
+        raise DestinationError(
+            "mega_upload_verification_failed",
+            "MEGA reported upload completion, but the remote file could not be verified.",
+        )
 
     def close(self) -> None:
         if not self._logged_in:
