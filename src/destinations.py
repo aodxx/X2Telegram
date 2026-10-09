@@ -99,7 +99,7 @@ class MegaUploader:
                 "mega_credentials_missing", "MEGA credentials are not configured in GitHub Actions Secrets."
             )
             raise self._login_error
-        if not self.which("mega-login") or not self.which("mega-put"):
+        if not self.which("mega-login") or not self.which("mega-put") or not self.which("mega-ls"):
             self._login_error = DestinationError(
                 "mega_client_unavailable", "MEGA upload client is unavailable on this runner."
             )
@@ -142,6 +142,16 @@ class MegaUploader:
         if result.returncode != 0:
             raise DestinationError(
                 "mega_upload_failed", "MEGA upload failed. Check available storage, account access, and network status."
+            )
+
+        # Do not report success merely because mega-put returned zero. Verify that
+        # the exact requested object is visible at its expected remote path.
+        verification = self._run(["mega-ls", f"{remote_folder}/{requested_name}"])
+        visible_output = (verification.stdout or "") + "\\n" + (verification.stderr or "")
+        if verification.returncode != 0 or requested_name not in visible_output:
+            raise DestinationError(
+                "mega_upload_verification_failed",
+                "MEGA reported upload completion, but the remote file could not be verified.",
             )
         return remote_folder
 
