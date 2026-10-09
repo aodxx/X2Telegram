@@ -262,7 +262,8 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
     assert remote == "/X2Telegram/2026-10-09"
     assert calls[0][0] == "mega-login"
     assert calls[1] == ["mega-put", "-c", str(media_path.resolve()), "/X2Telegram/2026-10-09"]
-    assert calls[2] == ["mega-ls", "/X2Telegram/2026-10-09/safe_name.mp4"]
+    assert calls[2] == ["mega-reload"]
+    assert calls[3] == ["mega-ls", "/X2Telegram/2026-10-09/"]
     uploader.close()
     assert calls[-1] == ["mega-logout"]
 
@@ -309,8 +310,9 @@ def test_mega_upload_fails_if_remote_file_cannot_be_verified(tmp_path):
     uploader = MegaUploader(
         email="owner@example.com", password="p", runner=runner, which=lambda _name: True,
     )
-    with pytest.raises(DestinationError) as raised:
-        uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
+    with patch("src.destinations.time.sleep", return_value=None):
+        with pytest.raises(DestinationError) as raised:
+            uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
     assert raised.value.code == "mega_upload_verification_failed"
     uploader.close()
 
