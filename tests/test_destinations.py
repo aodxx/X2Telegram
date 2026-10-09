@@ -211,7 +211,7 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
         calls.append(args)
         return SimpleNamespace(returncode=0, stdout="session details", stderr="")
 
-    media_path = tmp_path / "clip.mp4"
+    media_path = tmp_path / "safe_name.mp4"
     media_path.write_bytes(b"video")
     uploader = MegaUploader(
         email="owner@example.com", password="sensitive-password", remote_folder="X2Telegram",
@@ -223,6 +223,43 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
     assert calls[1] == ["mega-put", "-c", str(media_path.resolve()), "/X2Telegram/2026-10-09"]
     uploader.close()
     assert calls[-1] == ["mega-logout"]
+
+
+def test_mega_upload_uses_requested_filename_without_mutating_source(tmp_path):
+    calls = []
+
+    def runner(args, **kwargs):
+        calls.append(args)
+        if args[0] == "mega-login":
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        if args[0] == "mega-put":
+            staged = Path(args[2])
+            assert staged.name == "safe_name.mp4"
+            assert staged.read_bytes() == b"video"
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    source = tmp_path / "temporary-download.mp4"
+    source.write_bytes(b"video")
+    uploader = MegaUploader(
+        email="owner@example.com", password="p", remote_folder="X2Telegram",
+        runner=runner, which=lambda _name: True,
+    )
+    remote = uploader.upload(source, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
+    assert remote == "/X2Telegram/2026-10-09"
+    assert source.exists()
+    assert source.read_bytes() == b"video"
+    assert not Path(calls[1][2]).exists()  # staged copy is cleaned up after the command
+    uploader.close()
+
+
+def test_mega_upload_rejects_filename_path_components(tmp_path):
+    media_path = tmp_path / "clip.mp4"
+    media_path.write_bytes(b"video")
+    uploader = MegaUploader(email="owner@example.com", password="p", runner=lambda *a, **k: SimpleNamespace(returncode=0, stdout="", stderr=""), which=lambda _name: True)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(media_path, "../unsafe.mp4")
+    assert raised.value.code == "mega_configuration_error"
 
 
 def test_mega_login_failure_discards_client_output(tmp_path):
