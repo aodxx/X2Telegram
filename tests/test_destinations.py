@@ -164,7 +164,7 @@ def test_mega_reuploads_when_saved_checkpoint_uses_legacy_filename(tmp_path):
 
     store = DedupeStore(tmp_path / "dedupe.json")
     media_bytes = b"valid-enough-test-fixture"
-    fingerprint = sha256(b"video\\0" + media_bytes).hexdigest()
+    fingerprint = sha256(b"video" + bytes([0]) + media_bytes).hexdigest()
     post = parse_x_url("https://x.com/user/status/456")
     store.mark_destination_sent(
         "456", fingerprint, destination="mega", post_id="456", username="user",
