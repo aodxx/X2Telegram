@@ -156,6 +156,11 @@ class PostProcessor:
                     Path(path).replace(safe_path)
                     path = safe_path
                 fingerprint = _media_fingerprint(path, item.kind)
+                # MEGA must preserve older versions if the same X post later exposes
+                # changed media. A content suffix makes each distinct payload a
+                # distinct remote filename while keeping other destinations unchanged.
+                filename_path = Path(filename)
+                mega_filename = f"{filename_path.stem}_{fingerprint[:10]}{filename_path.suffix}"
             except Exception:
                 any_failure = True
                 message = "Media download failed for this item."
@@ -169,11 +174,12 @@ class PostProcessor:
 
             try:
                 for destination in self.config.destinations:
+                    destination_filename = mega_filename if destination == "mega" else filename
                     if destination == "telegram" and legacy_complete:
                         message_id = legacy_ids[media_index - 1] if media_index <= len(legacy_ids) else None
                         if message_id is not None:
                             result.message_ids.append(message_id)
-                        self._item(result, destination, filename, "duplicate", message_id=message_id)
+                        self._item(result, destination, destination_filename, "duplicate", message_id=message_id)
                         any_delivery = True
                         continue
 
@@ -182,17 +188,17 @@ class PostProcessor:
                         message_id = prior.get("message_id") if destination == "telegram" else None
                         if isinstance(message_id, int):
                             result.message_ids.append(message_id)
-                        self._item(result, destination, str(prior.get("filename") or filename), "duplicate", message_id=message_id)
-                        if filename not in result.filenames:
-                            result.filenames.append(filename)
+                        self._item(result, destination, str(prior.get("filename") or destination_filename), "duplicate", message_id=message_id)
+                        if destination_filename not in result.filenames:
+                            result.filenames.append(destination_filename)
                         any_delivery = True
                         continue
 
                     try:
-                        details = self.dispatcher.deliver(destination, path, filename, caption, item.kind)
+                        details = self.dispatcher.deliver(destination, path, destination_filename, caption, item.kind)
                     except DestinationError as exc:
                         any_failure = True
-                        self._item(result, destination, filename, "failed", error_code=exc.code, error=str(exc))
+                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc))
                         result.error = result.error or str(exc)
                         result.error_code = result.error_code or exc.code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": exc.code, "media_index": media_index}})
@@ -201,16 +207,16 @@ class PostProcessor:
                         any_failure = True
                         code = f"{destination}_error"
                         message = f"{destination.capitalize()} delivery failed for this item."
-                        self._item(result, destination, filename, "failed", error_code=code, error=message)
+                        self._item(result, destination, destination_filename, "failed", error_code=code, error=message)
                         result.error = result.error or message
                         result.error_code = result.error_code or code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": code, "media_index": media_index}})
                         continue
 
                     state = "ready" if destination == "download" else "success"
-                    self._item(result, destination, filename, state, **details)
-                    if filename not in result.filenames:
-                        result.filenames.append(filename)
+                    self._item(result, destination, destination_filename, state, **details)
+                    if destination_filename not in result.filenames:
+                        result.filenames.append(destination_filename)
                     if destination == "telegram" and isinstance(details.get("message_id"), int):
                         result.message_ids.append(details["message_id"])
                     any_delivery = True
@@ -224,7 +230,7 @@ class PostProcessor:
                                 username=post.username,
                                 source_url=post.normalized_url,
                                 kind=item.kind,
-                                filename=filename,
+                                filename=destination_filename,
                                 details=details,
                             )
                         except Exception:
