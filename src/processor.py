@@ -187,14 +187,29 @@ class PostProcessor:
 
                     prior = self.dedupe.get_destination(dedupe_key, fingerprint, destination) if self.dedupe and destination in {"telegram", "mega", "dropbox"} else None
                     if prior:
-                        message_id = prior.get("message_id") if destination == "telegram" else None
-                        if isinstance(message_id, int):
-                            result.message_ids.append(message_id)
-                        self._item(result, destination, str(prior.get("filename") or destination_filename), "duplicate", message_id=message_id)
-                        if destination_filename not in result.filenames:
-                            result.filenames.append(destination_filename)
-                        any_delivery = True
-                        continue
+                        prior_filename = str(prior.get("filename") or "")
+                        # MEGA/Dropbox filenames are content-versioned. After upgrading the
+                        # naming scheme, an old checkpoint must not suppress the migration
+                        # upload: the remote still has the legacy filename. Once the new
+                        # filename is checkpointed, ordinary retries remain deduplicated.
+                        refresh_versioned_upload = (
+                            destination in {"mega", "dropbox"}
+                            and prior_filename != destination_filename
+                        )
+                        if not refresh_versioned_upload:
+                            message_id = prior.get("message_id") if destination == "telegram" else None
+                            if isinstance(message_id, int):
+                                result.message_ids.append(message_id)
+                            self._item(result, destination, prior_filename or destination_filename, "duplicate", message_id=message_id)
+                            if destination_filename not in result.filenames:
+                                result.filenames.append(destination_filename)
+                            any_delivery = True
+                            continue
+                        self.logger.info(
+                            "destination_version_filename_changed",
+                            extra={"event": "destination_version_filename_changed",
+                                   "context": {"post_id": post.post_id, "destination": destination}},
+                        )
 
                     try:
                         details = self.dispatcher.deliver(destination, path, destination_filename, caption, item.kind)
