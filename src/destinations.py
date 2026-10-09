@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Callable
 
@@ -126,7 +127,23 @@ class MegaUploader:
         self._ensure_login()
         day = (timestamp or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime("%Y-%m-%d")
         remote_folder = f"/{root_folder}/{day}"
-        result = self._run(["mega-put", "-c", str(Path(path).resolve()), remote_folder])
+        source = Path(path).resolve()
+        requested_name = Path(filename).name
+        if not requested_name or requested_name in {".", ".."} or requested_name != filename:
+            raise DestinationError("mega_configuration_error", "MEGA filename must be a plain filename without path components.")
+
+        # The processor normally names the downloaded file before delivery. Keep this
+        # contract correct for other callers too: MEGAcmd uploads using the local
+        # basename, not the separate filename argument.
+        if source.name == requested_name:
+            result = self._run(["mega-put", "-c", str(source), remote_folder])
+        else:
+            # Stage only mismatched names; do not rename or mutate the caller's file.
+            with tempfile.TemporaryDirectory(prefix="x2telegram-mega-") as staging_dir:
+                staged_path = Path(staging_dir) / requested_name
+                shutil.copy2(source, staged_path)
+                result = self._run(["mega-put", "-c", str(staged_path), remote_folder])
+
         if result.returncode != 0:
             raise DestinationError(
                 "mega_upload_failed", "MEGA upload failed. Check available storage, account access, and network status."
