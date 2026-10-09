@@ -261,7 +261,7 @@ def test_mega_auth_and_upload_commands_use_date_folder_without_leaking_output(tm
     remote = uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
     assert remote == "/X2Telegram/2026-10-09"
     assert calls[0][0] == "mega-login"
-    assert calls[1] == ["mega-put", "-c", str(media_path.resolve()), "/X2Telegram/2026-10-09"]
+    assert calls[1] == ["mega-put", "-c", str(media_path.resolve()), "/X2Telegram/2026-10-09/"]
     assert calls[2] == ["mega-reload"]
     assert calls[3] == ["mega-ls", "/X2Telegram/2026-10-09/"]
     uploader.close()
