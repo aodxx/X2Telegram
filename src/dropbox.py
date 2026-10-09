@@ -96,6 +96,10 @@ class DropboxUploader:
     def _call(self, method: str, url: str, *, headers: dict[str, str] | None = None, data=None, json_body: dict | None = None):
         refreshed = False
         for attempt in range(self.max_retries + 1):
+            # Refresh-token-only configuration is supported: obtain an access token
+            # before building the Authorization header, rather than failing early.
+            if not self.access_token:
+                self._refresh_access_token()
             request_headers = dict(headers or {})
             request_headers.update(self._auth_headers())
             if json_body is not None:
