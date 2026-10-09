@@ -98,7 +98,7 @@ def test_all_three_destinations_use_one_download_and_report_each_status(tmp_path
     assert telegram.uploaded_names == ["user_123_01.mp4"]
     assert mega.uploaded_names == ["user_123_01.mp4"]
     assert len(mega.requested_filenames) == 1
-    assert __import__("re").fullmatch(r"user_123_01_[0-9a-f]{10}\.mp4", mega.requested_filenames[0])
+    assert __import__("re").fullmatch(r"user_123_01_[0-9a-f]{64}\.mp4", mega.requested_filenames[0])
     assert result.destinations["mega"]["items"][0]["filename"] == mega.requested_filenames[0]
     assert result.status == ResultStatus.SUCCESS
     assert result.destinations["telegram"]["status"] == "success"

@@ -159,10 +159,10 @@ class PostProcessor:
                     path = safe_path
                 fingerprint = _media_fingerprint(path, item.kind)
                 # MEGA must preserve older versions if the same X post later exposes
-                # changed media. A content suffix makes each distinct payload a
-                # distinct remote filename while keeping other destinations unchanged.
+                # changed media. The full SHA-256 fingerprint makes each distinct payload a distinct remote
+                # filename, avoiding overwrite/collision of older MEGA versions.
                 filename_path = Path(filename)
-                mega_filename = f"{filename_path.stem}_{fingerprint[:10]}{filename_path.suffix}"
+                mega_filename = f"{filename_path.stem}_{fingerprint}{filename_path.suffix}"
             except Exception:
                 any_failure = True
                 message = "Media download failed for this item."
