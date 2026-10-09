@@ -56,62 +56,92 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           python - <<'PY'
-          from datetime import datetime, timezone
-          from hashlib import sha256
           from pathlib import Path
+          from hashlib import sha256
           import os
-          import subprocess
           import tempfile
 
+          from src.config import Config
+          from src.dedupe import DedupeStore
           from src.destinations import MegaUploader
+          from src.metadata import Metadata, MetadataProvider
+          from src.models import MediaItem
+          from src.processor import PostProcessor
+          from src.urls import parse_x_url
 
           run_id = os.environ["GITHUB_RUN_ID"]
           root = Path(os.environ["RUNNER_TEMP"]) / f"x2telegram-mega-test-{run_id}"
           root.mkdir(parents=True, exist_ok=True)
-          payloads = {
-              "version_a": b"X2Telegram MEGA retention integration test version A\n",
-              "version_b": b"X2Telegram MEGA retention integration test version B with changed content\n",
-          }
-          files = {}
-          for label, data in payloads.items():
-              digest = sha256(data).hexdigest()
-              name = f"retention_{run_id}_{label}_{digest}.txt"
-              path = root / name
-              path.write_bytes(data)
-              files[name] = (path, data)
+          payloads = [
+              b"X2Telegram same-post version A integration fixture\n",
+              b"X2Telegram same-post version B with changed content integration fixture\n",
+          ]
 
+          class FixtureMetadata(MetadataProvider):
+              def get(self, post):
+                  return Metadata(post, [MediaItem("video", "https://fixture.invalid/media.mp4", 0, bitrate=100)])
+
+          post = parse_x_url("https://x.com/retentiontest/status/2100000000000000001")
+          store = DedupeStore(root / "dedupe.json")
           uploader = MegaUploader(timeout_seconds=300)
+          processor = PostProcessor(
+              Config(destinations=("mega",)),
+              FixtureMetadata(),
+              dedupe=store,
+              mega_uploader=uploader,
+          )
+          next_payload = 0
+
+          def fixture_download(_url, _kind):
+              global next_payload
+              if next_payload >= len(payloads):
+                  raise RuntimeError("Integration fixture was requested more times than expected.")
+              path = root / f"fixture-source-{next_payload}.mp4"
+              path.write_bytes(payloads[next_payload])
+              next_payload += 1
+              return path
+
+          processor.downloader.download = fixture_download
           remote_folder = None
           try:
-              for name, (path, _data) in files.items():
-                  remote_folder = uploader.upload(path, name)
-                  print(f"UPLOAD_VERIFIED name={name} remote_folder={remote_folder}")
+              first = processor.process(post)
+              second = processor.process(post)
+              for label, result in (("version_a", first), ("version_b", second)):
+                  if result.destinations["mega"]["status"] != "success":
+                      raise SystemExit(f"MEGA integration failed: {label} status was {result.destinations['mega']['status']}.")
+                  item = result.destinations["mega"]["items"][0]
+                  print(f"PROCESSOR_UPLOAD_VERIFIED version={label} filename={item['filename']} remote_folder={item.get('remote_folder')}")
+                  remote_folder = item.get("remote_folder")
+
+              first_name = first.destinations["mega"]["items"][0]["filename"]
+              second_name = second.destinations["mega"]["items"][0]["filename"]
+              if first_name == second_name:
+                  raise SystemExit("MEGA integration failed: changed media versions received the same remote filename.")
 
               uploader._run(["mega-reload"], timeout=120)
               listing = uploader._run(["mega-ls", f"{remote_folder}/"], timeout=120)
               if listing.returncode != 0:
                   raise SystemExit("MEGA integration failed: remote folder listing failed.")
-              missing = [name for name in files if name not in (listing.stdout or "")]
+              missing = [name for name in (first_name, second_name) if name not in (listing.stdout or "")]
               if missing:
-                  raise SystemExit("MEGA integration failed: one or more versioned files disappeared from the remote listing: " + ", ".join(missing))
+                  raise SystemExit("MEGA integration failed: one or more same-post versions are missing remotely: " + ", ".join(missing))
 
               with tempfile.TemporaryDirectory(prefix="x2telegram-mega-download-") as download_dir:
-                  for name, (_path, expected) in files.items():
-                      remote_path = f"{remote_folder}/{name}"
-                      result = uploader._run(["mega-get", remote_path, download_dir], timeout=300)
+                  for name, expected in ((first_name, payloads[0]), (second_name, payloads[1])):
+                      result = uploader._run(["mega-get", f"{remote_folder}/{name}", download_dir], timeout=300)
                       downloaded = Path(download_dir) / name
                       if result.returncode != 0 or not downloaded.is_file():
                           raise SystemExit(f"MEGA integration failed: could not download verified object {name}.")
                       actual = downloaded.read_bytes()
                       if actual != expected:
-                          raise SystemExit(f"MEGA integration failed: remote bytes did not match uploaded content for {name}.")
-                      print(f"CONTENT_VERIFIED name={name} bytes={len(actual)} sha256={sha256(actual).hexdigest()}")
+                          raise SystemExit(f"MEGA integration failed: downloaded bytes did not match {name}.")
+                      print(f"CONTENT_VERIFIED filename={name} bytes={len(actual)} sha256={sha256(actual).hexdigest()}")
 
-              print("MEGA_VERSION_RETENTION_TEST=PASS")
+              print("MEGA_SAME_POST_VERSION_RETENTION_TEST=PASS")
           finally:
               # Remove only this run's isolated test directory; never touch production folders.
               if remote_folder:
                   test_root = f"/X2Telegram-IntegrationTests/{run_id}"
                   uploader._run(["mega-rm", "-r", "-f", test_root], timeout=120)
-              uploader.close()
+              processor.close()
           PY
