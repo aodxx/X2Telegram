@@ -47,3 +47,10 @@
 4. พิจารณา Zone 6 (ลบ GAS) และ production release หลัง credential risk และ E2E scenarios ที่เหลือได้รับการจัดการ.
 
 **ข้อสรุป:** security regression ที่แก้ได้ใน source มี tests ผ่าน และ normal-path live E2E ผ่านหนึ่งครั้ง แต่ยังห้ามประกาศ production-ready เพราะ `GH_TOKEN` ที่เปิดเผยยังไม่ถูก rotate และ full E2E/release review ยังไม่ครบ.
+
+
+## Follow-up — 2026-10-10
+
+บน branch `fix/least-privilege-workflow` แยก permission ใน `.github/workflows/x2telegram.yml` แล้ว: `send-media` ใช้ `contents: read` และปิด `actions/checkout` credential persistence; job `persist-state` แยกออกมา รับ state artifact แล้วจึงมี `contents: write` เพื่อ commit `state/dedupe.json`. เพิ่ม workflow contract tests เพื่อกัน regression. ผล local validation ณ branch นี้: Python **89 passed**, Worker **25 passed**, YAML parse และ `git diff --check` ผ่าน.
+
+การเปลี่ยนแปลงนี้ **ยังไม่ merge หรือ deploy**; production/main จึงยังถือว่ามี finding เรื่อง `contents: write` ตลอด job จนกว่าจะ merge และยืนยัน workflow run. ยังไม่ได้ pin Actions/container refs. ประเด็น `GH_TOKEN` ที่เคยเปิดเผยยังเปิดอยู่และต้อง revoke/rotate โดยเจ้าของ repository; การแก้ workflow ไม่ได้เปลี่ยน secret. Dropbox live test, Cloudflare edge rate limit และ Local Bot API/mobile tests ยังไม่ได้ทำ.
