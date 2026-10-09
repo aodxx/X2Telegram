@@ -17,7 +17,7 @@ _SECRET_RE = re.compile(
     r"(?i)(?:bearer\s+|(?:token|api[_ -]?key|secret|password|authorization)\s*[:=]\s*)[^\s,;]+"
 )
 _SAFE_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-_SAFE_DESTINATIONS = {"telegram", "mega", "download"}
+_SAFE_DESTINATIONS = {"telegram", "mega", "dropbox", "download"}
 _SAFE_DESTINATION_STATUSES = {"success", "failed", "partial_success", "duplicate", "ready", "no_media", "processing"}
 _SAFE_ITEM_STATUSES = {"success", "failed", "duplicate", "ready"}
 _SAFE_CODE_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,80}$")
@@ -133,7 +133,7 @@ def _safe_destinations(value: Any) -> dict[str, dict[str, Any]]:
 def _safe_selected_destinations(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
-    return [name for name in ("telegram", "mega", "download") if name in value and value.count(name) == 1]
+    return [name for name in ("telegram", "mega", "dropbox", "download") if name in value and value.count(name) == 1]
 
 
 def _safe_result(item: Any) -> dict[str, Any]:

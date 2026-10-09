@@ -20,10 +20,11 @@
 
 2. เลือกปลายทางได้หนึ่งหรือหลายรายการ:
    - **Telegram** — ส่งเข้า Telegram Supergroup ที่กำหนดไว้ (ไม่สามารถเปลี่ยน target จาก Dashboard)
+   - **Dropbox** — อัปโหลดเข้าบัญชี Dropbox ผ่าน OAuth ที่ตั้งค่าใน GitHub Secrets; รองรับไฟล์ใหญ่และ retry โดยไม่เขียนทับไฟล์เดิม
    - **MEGA** — อัปโหลดไปบัญชี MEGA ที่ตั้งไว้ใน GitHub Actions Secrets; ต้องมี `MEGA_EMAIL` และ `MEGA_PASSWORD` (บัญชีเปิด TOTP ให้ตั้ง `MEGA_TOTP_SECRET` ด้วย)
    - **ดาวน์โหลด ZIP** — ให้ browser ดาวน์โหลดไฟล์ media ที่รวมเป็น ZIP; ไม่ต้องตั้ง secret เพิ่ม
 3. ตรวจ preview ว่า URL ทุกบรรทัดถูกต้องและไม่ซ้ำ; แก้รายการ invalid/duplicate และไม่เกิน 50 URLs
-4. เปิด **Large-file mode** เมื่อต้องการส่ง Telegram เกิน 50 MB และระบบถูกตั้งค่า Local Bot API แล้ว; ตัวเลือกนี้ไม่จำเป็นสำหรับ MEGA/Download และแต่ละปลายทางมีขีดจำกัดของตัวเอง
+4. เปิด **Large-file mode** เมื่อต้องการส่ง Telegram เกิน 50 MB และระบบถูกตั้งค่า Local Bot API แล้ว; ตัวเลือกนี้ไม่จำเป็นสำหรับ MEGA/Dropbox/Download และแต่ละปลายทางมีขีดจำกัดของตัวเอง
 5. กดปุ่มเริ่มงานหนึ่งครั้ง. Dashboard ส่ง URL และ destinations ไป Worker; หนึ่งชุดจะสร้างหนึ่ง GitHub Actions run
 
 การกดเริ่มงานเป็นการประมวลผลจริงและอาจส่งไฟล์เข้า Telegram/MEGA หรือสร้าง private download artifact. อย่ากดชุดเดิมซ้ำขณะงานกำลังทำงาน; เปิด Job/Run link และดูผลก่อน
@@ -77,3 +78,7 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 ## ขอบเขตการทดสอบ
 
 ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend, Download-only 2 URLs และ MEGA-only upload; run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) สร้าง ZIP 2 ไฟล์และทดสอบดาวน์โหลดผ่าน Access/Worker สำเร็จ ส่วน run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ยืนยัน MEGA upload สำเร็จ. **ยังไม่ได้ทดสอบการส่ง Telegram+MEGA พร้อมกันแบบ live**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
+
+### ตั้งค่า Dropbox
+
+ผู้ดูแลระบบต้องสร้าง Dropbox App แบบ scoped และ authorize แบบ offline เพื่อรับ Refresh Token จากนั้นเพิ่ม `DROPBOX_REFRESH_TOKEN`, `DROPBOX_APP_KEY` และ `DROPBOX_APP_SECRET` ใน GitHub Actions Secrets; `DROPBOX_ACCESS_TOKEN` เป็นค่าเสริมสำหรับ access token ที่ยังไม่หมดอายุ. ตั้งโฟลเดอร์ด้วย Repository variable `DROPBOX_REMOTE_FOLDER` ได้. ห้ามใส่ credential ใน Dashboard หรือข้อความรายงาน. ระบบจะแสดง Dropbox เป็น `success`, `failed` หรือ `duplicate` ตามผล API จริงเท่านั้น.

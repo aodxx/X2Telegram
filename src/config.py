@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 from .telegram_api import REQUIRED_CHAT_ID
 
 DEFAULT_TELEGRAM_API_BASE_URL = "https://api.telegram.org"
-DESTINATIONS = ("telegram", "mega", "download")
+DESTINATIONS = ("telegram", "mega", "dropbox", "download")
 STANDARD_MAX_FILE_SIZE_MB = 50
 LARGE_MAX_FILE_SIZE_MB = 2000
 

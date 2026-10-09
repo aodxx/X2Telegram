@@ -34,3 +34,9 @@ def test_dashboard_supports_multiple_destinations_and_browser_zip_download():
     assert "destinations }" in HTML
     assert "data.download?.url" in HTML
     assert "Browser download" in HTML
+
+
+def test_dashboard_supports_dropbox_destination():
+    assert 'id="destDropbox" type="checkbox"' in HTML
+    assert "['dropbox', 'destDropbox']" in HTML
+    assert "dropbox: 'Dropbox'" in HTML

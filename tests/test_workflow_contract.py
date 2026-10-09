@@ -32,3 +32,13 @@ def test_workflow_keeps_megacredentials_server_side_and_uploads_download_artifac
     assert "name: x2telegram-media-${{ github.run_id }}" in text
     assert "compression-level: 0" in text
     assert "retention-days: 7" in text
+
+
+def test_workflow_keeps_dropbox_oauth_credentials_server_side():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}" in text
+    assert "DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}" in text
+    assert "DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}" in text
+    assert "DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}" in text
+    assert "DROPBOX_REMOTE_FOLDER: ${{ vars.DROPBOX_REMOTE_FOLDER || 'X2Telegram' }}" in text
+    assert "contains(fromJSON(inputs.destinations || '[\"telegram\"]'), 'dropbox')" in text

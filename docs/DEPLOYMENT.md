@@ -1,6 +1,6 @@
 # X2Telegram — คู่มือเผยแพร่และตั้งค่า
 
-ระบบใช้งาน flow เดิม Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker. ผู้ใช้เลือกปลายทางต่อ job ได้: Telegram, MEGA และ Browser ZIP. ไม่มี database/Redis/queue หรือ Google Drive ใน production path
+ระบบใช้งาน flow เดิม Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker. ผู้ใช้เลือกปลายทางต่อ job ได้: Telegram, MEGA, Dropbox และ Browser ZIP. ไม่มี database/Redis/queue หรือ Google Drive ใน production path
 
 ## 1. Architecture และ limits
 
@@ -33,6 +33,10 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 | `MEGA_EMAIL` | เลือก MEGA | อีเมล MEGA account |
 | `MEGA_PASSWORD` | เลือก MEGA | รหัสผ่าน MEGA account |
 | `MEGA_TOTP_SECRET` | MEGA account เปิด MFA/TOTP | seed/secret สำหรับสร้าง TOTP; ไม่ต้องตั้งถ้าบัญชีไม่ใช้ MFA |
+| `DROPBOX_REFRESH_TOKEN` | เลือก Dropbox | OAuth refresh token จาก Dropbox App ที่ authorize แบบ offline |
+| `DROPBOX_APP_KEY` | เลือก Dropbox | Dropbox App key |
+| `DROPBOX_APP_SECRET` | เลือก Dropbox | Dropbox App secret |
+| `DROPBOX_ACCESS_TOKEN` | ไม่บังคับ | short-lived access token; ใช้ร่วมกับ refresh token เพื่อรองรับการ refresh |
 | `ALERT_WEBHOOK_URL` | แจ้งเตือนเสริม | HTTPS webhook; optional |
 
 `TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**
@@ -47,7 +51,7 @@ MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อ�
 
 Dashboard static assets และ API ใช้ Worker origin เดียวกันภายใต้ Cloudflare Access owner-only. Worker ต้องมี variables/bindings ที่กำหนดใน `control-worker/wrangler.toml` และ server-side secrets ที่จำเป็นสำหรับ Access/GitHub API. รายละเอียด routes/deployment อยู่ใน [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), Access setup อยู่ใน [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)
 
-Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. Worker ไม่รับ Telegram/MEGA credentials จาก Dashboard
+Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
 หากเผยแพร่ source ใหม่จาก `control-worker/`:
 
@@ -64,7 +68,7 @@ npx wrangler deploy --config wrangler.toml
 
 - `url`: URL เดี่ยว (backward-compatible)
 - `urls`: batch 1–50 รายการ คั่นด้วย newline
-- `destinations`: JSON array จาก `telegram`, `mega`, `download`; ค่า default `['telegram']`
+- `destinations`: JSON array จาก `telegram`, `mega`, `dropbox`, `download`; ค่า default `['telegram']`
 - `large_file_mode`: เปิด Telegram Local Bot API เฉพาะเมื่อเลือก Telegram
 - `request_id`, `job_id`: tracking/idempotency
 
@@ -84,7 +88,7 @@ npx wrangler deploy --config wrangler.toml
 ## 6. Retry, dedupe และ report
 
 - Media ถูกดาวน์โหลดและตรวจครั้งเดียวก่อนส่งให้ dispatcher
-- `state/dedupe.json` รุ่น v3 เก็บ SHA-256 fingerprint และ success แยกตาม destination ที่มีการส่งซ้ำได้ (Telegram/MEGA); retry จะข้าม target ที่สำเร็จแล้ว
+- `state/dedupe.json` รุ่น v3 เก็บ SHA-256 fingerprint และ success แยกตาม destination ที่มีการส่งซ้ำได้ (Telegram/MEGA/Dropbox); retry จะข้าม target ที่สำเร็จแล้ว
 - Browser artifact เป็นผลลัพธ์ของ job ไม่ได้บันทึกเป็น persistent target-dedupe; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่
 - `report.json` และ sanitized Dashboard artifact มี status ต่อ post/destination/media; private media ZIP แยก artifact จาก report
 - Worker ดึง media ZIP แบบ streaming ผ่าน Access ไม่ส่ง signed GitHub URL ให้ frontend และไม่ buffer archive ทั้งก้อนใน Worker
@@ -111,7 +115,7 @@ Tests ใช้ mocks/fakes สำหรับ MEGA/Telegram และ GitHub AP
 | `mega_credentials_missing` | เพิ่ม `MEGA_EMAIL`, `MEGA_PASSWORD` ใน repository Actions Secrets |
 | `mega_authentication_failed` | ตรวจข้อมูล MEGA/TOTP ใน Secrets; report ไม่แสดงรหัสผ่าน/command output |
 | `mega_client_unavailable` | ตรวจขั้นติดตั้ง MEGAcmd ใน Actions log; target อื่นยังทำงานต่อได้ |
-| `telegram_file_too_large` | ใช้ Telegram Large-file mode ที่ตั้งค่า Local Bot API แล้ว หรือเลือก MEGA/Download เพิ่ม |
+| `telegram_file_too_large` | ใช้ Telegram Large-file mode ที่ตั้งค่า Local Bot API แล้ว หรือเลือก MEGA/Dropbox/Download เพิ่ม |
 | `download_artifact_size_limit` | แบ่งรายการเป็นหลาย jobs; ZIP limit คือ 8 GiB/job |
 | `download_expired` | GitHub artifact มีอายุ 7 วัน; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่ |
 | `partial_success` | เปิดผลราย target แล้ว retry post เดิม; target ที่สำเร็จแล้วจะถูกข้ามตาม dedupe state |
@@ -123,3 +127,7 @@ Tests ใช้ mocks/fakes สำหรับ MEGA/Telegram และ GitHub AP
 - X post private/ถูกลบ/ถูกจำกัดอายุหรือ rate limit อาจดึงไม่ได้
 - Browser download เป็น ZIP; มือถือรับไฟล์ผ่าน browser Downloads/Files/Share UI ตามแพลตฟอร์ม ไม่ใช่การเขียนไฟล์จาก runner ไปยังเครื่องโดยตรง
 - `gas/` เป็น legacy/reference เท่านั้น ไม่ใช่ production endpoint; ไม่เพิ่ม Google Drive
+
+## Dropbox
+
+ให้สร้าง scoped Dropbox App และ authorize ด้วย OAuth code flow พร้อม `token_access_type=offline`; เก็บ App Key, App Secret และ Refresh Token เป็น GitHub Actions Secrets. ตั้ง Repository variable `DROPBOX_REMOTE_FOLDER` ได้ (ค่าเริ่มต้น `X2Telegram`). ระบบไม่แสดงสถานะ Dropbox ว่าเชื่อมต่อสำเร็จล่วงหน้า: ต้องเลือกปลายทางและให้ workflow เรียก API จริงก่อนจึงจะรายงาน `success`.

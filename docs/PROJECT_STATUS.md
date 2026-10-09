@@ -1,11 +1,11 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-09
-**สถานะ:** Multi-destination Dashboard/API merge และ deploy แล้ว; Telegram, Browser ZIP และ MEGA ผ่าน live verification แยกปลายทาง; ยังไม่ได้ทำ live Telegram+MEGA combined send
+**สถานะ:** เพิ่ม Dropbox connector และ multi-destination contract แล้ว; Telegram, Browser ZIP และ MEGA ผ่าน live verification แยกปลายทาง; Dropbox ยังรอ OAuth secrets และ live verification
 
 ## ภาพรวม
 
-ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path
+ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA, Dropbox และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path
 
 Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) และเสิร์ฟ static assets/API จาก Worker origin เดียวกัน. เลือกได้สูงสุด 50 URLs ต่อ job และหนึ่งหรือหลาย destinations
 
@@ -23,6 +23,7 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 | Telegram | ใช้งานได้ | Chat ถูกล็อกไว้; Bot API ปกติ 50 MB/ไฟล์; Large-file mode ใช้ Local Bot API (ยังไม่ทดสอบ live ในรอบนี้) |
 | Browser ZIP | ใช้งานได้และผ่าน live smoke test | private Actions artifact อายุ 7 วัน; 2,000 MB ต่อไฟล์และ 8 GiB รวมต่อ job; Worker stream ผ่าน Access |
 | MEGA | ใช้งานได้และผ่าน live MEGA-only test | Secrets ใช้จาก GitHub Actions; `MEGA_TOTP_SECRET` ใช้เฉพาะบัญชีที่เปิด TOTP; โฟลเดอร์ default `X2Telegram/YYYY-MM-DD`, ปรับด้วย `MEGA_REMOTE_FOLDER` repository variable |
+| Dropbox | โค้ดและ automated mock tests เสร็จ; ยังไม่ live | ใช้ Dropbox API v2 + OAuth refresh token; ไฟล์ใหญ่ใช้ upload session; ต้องตั้ง `DROPBOX_REFRESH_TOKEN`, `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` และเลือก folder ผ่าน `DROPBOX_REMOTE_FOLDER` ได้ |
 
 ## Live evidence
 
@@ -35,7 +36,7 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 
 ## Validation ล่าสุด
 
-- Python: `python3 -m pytest -q` — **71 passed**
+- Python: `python -m pytest -q` — **81 passed**; ชุดใหม่ครอบ OAuth refresh, rate limit, upload session, dedupe และ MEGA+Dropbox isolation
 - Cloudflare Worker: `npm test --prefix control-worker` — **25 passed**
 - `node --check control-worker/src/index.js`, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
@@ -48,6 +49,7 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## ขอบเขต/ข้อจำกัดที่ยังเหลือ
 
 - ยังไม่ได้ทำ live Telegram+MEGA combined send; automated tests ครอบ combination/dedupe และ live MEGA-only กับ Telegram-only ผ่านแยกกัน
+- ยังไม่ได้ทำ live Dropbox upload หรือ Dropbox+MEGA/Telegram combined send เพราะ session นี้ไม่มี Dropbox OAuth credentials; ห้ามนับ automated mock เป็น live evidence
 - ยังไม่ได้ทดสอบ browser มือถือจริงหรือ Telegram Local Bot API large-file path ในรอบนี้
 - GitHub artifact หมดอายุ 7 วัน; สร้าง job ใหม่เพื่อได้ ZIP ใหม่
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย

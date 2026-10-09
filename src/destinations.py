@@ -14,16 +14,11 @@ import time
 from typing import Callable
 
 from .config import Config, DEFAULT_TELEGRAM_API_BASE_URL
+from .errors import DestinationError
 from .telegram_api import TelegramClient
 
 
-DESTINATIONS = ("telegram", "mega", "download")
-
-
-class DestinationError(RuntimeError):
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
-        self.code = code
+DESTINATIONS = ("telegram", "mega", "dropbox", "download")
 
 
 def safe_filename(username: str | None, post_id: str | None, index: int, suffix: str) -> str:
@@ -204,11 +199,13 @@ class DestinationDispatcher:
         telegram: TelegramClient | None,
         mega: MegaUploader | None = None,
         download: DownloadExporter | None = None,
+        dropbox=None,
     ):
         self.config = config
         self.telegram = telegram
         self.mega = mega or MegaUploader()
         self.download = download or DownloadExporter(os.getenv("DOWNLOAD_EXPORT_DIR", ""))
+        self.dropbox = dropbox
 
     def deliver(self, destination: str, path: str | Path, filename: str, caption: str, kind: str) -> dict:
         if destination == "telegram":
@@ -236,6 +233,10 @@ class DestinationDispatcher:
         if destination == "mega":
             remote_folder = self.mega.upload(path, filename)
             return {"remote_folder": remote_folder}
+        if destination == "dropbox":
+            if self.dropbox is None:
+                raise DestinationError("dropbox_configuration_error", "Dropbox destination is not configured.")
+            return {"dropbox_path": self.dropbox.upload(path, filename)}
         if destination == "download":
             self.download.export(path, filename)
             return {}
@@ -243,3 +244,5 @@ class DestinationDispatcher:
 
     def close(self) -> None:
         self.mega.close()
+        if self.dropbox is not None:
+            self.dropbox.close()

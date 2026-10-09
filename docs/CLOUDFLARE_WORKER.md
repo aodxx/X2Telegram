@@ -19,7 +19,7 @@ GitHub Pages URL redirect
   → Worker static Dashboard + API (same origin)
   → GitHub Actions workflow_dispatch (one workflow)
   → Python media processor (download/validate once per media)
-  → Telegram / MEGA / private Actions ZIP artifact
+  → Telegram / MEGA / Dropbox / private Actions ZIP artifact
   → Worker Access-protected ZIP stream → Browser
 ```
 
@@ -51,7 +51,7 @@ npx wrangler deploy --config wrangler.toml
 | `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
 | `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |
 
-Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
+Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `dropbox`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
 
 ## Dispatch และ idempotency
 
@@ -68,7 +68,7 @@ Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, 
 ## Tests และ live coverage
 
 - Worker: `npm test --prefix control-worker` — **25 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, partial success, ZIP streaming และ missing artifact
-- Python: `python3 -m pytest -q` — **71 passed**, ครอบ per-destination retry/dedupe, MEGA/Download fakes, size limits และ sanitization
+- Python: `python3 -m pytest -q` — **81 passed**, ครอบ per-destination retry/dedupe, MEGA/Dropbox/Download fakes, size limits และ sanitization
 - Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download และ MEGA-only upload ผ่าน
 - Combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; การทดสอบปลายทางรวมมี automated coverage
 

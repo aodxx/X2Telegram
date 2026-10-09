@@ -112,7 +112,7 @@ class DedupeStore:
         filename: str,
         details: dict | None = None,
     ) -> None:
-        if destination not in {"telegram", "mega"}:
+        if destination not in {"telegram", "mega", "dropbox"}:
             raise ValueError("Only persistent destinations can be checkpointed")
         with self._locked():
             payload = self._load()

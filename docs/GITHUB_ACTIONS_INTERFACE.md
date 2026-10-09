@@ -8,7 +8,7 @@
 |---|---:|---|---|
 | `url` | no | empty | URL เดี่ยว; backward-compatible |
 | `urls` | no | empty | URL หลายรายการ คั่นด้วย newline; Dashboard batch/manual input |
-| `destinations` | no | `['telegram']` | JSON array จาก `telegram`, `mega`, `download` |
+| `destinations` | no | `['telegram']` | JSON array จาก `telegram`, `mega`, `dropbox`, `download` |
 | `large_file_mode` | yes | `false` | ใช้ Local Bot API สำหรับ Telegram ไฟล์ใหญ่เมื่อเลือก Telegram |
 | `request_id` | no | empty | idempotency/correlation key |
 | `job_id` | no | empty | opaque job identifier ใน run title/report |

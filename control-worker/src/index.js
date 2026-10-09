@@ -224,7 +224,7 @@ async function dispatch(request, env, identity) {
   if (rawUrls.length > MAX_BATCH_URLS) return errorResponse(request, env, 400, "too_many_urls", `A batch can contain at most ${MAX_BATCH_URLS} URLs`);
   if (!validRequestId(body.request_id)) return errorResponse(request, env, 400, "invalid_request_id", "request_id is missing or invalid");
   if (body.large_file_mode !== undefined && typeof body.large_file_mode !== "boolean") return errorResponse(request, env, 400, "invalid_large_file_mode", "large_file_mode must be a boolean", body.request_id);
-  const allowedDestinations = ["telegram", "mega", "download"];
+  const allowedDestinations = ["telegram", "mega", "dropbox", "download"];
   const rawDestinations = body.destinations === undefined ? ["telegram"] : body.destinations;
   if (!Array.isArray(rawDestinations) || rawDestinations.length < 1 || rawDestinations.length > allowedDestinations.length || rawDestinations.some((item) => typeof item !== "string" || !allowedDestinations.includes(item)) || new Set(rawDestinations).size !== rawDestinations.length) {
     return errorResponse(request, env, 400, "invalid_destinations", "Select one or more supported destinations", body.request_id);

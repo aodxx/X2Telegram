@@ -238,13 +238,13 @@ test("valid request dispatches a single URL input and returns a stable job ID", 
 });
 
 test("multi-destination request is validated and dispatched as one JSON workflow input", async () => {
-  const body = { url: "https://x.com/person/status/123", destinations: ["mega", "telegram", "download"], request_id: "multi-target-1" };
+  const body = { url: "https://x.com/person/status/123", destinations: ["mega", "telegram", "dropbox", "download"], request_id: "multi-target-1" };
   const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
   const data = await response.json();
   assert.equal(response.status, 202);
-  assert.deepEqual(data.destinations, ["telegram", "mega", "download"]);
+  assert.deepEqual(data.destinations, ["telegram", "mega", "dropbox", "download"]);
   assert.equal(dispatches.length, 1);
-  assert.equal(dispatches[0].inputs.destinations, '["telegram","mega","download"]');
+  assert.equal(dispatches[0].inputs.destinations, '["telegram","mega","dropbox","download"]');
 });
 
 test("empty, duplicate, or unsupported destinations are rejected before dispatch", async () => {

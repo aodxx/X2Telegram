@@ -1,0 +1,9 @@
+# Copy the needed values to GitHub Actions Secrets/Variables; never commit real values.
+# Dropbox OAuth (required when selecting Dropbox)
+DROPBOX_REFRESH_TOKEN=
+DROPBOX_APP_KEY=
+DROPBOX_APP_SECRET=
+# Optional short-lived token; refresh token remains required for unattended jobs.
+DROPBOX_ACCESS_TOKEN=
+# GitHub Actions Repository variable (optional)
+DROPBOX_REMOTE_FOLDER=X2Telegram

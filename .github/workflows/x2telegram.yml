@@ -16,7 +16,7 @@ on:
         default: ""
         type: string
       destinations:
-        description: 'JSON array: telegram, mega, and/or download'
+        description: 'JSON array: telegram, mega, dropbox, and/or download'
         required: false
         default: '["telegram"]'
         type: string
@@ -69,6 +69,17 @@ jobs:
       - name: Run control Worker tests
         run: npm ci --prefix control-worker && npm test --prefix control-worker
 
+      - name: Validate Dropbox configuration when selected
+        if: ${{ contains(fromJSON(inputs.destinations || '["telegram"]'), 'dropbox') }}
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+        run: |
+          if [ -z "$DROPBOX_ACCESS_TOKEN" ] && { [ -z "$DROPBOX_REFRESH_TOKEN" ] || [ -z "$DROPBOX_APP_KEY" ] || [ -z "$DROPBOX_APP_SECRET" ]; }; then
+            echo "Dropbox OAuth credentials are not configured; the Dropbox destination will report its own failure."
+          fi
       - name: Install MEGAcmd when selected
         if: ${{ contains(fromJSON(inputs.destinations || '["telegram"]'), 'mega') }}
         env:
@@ -136,6 +147,11 @@ jobs:
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
           MEGA_TOTP_SECRET: ${{ secrets.MEGA_TOTP_SECRET }}
           MEGA_REMOTE_FOLDER: ${{ vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REMOTE_FOLDER: ${{ vars.DROPBOX_REMOTE_FOLDER || 'X2Telegram' }}
           DOWNLOAD_EXPORT_DIR: download_exports
           ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
           DEDUPE_STATE_PATH: state/dedupe.json

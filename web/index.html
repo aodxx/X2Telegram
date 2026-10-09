@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#08111f">
-  <meta name="description" content="Private dashboard สำหรับประมวลผล media จาก X ไปยัง Telegram, MEGA หรือดาวน์โหลดผ่านเบราว์เซอร์">
+  <meta name="description" content="Private dashboard สำหรับประมวลผล media จาก X ไปยัง Telegram, MEGA, Dropbox หรือดาวน์โหลดผ่านเบราว์เซอร์">
   <title>X2Telegram Dashboard</title>
   <script>
     if (location.hostname === 'aodxx.github.io' && /^\/X2Telegram(?:\/|$)/i.test(location.pathname)) {
@@ -150,7 +150,7 @@
     </header>
 
     <section class="hero">
-      <div><div class="eyebrow">X2Telegram · Control Plane</div><h1>ประมวลผลครั้งเดียว<br>เลือกได้หลายปลายทาง</h1><p>วางลิงก์โพสต์ X เลือก Telegram, MEGA หรือดาวน์โหลดผ่านเบราว์เซอร์ แล้วเริ่มงานเดียว</p></div>
+      <div><div class="eyebrow">X2Telegram · Control Plane</div><h1>ประมวลผลครั้งเดียว<br>เลือกได้หลายปลายทาง</h1><p>วางลิงก์โพสต์ X เลือก Telegram, MEGA, Dropbox หรือดาวน์โหลดผ่านเบราว์เซอร์ แล้วเริ่มงานเดียว</p></div>
       <aside class="hero-note"><b>ไฟล์เดียว · หลายปลายทาง</b><span>ดึง media จาก X ครั้งเดียว แล้วแยกส่งพร้อมสถานะรายปลายทาง</span></aside>
     </section>
 
@@ -160,16 +160,17 @@
         <p class="card-intro">วาง URL ได้สูงสุด 50 รายการต่อชุด · หนึ่ง URL ต่อบรรทัด</p>
         <div class="input-wrap"><textarea id="urls" aria-label="X post URLs" placeholder="https://x.com/username/status/1234567890?s=20&#10;https://x.com/username/status/1234567891"></textarea></div>
         <div class="under-input"><span><span id="lineHint">ยังไม่มีรายการ</span> · <span class="review-state" id="reviewState">พร้อมตรวจสอบ</span></span><button class="ghost" id="clearBtn" type="button">ล้างข้อความ</button></div>
-        <div class="toggle-row"><div><b>Large-file mode</b><span>ใช้ Telegram Local Bot API สำหรับไฟล์ Telegram ที่เกิน 50 MB; MEGA/Download มีเพดานแยก</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
+        <div class="toggle-row"><div><b>Large-file mode</b><span>ใช้ Telegram Local Bot API สำหรับไฟล์ Telegram ที่เกิน 50 MB; MEGA/Dropbox/Download มีเพดานแยก</span></div><label class="switch"><input id="largeMode" type="checkbox"><span class="slider"></span></label></div>
         <div class="destination-picker" role="group" aria-label="เลือกปลายทาง">
           <label class="destination-option"><input id="destTelegram" type="checkbox" checked><span>Telegram</span></label>
           <label class="destination-option"><input id="destMega" type="checkbox"><span>MEGA</span></label>
+          <label class="destination-option"><input id="destDropbox" type="checkbox"><span>Dropbox</span></label>
           <label class="destination-option"><input id="destDownload" type="checkbox"><span>ดาวน์โหลด ZIP</span></label>
         </div>
-        <p class="destination-help">เลือกได้หนึ่งหรือหลายปลายทาง · MEGA ต้องตั้ง <code>MEGA_EMAIL</code>/<code>MEGA_PASSWORD</code> ใน <a href="https://github.com/aodxx/X2Telegram/settings/secrets/actions" target="_blank" rel="noreferrer">GitHub Actions Secrets ↗</a> (TOTP ใช้ <code>MEGA_TOTP_SECRET</code>) · ZIP เป็น private 7 วัน สูงสุด 8 GiB</p>
+        <p class="destination-help">เลือกได้หนึ่งหรือหลายปลายทาง · Dropbox ต้องตั้ง OAuth secrets (App Key/Secret + Refresh Token) · MEGA ต้องตั้ง <code>MEGA_EMAIL</code>/<code>MEGA_PASSWORD</code> ใน <a href="https://github.com/aodxx/X2Telegram/settings/secrets/actions" target="_blank" rel="noreferrer">GitHub Actions Secrets ↗</a> (TOTP ใช้ <code>MEGA_TOTP_SECRET</code>) · ZIP เป็น private 7 วัน สูงสุด 8 GiB</p>
         <div class="target"><div class="target-icon">✓</div><div><small>กลุ่ม Telegram ที่กำหนดตายตัว</small><code>-1003906817580</code></div></div>
         <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบรายการ</button><button class="btn btn-primary" id="runBtn" type="button" disabled>เริ่มงาน</button></div>
-        <div class="notice">หน้าเว็บไม่เก็บ GitHub, Telegram หรือ MEGA credentials การเริ่มงานผ่าน Cloudflare Access และ GitHub Actions; งานดาวน์โหลดส่งไฟล์กลับเป็น ZIP ผ่าน Worker แบบ stream</div>
+        <div class="notice">หน้าเว็บไม่เก็บ GitHub, Telegram, MEGA หรือ Dropbox credentials การเริ่มงานผ่าน Cloudflare Access และ GitHub Actions; งานดาวน์โหลดส่งไฟล์กลับเป็น ZIP ผ่าน Worker แบบ stream</div>
       </div>
 
       <div class="card">
@@ -182,7 +183,7 @@
       <div class="card">
         <h2>ขั้นตอนการทำงาน</h2>
         <p class="card-intro">ระบบหลักยังประมวลผลบน GitHub Actions</p>
-        <div class="flow"><div class="flow-item"><div class="flow-icon">1</div><div><b>ตรวจ URL และปลายทาง</b><span>ตรวจ Access และคง Telegram target ไว้ตายตัว</span></div></div><div class="flow-item"><div class="flow-icon">2</div><div><b>ดาวน์โหลด media หนึ่งครั้ง</b><span>yt-dlp → syndication → FxTwitter</span></div></div><div class="flow-item"><div class="flow-icon">3</div><div><b>แยก dispatch และเก็บสถานะ</b><span>dedupe แยก Telegram/MEGA; ส่ง ZIP ให้ Browser</span></div></div></div>
+        <div class="flow"><div class="flow-item"><div class="flow-icon">1</div><div><b>ตรวจ URL และปลายทาง</b><span>ตรวจ Access และคง Telegram target ไว้ตายตัว</span></div></div><div class="flow-item"><div class="flow-icon">2</div><div><b>ดาวน์โหลด media หนึ่งครั้ง</b><span>yt-dlp → syndication → FxTwitter</span></div></div><div class="flow-item"><div class="flow-icon">3</div><div><b>แยก dispatch และเก็บสถานะ</b><span>dedupe แยก Telegram/MEGA/Dropbox; ส่ง ZIP ให้ Browser</span></div></div></div>
         <div class="progress-wrap"><div class="progress-label"><span>สถานะการทำงาน</span><span id="progressText">พร้อมเริ่ม</span></div><div class="progress"><div class="bar" id="progressBar"></div></div><div class="run-meta" id="runMeta"><strong>ยังไม่มีงานที่กำลังทำงาน</strong><span>เมื่อเริ่มส่ง ระบบจะแสดง Run ID และผลลัพธ์ที่นี่</span></div><div class="result-list" id="resultList"></div></div>
       </div>
 
@@ -235,12 +236,13 @@
       button.textContent = lastReview.validLines.length ? `เริ่ม ${lastReview.validLines.length} รายการ ${targetLabel}` : 'เริ่มงาน';
     }
     function selectedDestinations() {
-      return [['telegram', 'destTelegram'], ['mega', 'destMega'], ['download', 'destDownload']].filter(([, id]) => $(id).checked).map(([name]) => name);
+      return [['telegram', 'destTelegram'], ['mega', 'destMega'], ['dropbox', 'destDropbox'], ['download', 'destDownload']].filter(([, id]) => $(id).checked).map(([name]) => name);
     }
     function setSelectedDestinations(value) {
       const selected = Array.isArray(value) && value.length ? value : ['telegram'];
       $('destTelegram').checked = selected.includes('telegram');
       $('destMega').checked = selected.includes('mega');
+      $('destDropbox').checked = selected.includes('dropbox');
       $('destDownload').checked = selected.includes('download');
       syncRunButton();
     }
@@ -348,7 +350,7 @@
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
       const status = data.state || 'accepted';
       const urlCount = data.url_count || activeRun.url_count || (Array.isArray(activeRun.urls) ? activeRun.urls.length : activeRun.url ? 1 : 0);
-      const destinationNames = { telegram: 'Telegram', mega: 'MEGA', download: 'Browser download' };
+      const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'Browser download' };
       const destinationText = (data.destinations || activeRun.destinations || []).map((name) => destinationNames[name] || name).join(' + ');
       const downloadUrl = typeof data.download?.url === 'string' && /^\/jobs\/job-[a-f0-9]{32}\/download$/.test(data.download.url) ? data.download.url : '';
       const downloadLink = downloadUrl ? `<a href="${escapeHtml(downloadUrl)}" download>ดาวน์โหลดไฟล์ ZIP (${Number(data.download.file_count || 0)} ไฟล์) ↓</a>` : '';
@@ -363,7 +365,7 @@
       const rows = (report.results || []).map((item) => {
         const good = ['sent', 'success', 'skipped_duplicate'].includes(item.status);
         const labels = { success: 'สำเร็จ', ready: 'พร้อมดาวน์โหลด', duplicate: 'ซ้ำ/ข้าม', partial_success: 'สำเร็จบางส่วน', failed: 'ล้มเหลว', no_media: 'ไม่พบ media', download_error: 'ดาวน์โหลด media ไม่สำเร็จ', metadata_error: 'อ่าน metadata ไม่สำเร็จ', telegram_error: 'ส่ง Telegram ไม่สำเร็จ', invalid_url: 'URL ไม่ถูกต้อง' };
-        const destinationNames = { telegram: 'Telegram', mega: 'MEGA', download: 'Download' };
+        const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'Download' };
         const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}`);
         const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => part.status === 'failed').map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.error ? ` — ${part.error}` : ''}`));
         const detail = targetStates.length ? targetStates.join(' · ') + (failures.length ? ` · ${failures.join(' · ')}` : '') : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} media · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ');
@@ -445,7 +447,7 @@
       catch (error) { setBusy(false); showToast(error.message); }
     });
     $('runBtn').addEventListener('click', startJob);
-    ['destTelegram', 'destMega', 'destDownload'].forEach((id) => $(id).addEventListener('change', syncRunButton));
+    ['destTelegram', 'destMega', 'destDropbox', 'destDownload'].forEach((id) => $(id).addEventListener('change', syncRunButton));
     review();
     renderRecentJobs();
     checkBackend();

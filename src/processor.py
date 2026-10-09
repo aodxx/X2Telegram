@@ -4,7 +4,8 @@ import logging
 
 from .config import Config
 from .dedupe import DedupeStore
-from .destinations import DestinationDispatcher, DestinationError, safe_filename
+from .destinations import DestinationDispatcher, safe_filename
+from .errors import DestinationError
 from .downloader import MediaDownloader
 from .metadata import MetadataProvider
 from .models import PostResult, ResultStatus
@@ -34,6 +35,7 @@ class PostProcessor:
         dedupe: DedupeStore | None = None,
         mega_uploader=None,
         download_exporter=None,
+        dropbox_uploader=None,
     ):
         self.config = config
         self.metadata = metadata
@@ -49,7 +51,7 @@ class PostProcessor:
             )
         self.logger = logger or logging.getLogger("x2telegram")
         self.dedupe = dedupe
-        self.dispatcher = DestinationDispatcher(config, self.telegram, mega_uploader, download_exporter)
+        self.dispatcher = DestinationDispatcher(config, self.telegram, mega_uploader, download_exporter, dropbox_uploader)
 
     def close(self) -> None:
         self.dispatcher.close()
@@ -174,7 +176,7 @@ class PostProcessor:
 
             try:
                 for destination in self.config.destinations:
-                    destination_filename = mega_filename if destination == "mega" else filename
+                    destination_filename = mega_filename if destination in {"mega", "dropbox"} else filename
                     if destination == "telegram" and legacy_complete:
                         message_id = legacy_ids[media_index - 1] if media_index <= len(legacy_ids) else None
                         if message_id is not None:
@@ -183,7 +185,7 @@ class PostProcessor:
                         any_delivery = True
                         continue
 
-                    prior = self.dedupe.get_destination(dedupe_key, fingerprint, destination) if self.dedupe and destination in {"telegram", "mega"} else None
+                    prior = self.dedupe.get_destination(dedupe_key, fingerprint, destination) if self.dedupe and destination in {"telegram", "mega", "dropbox"} else None
                     if prior:
                         message_id = prior.get("message_id") if destination == "telegram" else None
                         if isinstance(message_id, int):
@@ -220,7 +222,7 @@ class PostProcessor:
                     if destination == "telegram" and isinstance(details.get("message_id"), int):
                         result.message_ids.append(details["message_id"])
                     any_delivery = True
-                    if self.dedupe and destination in {"telegram", "mega"}:
+                    if self.dedupe and destination in {"telegram", "mega", "dropbox"}:
                         try:
                             self.dedupe.mark_destination_sent(
                                 dedupe_key,
@@ -244,7 +246,7 @@ class PostProcessor:
             entry = self._entry(result, destination)
             entry["status"] = self._destination_status(entry["items"])
 
-        if not any_failure and self.dedupe and any(target in {"telegram", "mega"} for target in self.config.destinations):
+        if not any_failure and self.dedupe and any(target in {"telegram", "mega", "dropbox"} for target in self.config.destinations):
             try:
                 self.dedupe.mark_complete(dedupe_key)
             except Exception:

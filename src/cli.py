@@ -9,7 +9,9 @@ import time
 
 from .config import Config
 from .dedupe import DedupeStore
-from .destinations import DestinationError, DownloadExporter, MegaUploader
+from .destinations import DownloadExporter, MegaUploader
+from .dropbox import DropboxUploader
+from .errors import DestinationError
 from .logging_utils import configure_logging, log_event, redact
 from .metadata import YtDlpMetadataProvider
 from .models import ResultStatus
@@ -152,6 +154,10 @@ def main() -> int:
                 dedupe,
                 MegaUploader(),
                 DownloadExporter(os.getenv("DOWNLOAD_EXPORT_DIR", "")),
+                dropbox_uploader=(
+                    DropboxUploader(timeout_seconds=config.timeout_seconds, max_retries=config.max_retries)
+                    if "dropbox" in config.destinations else None
+                ),
             )
             payload["results"] = [asdict(worker.process(post)) for post in posts]
             for item in payload["results"]:

@@ -14,7 +14,7 @@ Dashboard (static, Worker origin)
       └── private Actions artifact → Worker streaming → Browser ZIP
 ```
 
-GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร์ฟจาก Cloudflare Worker origin เดียวกับ API เพื่อให้ Access session เป็น same-origin. Worker ตรวจ Access JWT/owner allowlist, URL, destinations, body size และ request idempotency ก่อน dispatch workflow; Worker ไม่เก็บ Telegram/MEGA credential และไม่เป็น media processing backend
+GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร์ฟจาก Cloudflare Worker origin เดียวกับ API เพื่อให้ Access session เป็น same-origin. Worker ตรวจ Access JWT/owner allowlist, URL, destinations, body size และ request idempotency ก่อน dispatch workflow; Worker ไม่เก็บ Telegram/MEGA/Dropbox credential และไม่เป็น media processing backend
 
 ## Processing และ destination boundary
 

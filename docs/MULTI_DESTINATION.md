@@ -21,6 +21,7 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
 |---|---|---|
 | **Telegram** | ส่งวิดีโอ/รูปภาพ/เอกสารไปยังกลุ่มที่ล็อกไว้ | Bot API ปกติรองรับไม่เกิน 50 MB ต่อไฟล์; Large-file mode ใช้ Local Bot API และเพดานระบบ 2,000 MB |
 | **MEGA** | อัปโหลดไปยัง `/X2Telegram/YYYY-MM-DD/` (หรือ folder ที่ตั้งในฝั่ง workflow) | ต้องตั้ง `MEGA_EMAIL`, `MEGA_PASSWORD`; `MEGA_TOTP_SECRET` ใช้เมื่อบัญชีเปิด MFA/TOTP. ใช้ MEGAcmd ทางการใน runner ชั่วคราว |
+| **Dropbox** | อัปโหลดผ่าน Dropbox API v2 ไปยัง `/X2Telegram/` (หรือ folder ที่ตั้งไว้) | ใช้ OAuth refresh token; ไฟล์เกิน 150 MB ใช้ upload session; ชื่อไฟล์เติม content fingerprint และใช้ `add`/ห้าม overwrite |
 | **Download** | สร้างไฟล์ ZIP และให้ browser ดาวน์โหลดผ่าน Dashboard | เก็บเป็น private GitHub Actions artifact 7 วัน; ขนาด media ต่อไฟล์ไม่เกิน 2,000 MB และ ZIP ต่อ job รวมไม่เกิน 8 GiB |
 
 วิดีโอ/ภาพหลายรายการจากโพสต์เดียวกันจะถูกส่งออกเป็นหลายไฟล์ใน ZIP เดียว และใช้ชื่อไฟล์ที่สร้างจาก username/post ID/index/นามสกุล โดยตัด path และอักขระที่ไม่รองรับออก
@@ -45,10 +46,23 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 
 เอกสารคำสั่ง login/MFA ของผู้พัฒนา MEGAcmd: [MEGAcmd login](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). ระบบใช้ `mega-login --auth-code=... email password` เมื่อกำหนด TOTP secret และเรียก `mega-logout` หลังประมวลผล
 
+### การตั้งค่า Dropbox
+
+สร้าง Dropbox App แบบ scoped และใช้ OAuth code flow โดยระบุ `token_access_type=offline` เพื่อได้ refresh token ตามแนวทางทางการของ Dropbox. เก็บค่าต่อไปนี้ใน GitHub Actions Secrets เท่านั้น:
+
+| Secret name | ค่า |
+|---|---|
+| `DROPBOX_REFRESH_TOKEN` | OAuth refresh token ที่ได้จากการ authorize แบบ offline |
+| `DROPBOX_APP_KEY` | App key ของ Dropbox App |
+| `DROPBOX_APP_SECRET` | App secret ของ Dropbox App |
+| `DROPBOX_ACCESS_TOKEN` | (ไม่บังคับ) access token ชั่วคราว; ถ้ามี refresh token ระบบจะ refresh เมื่อได้ HTTP 401 |
+
+ตั้ง `DROPBOX_REMOTE_FOLDER` เป็น Repository variable ได้ เช่น `Archive/X2Telegram`; ค่าเริ่มต้นคือ `/X2Telegram`. ห้ามใส่ token ใน Dashboard, source code หรือ log. ระบบใช้ Dropbox `files/upload` สำหรับไฟล์ไม่เกิน 150 MB และ `upload_session/start`, `append_v2`, `finish` สำหรับไฟล์ใหญ่; HTTP 429 จะรอ `Retry-After` ก่อน retry.
+
 ## การส่งและสถานะ
 
 1. วาง URL หนึ่งรายการต่อบรรทัด (สูงสุด 50)
-2. เลือก Telegram, MEGA, Download ได้หนึ่งหรือหลายรายการ
+2. เลือก Telegram, MEGA, Dropbox, Download ได้หนึ่งหรือหลายรายการ
 3. เปิด Large-file mode เฉพาะเมื่อต้องการส่ง Telegram ไฟล์เกิน 50 MB และตั้งค่าฝั่ง Telegram Local Bot API แล้ว
 4. กดเริ่มงานหนึ่งครั้ง; Dashboard dispatch หนึ่ง Actions run
 5. เมื่อเสร็จ Dashboard แสดง status แยกตามปลายทางและแต่ละ media; ถ้าเลือก Download จะมีลิงก์ ZIP เมื่อ artifact พร้อม
@@ -58,7 +72,7 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 ## Retry และ duplicate prevention
 
 - Python ดาวน์โหลดและตรวจ media ก่อน จากนั้นส่งไฟล์ local เดิมไปยังแต่ละปลายทางที่เลือก; ไม่ดาวน์โหลดจาก X ซ้ำเพียงเพราะเลือกหลายปลายทาง
-- Dedupe state v3 บันทึกผลสำเร็จแยกตาม media และปลายทางที่เป็นการส่งซ้ำได้ (Telegram/MEGA). เมื่อ retry post เดิม ระบบข้าม destination ที่สำเร็จแล้วและลองเฉพาะ target ที่ยังไม่สำเร็จ
+- Dedupe state v3 บันทึกผลสำเร็จแยกตาม media และปลายทางที่เป็นการส่งซ้ำได้ (Telegram/MEGA/Dropbox). เมื่อ retry post เดิม ระบบข้าม destination ที่สำเร็จแล้วและลองเฉพาะ target ที่ยังไม่สำเร็จ
 - Browser download เป็น artifact ของ job นั้น ไม่ใช่สำเนาถาวรใน dedupe state; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่ได้
 - GitHub Actions concurrency ยัง serialize งานที่แก้ไข dedupe state. ไม่รับประกัน exactly-once หากบริการปลายทางรับไฟล์แล้ว response/checkpoint สูญหายก่อน state ถูกบันทึก
 

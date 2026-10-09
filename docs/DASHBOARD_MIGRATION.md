@@ -4,7 +4,7 @@
 
 ```text
 GitHub Pages entry → redirect → Cloudflare Access + Worker-hosted Dashboard/API
-  → GitHub Actions → Python processor → Telegram / MEGA / Browser ZIP
+  → GitHub Actions → Python processor → Telegram / MEGA / Dropbox / Browser ZIP
 ```
 
 Dashboard assets และ API อยู่ Worker origin เดียวกันเพื่อให้ Access session เป็น first-party cookie; หน้า Pages ทำหน้าที่เป็น entry/redirect. Worker ตรวจ Access JWT ก่อน serve static assets และบนทุก API endpoint ที่มีข้อมูลหรือ side effects. Browser session ที่ทดสอบหลัง merge แสดง **Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง**
@@ -14,7 +14,7 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 - วาง X URL หนึ่งรายการต่อบรรทัด; 1–50 URL ต่อ job
 - Frontend preview บอก valid/invalid/duplicate; Worker ตรวจ URL และ duplicate post ID ซ้ำอีกครั้ง
 - URL เดี่ยวถูกส่งเป็น workflow input `url`; batch ถูกส่งเป็น `urls` newline-separated; หนึ่ง job คือหนึ่ง GitHub Actions run
-- เลือกได้หนึ่งหรือหลาย targets จาก `telegram`, `mega`, `download`; ถ้าไม่ระบุโดย manual Actions จะ default Telegram
+- เลือกได้หนึ่งหรือหลาย targets จาก `telegram`, `mega`, `dropbox`, `download`; ถ้าไม่ระบุโดย manual Actions จะ default Telegram
 - Job fingerprint รวม request ID, ordered normalized URL(s), large-file flag และ normalized destinations; `request_id` เดิมกับ payload/target ที่เปลี่ยนถูกปฏิเสธด้วย `409 idempotency_conflict`
 - Dashboard แสดง status/error แยก post, media และ destination; target ที่ล้มเหลวไม่ยกเลิก target อื่น
 
@@ -43,6 +43,6 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 - Batch เกิน 50 URLs ต้องแบ่งหลาย jobs
 - MEGA-only upload ผ่าน live แล้ว; live Telegram+MEGA combined send ยังไม่ยืนยัน เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น
 - Large-file mode และมือถือยังไม่ได้ live-test รอบนี้
-- Network timeout หลัง Telegram/MEGA รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry
+- Network timeout หลัง Telegram/MEGA/Dropbox รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry
 
 รายละเอียดผู้ใช้: [`USER_GUIDE_TH.md`](USER_GUIDE_TH.md); API schema: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); multi-destination setup: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md).
