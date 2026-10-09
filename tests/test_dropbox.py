@@ -95,6 +95,33 @@ def test_expired_access_token_refreshes_once_without_exposing_secret():
         source.unlink(missing_ok=True)
 
 
+def test_refresh_token_only_configuration_gets_access_token_before_upload(tmp_path):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if url.endswith("/oauth2/token"):
+            assert kwargs["data"]["grant_type"] == "refresh_token"
+            assert kwargs["data"]["refresh_token"] == "refresh-only"
+            return Response(payload={"access_token": "fresh-access"})
+        return Response(payload={"path_display": "/X2Telegram/only-refresh.mp4"})
+
+    source = tmp_path / "only-refresh.mp4"
+    source.write_bytes(b"video")
+    uploader = DropboxUploader(
+        access_token="",
+        refresh_token="refresh-only",
+        app_key="app-key",
+        app_secret="app-secret",
+        request=request,
+    )
+
+    assert uploader.upload(source, "only-refresh.mp4") == "/X2Telegram/only-refresh.mp4"
+    assert calls[0][1].endswith("/oauth2/token")
+    assert calls[1][1].endswith("/files/upload")
+    assert calls[1][2]["headers"]["Authorization"] == "Bearer fresh-access"
+
+
 def test_rate_limit_honors_retry_after():
     waits = []
     attempts = []
