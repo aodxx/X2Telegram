@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-09
-**สรุป:** Telegram normal path, batch no-resend, Dashboard Access, Browser ZIP และ MEGA-only live smoke tests ผ่าน; Dropbox connector และ combinations ครอบคลุมด้วย automated tests แต่ยังไม่มี Dropbox OAuth live test. ยังไม่ได้ทดสอบ live Telegram+MEGA combined send
+**สรุป:** Telegram normal path, batch no-resend, Dashboard Access, Browser ZIP และ MEGA-only live smoke tests ผ่าน; Dropbox connector และ combinations ครอบคลุมด้วย automated tests แต่ยังไม่มี Dropbox OAuth live test; repository owner reports the OAuth secrets are now configured. ยังไม่ได้ทดสอบ live Telegram+MEGA combined send
 
 ## หลักฐาน live
 
@@ -46,8 +46,8 @@
 | ภาพ+วิดีโอในโพสต์เดียว | PASS (automated mock) | ภาพยังคงอยู่ และเลือก video variant สูงสุด; download หนึ่งครั้งต่อ media |
 | Invalid MEGA folder/credential failure | PASS (automated mock) | MEGA failure ไม่หยุด Telegram/Download; ไม่มี command output ใน report |
 | MEGA upload จริง | PASS (live MEGA-only) | Run #37848879753; หนึ่ง media upload สำเร็จ; Telegram ไม่ได้เลือก |
-| Dropbox connector | PASS (automated mock only) | ครอบ OAuth refresh, 429 Retry-After, upload session, no-overwrite filename และ per-destination dedupe; ไม่มี Dropbox credential ใน session นี้ |
-| Dropbox upload จริง | NOT RUN | ต้องตั้ง `DROPBOX_REFRESH_TOKEN`, `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` และทดสอบด้วยไฟล์ที่ไม่สำคัญ |
+| Dropbox connector | PASS (automated mock only) | ครอบ OAuth refresh (รวม refresh-token-only), 429 Retry-After, upload session, no-overwrite filename และ per-destination dedupe; live Dropbox run ยังไม่ได้เริ่ม |
+| Dropbox upload จริง | NOT RUN | Secrets ถูกตั้งตามคำแจ้งของเจ้าของ repository; ต้องรัน Dropbox-only test ด้วย URL ที่อนุญาตและตรวจผลใน Dashboard |
 | Telegram+MEGA live combined send | NOT RUN | ยังไม่ทำ combined fresh send เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น |
 | Telegram Local Bot API large file | NOT RUN (live) | Standard-size target policy มี local tests; ยังไม่ส่งไฟล์ใหญ่จริง |
 | Mobile browser | NOT RUN | ยังไม่มีการทดสอบบนอุปกรณ์มือถือจริง |
@@ -55,7 +55,7 @@
 
 ## Automated validation หลัง merge
 
-- Python: `python -m pytest -q` — **81 passed**
+- Python: `python -m pytest -q` — **82 passed**
 - Cloudflare Worker: `npm test --prefix control-worker` — **25 passed**
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live run #37843359593 ผ่าน automated Python/Worker tests ก่อน process, report และ media artifact upload
