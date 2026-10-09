@@ -54,10 +54,12 @@ class FakeMega:
         self.calls = 0
         self.fail = fail
         self.uploaded_names = []
+        self.requested_filenames = []
 
     def upload(self, path, filename):
         self.calls += 1
         self.uploaded_names.append(Path(path).name)
+        self.requested_filenames.append(filename)
         if self.fail:
             raise DestinationError("mega_upload_failed", "MEGA upload failed.")
         return "/X2Telegram/2026-10-09"
@@ -95,6 +97,9 @@ def test_all_three_destinations_use_one_download_and_report_each_status(tmp_path
     assert telegram.calls == 1 and mega.calls == 1
     assert telegram.uploaded_names == ["user_123_01.mp4"]
     assert mega.uploaded_names == ["user_123_01.mp4"]
+    assert len(mega.requested_filenames) == 1
+    assert __import__("re").fullmatch(r"user_123_01_[0-9a-f]{10}\\.mp4", mega.requested_filenames[0])
+    assert result.destinations["mega"]["items"][0]["filename"] == mega.requested_filenames[0]
     assert result.status == ResultStatus.SUCCESS
     assert result.destinations["telegram"]["status"] == "success"
     assert result.destinations["mega"]["status"] == "success"
