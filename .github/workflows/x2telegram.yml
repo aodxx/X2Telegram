@@ -37,7 +37,7 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 defaults:
   run:
@@ -54,6 +54,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -179,17 +181,14 @@ jobs:
         run: |
           if command -v mega-logout >/dev/null 2>&1; then mega-logout >/dev/null 2>&1 || true; fi
 
-      - name: Persist duplicate prevention state
+      - name: Upload dedupe state for persistence
         if: always()
-        run: |
-          if [ ! -f state/dedupe.json ] || [ -z "$(git status --porcelain -- state/dedupe.json)" ]; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add state/dedupe.json
-          git commit -m "chore: persist X2Telegram delivery state [skip ci]"
-          git push
+        uses: actions/upload-artifact@v4
+        with:
+          name: x2telegram-dedupe-state-${{ github.run_id }}
+          path: state/dedupe.json
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Build private dashboard report
         if: always()
@@ -226,3 +225,32 @@ jobs:
             report.json
             run.jsonl
           if-no-files-found: warn
+
+  persist-state:
+    if: always()
+    needs: send-media
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download dedupe state
+        uses: actions/download-artifact@v4
+        with:
+          name: x2telegram-dedupe-state-${{ github.run_id }}
+          path: state
+          if-no-artifact-found: ignore
+
+      - name: Persist duplicate prevention state
+        run: |
+          if [ ! -f state/dedupe.json ] || [ -z "$(git status --porcelain -- state/dedupe.json)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/dedupe.json
+          git commit -m "chore: persist X2Telegram delivery state [skip ci]"
+          git push

@@ -42,3 +42,23 @@ def test_workflow_keeps_dropbox_oauth_credentials_server_side():
     assert "DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}" in text
     assert "DROPBOX_REMOTE_FOLDER: ${{ vars.DROPBOX_REMOTE_FOLDER || 'X2Telegram' }}" in text
     assert "contains(fromJSON(inputs.destinations || '[\"telegram\"]'), 'dropbox')" in text
+
+
+def test_media_processing_job_has_read_only_contents_permission():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "permissions:\n  contents: read" in text
+    send_media = text.split("  send-media:", 1)[1].split("  persist-state:", 1)[0]
+    assert "persist-credentials: false" in send_media
+    assert "git push" not in send_media
+
+
+def test_dedupe_state_is_transferred_to_a_separate_write_job():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    persist_state = text.split("  persist-state:", 1)[1]
+    assert "needs: send-media" in persist_state
+    assert "if: always()" in persist_state
+    assert "permissions:\n      contents: write" in persist_state
+    assert "actions/upload-artifact" in text
+    assert "actions/download-artifact" in persist_state
+    assert "state/dedupe.json" in persist_state
+    assert "git push" in persist_state
