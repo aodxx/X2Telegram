@@ -782,6 +782,44 @@
       "message_ids": [],
       "completed": true,
       "updated_at": "2026-10-09T19:39:18.919577+00:00"
+    },
+    "2105352846149366019": {
+      "media": {
+        "36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893": {
+          "kind": "photo",
+          "filename": "NASAEarth_2105352846149366019_01.jpg",
+          "destinations": {
+            "telegram": {
+              "status": "success",
+              "filename": "NASAEarth_2105352846149366019_01.jpg",
+              "delivered_at": "2026-10-10T08:15:24.628374+00:00",
+              "message_id": 379
+            },
+            "mega": {
+              "status": "success",
+              "filename": "NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg",
+              "delivered_at": "2026-10-10T08:15:29.534455+00:00",
+              "remote_folder": "/X2Telegram/2026-10-10"
+            },
+            "dropbox": {
+              "status": "success",
+              "filename": "NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg",
+              "delivered_at": "2026-10-10T08:15:31.177518+00:00",
+              "dropbox_path": "/X2Telegram/NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg"
+            }
+          },
+          "message_id": 379,
+          "sent_at": "2026-10-10T08:15:24.628374+00:00"
+        }
+      },
+      "post_id": "2105352846149366019",
+      "username": "NASAEarth",
+      "source_url": "https://x.com/NASAEarth/status/2105352846149366019",
+      "message_ids": [
+        379
+      ],
+      "completed": true,
+      "updated_at": "2026-10-10T08:15:31.179444+00:00"
     }
   }
 }
