@@ -1,6 +1,6 @@
 # GitHub Actions Interface
 
-`.github/workflows/x2telegram.yml` เป็น execution workflow หลักเพียง workflow เดียว. Worker ส่ง input ของ job และ Python worker ประมวลผล media หนึ่งครั้งก่อน dispatch ไปยัง destination ที่เลือก
+`.github/workflows/x2telegram.yml` เป็น execution workflow หลัก. Production Worker deploy แยกเป็น `.github/workflows/deploy-worker.yml` แบบ manual และไม่ dispatch จากทุก push. Worker ส่ง input ของ job และ Python worker ประมวลผล media หนึ่งครั้งก่อน dispatch ไปยัง destination ที่เลือก
 
 ## `workflow_dispatch` inputs
 
@@ -49,5 +49,5 @@
 
 - Workflow ใช้ `contents: write` สำหรับ persist `state/dedupe.json`; GitHub credential ที่ Control Worker ใช้ dispatch/read status ไม่ถูกส่งเป็น workflow input
 - Secrets อยู่ใน GitHub Actions Secrets; ห้ามพิมพ์ค่าใน workflow input/log/source
-- Python tests ใช้ fakes สำหรับ destination uploads และ Worker tests mock GitHub/JWKS, report artifacts และ ZIP stream
-- Live Telegram normal-path/batch evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md); live MEGA path ต้องมี secret ของบัญชี MEGA ก่อนจึงจะตรวจจริงได้
+- Python tests ใช้ fakes สำหรับ destination uploads และ Worker tests mock GitHub/JWKS, report artifacts, ZIP stream และ edge rate-limit binding/fail-closed
+- Live Telegram normal-path/batch evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md); live MEGA/Dropbox evidence มีในรายงานแล้ว. Production Worker deploy ใช้ GitHub Environment secrets และ run tests/dry-run ก่อน deploy

@@ -1,6 +1,6 @@
 # Cloudflare Access — Zone 4
 
-## สถานะปัจจุบัน (2026-10-08)
+## สถานะปัจจุบัน (2026-10-12)
 
 ตั้งค่า Cloudflare Zero Trust สำหรับ **X2Telegram Control Worker เท่านั้น** แล้ว:
 
@@ -19,7 +19,6 @@
 - เปิด Worker hostname ใน browser แล้วถูกพาไปหน้า Access login; หลังตั้ง One-time PIN หน้าลงชื่อเข้าใช้แสดงฟอร์ม email และปุ่มส่งรหัส
 - ทดสอบ unauthenticated POST จาก origin `https://aodxx.github.io`: browser ส่งต่อจนได้ opaque redirect จาก Access; ไม่มี Access session จึงไม่เข้าถึง API และไม่มี GitHub workflow ถูก dispatch
 - ตั้งค่า preflight headers ใน Access app และ Worker exact-origin enforcement; ไม่ได้ใช้ wildcard origin
-- `GH_TOKEN` อยู่ใน Worker เป็น secret ชนิด `secret_text`; ต้อง rotate ก่อน production เนื่องจากค่าแรกถูกแชร์ระหว่าง setup
 - เจ้าของ sign in ด้วย OTP แล้ว; authenticated `GET /health` ตอบ `200`, และ `GET /jobs/<random-id>` ตอบ expected `404 job_not_found` จาก GitHub-backed lookup
 - หลัง deploy hardening ทดสอบจาก GitHub Pages origin: `GET /health` ได้ `200`, invalid URL POST ได้ `400 invalid_url`, body 17 KiB ได้ `413 request_too_large`; ทั้งสอง POST ถูกปฏิเสธก่อน dispatch
 - Normal-path E2E ผ่านเมื่อ 2026-10-08: run `37807253687` สำเร็จ, sanitized report คืน `sent=1`, Telegram `message_id=347`; Worker ถูกคืน `GH_REF=main` หลังทดสอบ
@@ -51,15 +50,14 @@ Worker มี fallback best-effort per-isolate cap 20 `POST /jobs` ต่อห�
 - [x] Access CORS origin/method/header/credentials ตรงกับ Dashboard
 - [x] Browser unauthenticated request ถูก redirect ไปหน้า Access login
 - [x] เจ้าของ sign in ด้วย OTP สำเร็จและ authenticated `GET /health` ผ่าน
-- [x] GitHub Actions credential ถูกเก็บเป็น Worker secret `GH_TOKEN` (`secret_text`)
-- [ ] Rotate `GH_TOKEN` เป็นค่าใหม่ก่อน production
+- [x] GitHub Actions credential ถูกเก็บเป็น Worker secret `GH_TOKEN` (`secret_text`) และเปลี่ยนค่าแล้ว
 - [x] Authenticated status lookup อ่าน GitHub Actions ได้ (สุ่ม job ID, ได้ expected 404; ไม่ dispatch)
 - [x] Live cross-origin invalid URL และ oversized-body validation ถูก reject ก่อน dispatch
 - [x] Authenticated report retrieval ผ่านจาก run ที่มี artifact
 - [x] Normal-path E2E dispatch จริง/ส่ง Telegram ผ่านโดยใช้ URL ที่เจ้าของอนุมัติหนึ่งรายการ (รายละเอียดใน `E2E_TEST_REPORT.md`)
-- [ ] E2E scenarios ที่เหลือ: duplicate/no-resend, multi-photo, partial-failure recovery, UI refresh, mobile และ large-file
-- [x] Local test ยืนยัน per-isolate limit: 21st POST ได้ `429` โดยไม่ dispatch
-- [ ] ทดสอบ edge/global burst limit ที่ production configuration
+- [ ] E2E scenarios ที่เหลือ: multi-photo live, partial-failure live recovery, UI refresh, mobile และ Telegram Local Bot API large-file
+- [x] Local test ยืนยัน per-isolate fallback: 21st POST ได้ `429` โดยไม่ dispatch
+- [x] Production deploy ยืนยัน `JOB_DISPATCH_RATE_LIMITER` binding 20 requests/60 seconds
 - [ ] ไม่พบ credential ใน network responses/frontend/logs
 
-**ข้อจำกัดปัจจุบัน:** PR #2 merged และ GitHub Pages Dashboard live แล้ว; health badge จากหน้า deployed แสดง `Control Worker พร้อม`. Normal-path E2E หนึ่งรายการผ่าน แต่ `GH_TOKEN` ที่เคยเปิดเผยยังไม่ได้ rotate ตามคำสั่งเจ้าของ จึงยังไม่ควรถือว่า production-secure. ก่อนใช้ต่อเนื่องให้จัดการ credential risk และทบทวน scenarios ที่ค้าง.
+**สถานะปัจจุบัน:** Worker และ Dashboard production live แล้ว โดย Access ยังคงครอบ hostname และ rate-limit binding deploy สำเร็จ. `GET /health` แบบไม่มี Access session จะ redirect ไป Cloudflare Access ตาม policy. ยังเหลือเฉพาะ live scenarios ที่ระบุใน checklist; ไม่มี credential rotation warning ค้างอยู่.

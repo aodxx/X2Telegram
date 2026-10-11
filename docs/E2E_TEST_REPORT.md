@@ -1,6 +1,6 @@
 # X2Telegram — E2E Test Report
 
-**วันที่:** 2026-10-11
+**วันที่:** 2026-10-12
 **สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4. MEGA content-version retention integration หลัง fix ผ่านจริง. มีบาง URL ล้มที่ shared `download_error` ก่อนถึง destinations; Telegram >50 MB ใน standard mode ล้มตาม size limit ที่กำหนด ไม่ใช่ปลายทางอื่นล้มตาม
 
 ## หลักฐาน live
@@ -19,7 +19,7 @@
 
 ### Live Browser ZIP / Worker streaming (หลัง multi-destination deploy)
 
-- Worker version `0a099878-485a-43ef-9097-cf4f44e24373`, deployed หลัง PR #6 / commit `389621b`
+- Worker version `c44298fb-47f9-4798-a3db-9cd6946018fb`, deployed by commit `fe3170fb` via [deploy run #38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335)
 - Dashboard แสดง Access authenticated, destinations picker และฟอร์ม 2 URLs
 - เลือก **Download-only** แล้ว dispatch run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593), job `job-601fc374e2d57b21b0528137602cba7d`
 - Actions success; Telegram Local Bot API และ MEGAcmd setup ถูกข้าม; process/report/artifact upload ผ่าน; report แสดง Download `ready` 2 files
@@ -77,11 +77,12 @@
 
 ## Automated validation หลัง merge
 
-- Python: `python3 -m pytest -q` — **89 passed**
-- Cloudflare Worker: `npm test --prefix control-worker` — **25 passed**
+- Python: `python3 -m pytest -q` — **95 passed**
+- Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
+- Deploy workflow: Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live run #37843359593 ผ่าน automated Python/Worker tests ก่อน process, report และ media artifact upload
 
 ## ข้อสรุป
 
-ระบบ deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. Run #37984146026 ยืนยัน MEGA version-retention หลังแก้ชื่อไฟล์. สิ่งที่ยังไม่สมบูรณ์/ยืนยัน live คือ source fetch ที่มี `download_error` บาง URL, Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox token-refresh และ large-file edge paths, รวมถึงการใช้งาน browser บนมือถือจริง
+ระบบ production deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. Deploy run #38171587335 ยืนยัน Worker tests, Wrangler config/rate-limit binding และ production deploy ผ่าน. สิ่งที่ยังไม่สมบูรณ์/ยืนยัน live คือ source fetch ที่มี `download_error` บาง URL, Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox token-refresh และ large-file edge paths, รวมถึงการใช้งาน browser บนมือถือจริง

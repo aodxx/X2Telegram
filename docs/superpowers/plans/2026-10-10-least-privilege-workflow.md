@@ -29,9 +29,9 @@
 - [x] รันทดสอบเฉพาะไฟล์เพื่อดู failure ที่คาดไว้ — ก่อน implementation มี 2 tests fail ด้วยเงื่อนไข permission/job ที่ยังไม่มี
 - [x] แยก state persistence เป็น job ที่มี `contents: write`; job ที่รัน tests/ประมวลผลให้สิทธิ์ `contents: read`
 - [x] อัปโหลดและดาวน์โหลด state artifact โดยใช้ retention 1 วัน และยัง commit เฉพาะไฟล์ dedupe
-- [x] รัน Python tests (89 passed), Worker tests (25 passed), YAML parse และ diff check
+- [x] รัน Python tests (95 passed), Worker tests (27 passed), YAML parse และ diff check; เพิ่ม edge rate-limit และ manual Worker deployment workflow ภายหลัง
 - [x] ทบทวน diff ว่าไม่มีการเปลี่ยนปลายทาง/credential/deployment แล้วบันทึกผลให้ผู้ใช้
 
 ## ขอบเขตนอกแผน
 
-การ rotate GitHub token, Dropbox live test, การทดสอบส่ง media จริง, pin immutable Action/container references และการตั้ง Cloudflare rate limit ต้องการตรวจสอบ/ข้อมูล/การอนุมัติจากเจ้าของบริการ จึงไม่ทำในแผนนี้.
+Historical scope note: การ rotate credential เดิมไม่อยู่ในแผนนี้; ปัจจุบันใช้ credential ใหม่ตามการตั้งค่าของเจ้าของ. Dropbox live test และ Telegram Local Bot API large-file live test ยังอยู่นอก automated validation; immutable refs และ Cloudflare rate-limit binding ถูกทำและ deploy แล้ว.

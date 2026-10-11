@@ -53,7 +53,9 @@ Dashboard static assets และ API ใช้ Worker origin เดียวก
 
 Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
-หากเผยแพร่ source ใหม่จาก `control-worker/`:
+Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. Deployment ล่าสุดผ่าน run [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) และ Worker version `c44298fb-47f9-4798-a3db-9cd6946018fb`.
+
+หากเผยแพร่ source ใหม่จาก `control-worker/` แบบ local/manual:
 
 ```bash
 cd control-worker

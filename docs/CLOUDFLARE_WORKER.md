@@ -1,10 +1,11 @@
 # Cloudflare Control Worker
 
-## สถานะ live (2026-10-09)
+## สถานะ live (2026-10-12)
 
 - Worker `x2telegram-control-plane` ใช้งานที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
-- Version ID ปัจจุบัน: `0a099878-485a-43ef-9097-cf4f44e24373`
-- Source: `main`, commit `389621bab764d15aa7ded722b74a944314693274` (PR #6)
+- Version ID ปัจจุบัน: `c44298fb-47f9-4798-a3db-9cd6946018fb`
+- Source: `main`, commit `fe3170fb3fc23cf06ee8a9a838866e38d207480c`
+- Deploy ผ่าน GitHub Actions run [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) และใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds
 - Cloudflare Access จำกัด hostname นี้ตาม email owner policy; Dashboard static assets และ API อยู่ origin เดียวกัน
 - Worker-hosted Dashboard แสดง Access session ผ่าน browser จริงและมี destination selectors
 - Live Download-only run #37843359593 ประมวลผล 2 URLs และ browser ดาวน์โหลด ZIP จริงผ่าน protected endpoint; report มี Download 2 files พร้อม ZIP CRC check ผ่าน
@@ -35,7 +36,7 @@ Worker ไม่ดาวน์โหลด/แปลง media และไม�
 cd control-worker
 npm ci
 npm test
-npx wrangler deploy --config wrangler.toml
+npx wrangler deploy --config wrangler.toml  # local/manual; production ใช้ .github/workflows/deploy-worker.yml
 ```
 
 การ publish HTML/static assets ใช้ config เดียวกันและ deploy พร้อม Worker source. **หมายเหตุ:** source route `/health` ไม่เรียก `verifyAccess()` แต่ Cloudflare Access เป็น edge layer แยกจาก Worker จึงสามารถ redirect ก่อนถึง Worker ได้ตาม production behavior ปัจจุบัน ตรวจสถานะจาก Dashboard ผ่าน browser ที่ลงชื่อเข้าใช้ Access แล้ว; สำหรับ HTTP liveness ให้ตรวจเฉพาะ status code และไม่พิมพ์ Access redirect location หรือ auth query ลง log
@@ -51,7 +52,7 @@ npx wrangler deploy --config wrangler.toml
 | `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
 | `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |
 
-Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `dropbox`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
+Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. `POST /jobs` ใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds ต่อ Access identity; binding error fail-closed เป็น `503 rate_limiter_unavailable`. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `dropbox`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
 
 ## Dispatch และ idempotency
 
@@ -67,9 +68,9 @@ Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, 
 
 ## Tests และ live coverage
 
-- Worker: `npm test --prefix control-worker` — **25 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, partial success, ZIP streaming และ missing artifact
-- Python: `python3 -m pytest -q` — **81 passed**, ครอบ per-destination retry/dedupe, MEGA/Dropbox/Download fakes, size limits และ sanitization
+- Worker: `npm test --prefix control-worker` — **27 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, rate limiter binding/fail-closed, partial success, ZIP streaming และ missing artifact
+- Python: `python3 -m pytest -q` — **95 passed**, ครอบ per-destination retry/dedupe, privacy-minimized state, MEGA/Dropbox/Download fakes, size limits และ sanitization
 - Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download และ MEGA-only upload ผ่าน
-- Combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; การทดสอบปลายทางรวมมี automated coverage
+- Combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; การทดสอบปลายทางรวมมี automated coverage. Production deploy ล่าสุดผ่านแล้ว แต่ไม่ได้สร้างงานส่ง media ใหม่
 
 รายละเอียด API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); Access policy: [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md); ผลทดสอบ: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)

@@ -14,7 +14,7 @@ Dashboard (static, Worker origin)
       └── private Actions artifact → Worker streaming → Browser ZIP
 ```
 
-GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร์ฟจาก Cloudflare Worker origin เดียวกับ API เพื่อให้ Access session เป็น same-origin. Worker ตรวจ Access JWT/owner allowlist, URL, destinations, body size และ request idempotency ก่อน dispatch workflow; Worker ไม่เก็บ Telegram/MEGA/Dropbox credential และไม่เป็น media processing backend
+GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร์ฟจาก Cloudflare Worker origin เดียวกับ API เพื่อให้ Access session เป็น same-origin. Worker ตรวจ Access JWT/owner allowlist, URL, destinations, body size, request idempotency และ `JOB_DISPATCH_RATE_LIMITER` ก่อน dispatch workflow; Worker ไม่เก็บ Telegram/MEGA/Dropbox credential และไม่เป็น media processing backend
 
 ## Processing และ destination boundary
 
@@ -31,6 +31,7 @@ GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร�
 ไม่ใช้ database/Redis/queue. Idempotency ของ Worker ป้องกัน dispatch ซ้ำเมื่อใช้ request ID เดิม แต่ระบบไม่รับประกัน exactly-once หากบริการปลายทางรับไฟล์แล้ว response/checkpoint หายก่อนบันทึก state
 
 ## Contract และ deployment
+Production Worker version ล่าสุดคือ `c44298fb-47f9-4798-a3db-9cd6946018fb` จาก commit `fe3170fb`; deploy ผ่าน manual GitHub Actions workflow และมี 20 requests/60 seconds edge rate limit ต่อ Access identity.
 
 - API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md)
 - Worker deployment/Access: [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)

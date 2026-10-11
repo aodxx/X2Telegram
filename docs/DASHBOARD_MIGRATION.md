@@ -33,15 +33,15 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 
 ## Live evidence หลัง deploy
 
-- Worker version `0a099878-485a-43ef-9097-cf4f44e24373` จาก PR #6 / commit `389621b`
+- Worker version `c44298fb-47f9-4798-a3db-9cd6946018fb` จาก commit `fe3170fb`; deploy run [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) ผ่าน
 - Access authenticated Dashboard ถูกตรวจใน browser
 - Actions run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) ประมวลผล Download-only 2 URLs; report แสดง 2 ready files, media ZIP upload ผ่าน และ ZIP ดาวน์โหลดผ่าน protected Worker route ได้จริง (2 entries, CRC ผ่าน)
-- MEGA-only run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ผ่าน; Dashboard report แสดง upload success หนึ่งรายการ. Telegram normal-path และ batch/no-resend evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
+- MEGA-only run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ผ่าน; combined 4-destination run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) ยืนยัน Telegram/MEGA/Dropbox/Download สำเร็จสำหรับ media ที่ดึงได้หนึ่งรายการ. Telegram normal-path และ batch/no-resend evidence อยู่ใน [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
 
 ## ข้อจำกัด
 
 - Batch เกิน 50 URLs ต้องแบ่งหลาย jobs
-- MEGA-only upload ผ่าน live แล้ว; live Telegram+MEGA combined send ยังไม่ยืนยัน เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น
+- MEGA-only upload และ combined Telegram+MEGA live send ผ่านแล้วสำหรับ media ที่ดึงได้หนึ่งรายการ; ไม่ใช่ full-pass หาก URL อื่นล้มที่ source download
 - Large-file mode และมือถือยังไม่ได้ live-test รอบนี้
 - Network timeout หลัง Telegram/MEGA/Dropbox รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry
 

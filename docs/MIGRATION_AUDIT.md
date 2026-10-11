@@ -1,5 +1,7 @@
 # X2Telegram — Migration Audit (Zone 0)
 
+> **Historical snapshot:** เอกสารนี้บันทึกสถานะก่อนย้าย control plane. Production ปัจจุบันใช้ Cloudflare Worker/Access ตามเอกสาร deployment ปัจจุบัน; ข้อสรุปและ commit เก่าใน audit นี้ไม่ใช่สถานะ runtime ปัจจุบัน.
+
 ตรวจสอบเพื่อเตรียมย้าย control plane จาก Google Apps Script (GAS) ไปเป็น Cloudflare Worker โดยคง GitHub Actions และ X2Telegram execution worker ที่มีอยู่ไว้
 
 - Repository: `aodxx/X2Telegram`

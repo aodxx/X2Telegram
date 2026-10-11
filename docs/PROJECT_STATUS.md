@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
-**อัปเดต:** 2026-10-11
-**สถานะ:** Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์; มี live combined 4-destination run และ MEGA version-retention integration ผ่าน. ขอบเขต large-file ของ Telegram/Dropbox และความสำเร็จในการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
+**อัปเดต:** 2026-10-12
+**สถานะ:** Production Worker deploy แล้วผ่าน GitHub Actions พร้อม edge rate limiting; Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ขอบเขต large-file ของ Telegram/Dropbox และความสำเร็จในการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
 
 ## ภาพรวม
 
@@ -11,9 +11,11 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 
 ## Deployment ปัจจุบัน
 
-- PR [#6](https://github.com/aodxx/X2Telegram/pull/6) merged เป็น commit `389621bab764d15aa7ded722b74a944314693274` (2026-10-09)
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Worker version ID: `0a099878-485a-43ef-9097-cf4f44e24373`
+- Current Worker version ID: `c44298fb-47f9-4798-a3db-9cd6946018fb`
+- Deploy commit: `fe3170fb3fc23cf06ee8a9a838866e38d207480c`
+- Deploy workflow: [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) — success
+- `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
 - GitHub Pages deploy run [#37842981450](https://github.com/aodxx/X2Telegram/actions/runs/37842981450) ผ่าน; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access และ browser live แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง`
 
 ## ปลายทาง
@@ -36,12 +38,12 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 6. Combined 4-destination live test: run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) เลือก Telegram/MEGA/Dropbox/Download. Media 1 ชิ้นส่งสำเร็จทั้ง 4 targets; URL ที่สองล้มที่ `download_error` ก่อนถึง targets. จึงจบเป็น partial success/Actions failure ไม่ใช่ failure ของทั้ง 4 ช่องทาง
 7. Telegram ล่าสุด: run [#38102180526](https://github.com/aodxx/X2Telegram/actions/runs/38102180526) ส่งสำเร็จ; run [#38102024465](https://github.com/aodxx/X2Telegram/actions/runs/38102024465) รายงาน `telegram_file_too_large` แต่ MEGA สำเร็จ; run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635) ล้มที่ `download_error` ก่อนส่ง
 
-MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใช่การดึง X จริง; combined run ยืนยัน live send ครบ 4 targets สำหรับหนึ่ง media item. Dropbox large-file upload และ Telegram Local Bot API large-file path ยังไม่มี live evidence
+MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใช่การดึง X จริง; combined run ยืนยัน live send ครบ 4 targets สำหรับหนึ่ง media item. Deployment ล่าสุดยืนยัน Wrangler dry-run และ edge rate-limit binding แล้ว; Dropbox large-file upload และ Telegram Local Bot API large-file path ยังไม่มี live evidence
 
 ## Validation ล่าสุด
 
-- Python: `python3 -m pytest -q` — **89 passed**; รวม MEGA content-versioned filename, legacy checkpoint migration และ remote upload verification
-- Cloudflare Worker: `npm test --prefix control-worker` — **25 passed**
+- Python: `python3 -m pytest -q` — **95 passed**
+- Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - `node --check control-worker/src/index.js`, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
 - Live Actions run #37848879753 ผ่าน automated tests และ MEGA-only process/report; Dashboard report ยืนยัน media success
@@ -65,6 +67,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - [ปลายทางหลายแบบและ MEGA setup](MULTI_DESTINATION.md)
 - [คู่มือตั้งค่า Dropbox OAuth และไฟล์ใหญ่](DROPBOX_SETUP_TH.md)
 - [Deployment guide](DEPLOYMENT.md)
+- [Cloudflare Worker deployment workflow](../.github/workflows/deploy-worker.yml)
 - [Architecture](ARCHITECTURE.md)
 - [Control Plane contract](CONTROL_PLANE_CONTRACT.md)
 - [E2E test report](E2E_TEST_REPORT.md)
