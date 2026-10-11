@@ -82,4 +82,4 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 
 ### ตั้งค่า Dropbox
 
-ผู้ดูแลระบบต้องสร้าง Dropbox App แบบ scoped และ authorize แบบ offline เพื่อรับ Refresh Token จากนั้นเพิ่ม `DROPBOX_REFRESH_TOKEN`, `DROPBOX_APP_KEY` และ `DROPBOX_APP_SECRET` ใน GitHub Actions Secrets; `DROPBOX_ACCESS_TOKEN` เป็นค่าเสริมสำหรับ access token ที่ยังไม่หมดอายุ. ตั้งโฟลเดอร์ด้วย Repository variable `DROPBOX_REMOTE_FOLDER` ได้. ห้ามใส่ credential ใน Dashboard หรือข้อความรายงาน. ระบบจะแสดง Dropbox เป็น `success`, `failed` หรือ `duplicate` ตามผล API จริงเท่านั้น.
+ผู้ดูแลระบบต้องสร้าง Dropbox Scoped App แล้ว authorize แบบ offline (`token_access_type=offline`) เพื่อรับ Refresh Token. เพิ่ม `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` และ `DROPBOX_REFRESH_TOKEN` ใน GitHub Actions Secrets; `DROPBOX_ACCESS_TOKEN` ไม่จำเป็นสำหรับการตั้งค่าใหม่. ตั้งโฟลเดอร์ด้วย Repository variable `DROPBOX_REMOTE_FOLDER` ได้. ห้ามใส่ credential ใน Dashboard หรือข้อความรายงาน. ดูขั้นตอนทีละจุดและวิธีทดสอบ upload session สำหรับไฟล์ใหญ่ใน [คู่มือตั้งค่า Dropbox ภาษาไทย](DROPBOX_SETUP_TH.md).

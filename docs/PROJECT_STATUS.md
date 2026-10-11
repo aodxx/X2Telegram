@@ -63,6 +63,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 - [คู่มือใช้งาน Dashboard ภาษาไทย](USER_GUIDE_TH.md)
 - [ปลายทางหลายแบบและ MEGA setup](MULTI_DESTINATION.md)
+- [คู่มือตั้งค่า Dropbox OAuth และไฟล์ใหญ่](DROPBOX_SETUP_TH.md)
 - [Deployment guide](DEPLOYMENT.md)
 - [Architecture](ARCHITECTURE.md)
 - [Control Plane contract](CONTROL_PLANE_CONTRACT.md)

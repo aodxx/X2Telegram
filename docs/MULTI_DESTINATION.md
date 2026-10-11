@@ -59,6 +59,8 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 
 ตั้ง `DROPBOX_REMOTE_FOLDER` เป็น Repository variable ได้ เช่น `Archive/X2Telegram`; ค่าเริ่มต้นคือ `/X2Telegram`. ห้ามใส่ token ใน Dashboard, source code หรือ log. ระบบใช้ Dropbox `files/upload` สำหรับไฟล์ไม่เกิน 150 MB และ `upload_session/start`, `append_v2`, `finish` สำหรับไฟล์ใหญ่; HTTP 429 จะรอ `Retry-After` ก่อน retry.
 
+ขั้นตอนสร้าง Scoped App, ขอ `DROPBOX_REFRESH_TOKEN` ด้วย `token_access_type=offline`, เพิ่ม GitHub Secrets และทดสอบไฟล์ใหญ่ทีละขั้น อยู่ใน [คู่มือตั้งค่า Dropbox ภาษาไทย](DROPBOX_SETUP_TH.md). Connector ใช้ refresh token เป็นหลัก; `DROPBOX_ACCESS_TOKEN` เป็นค่าทางเลือกเท่านั้น.
+
 ## การส่งและสถานะ
 
 1. วาง URL หนึ่งรายการต่อบรรทัด (สูงสุด 50)
