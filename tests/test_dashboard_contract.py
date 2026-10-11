@@ -33,10 +33,29 @@ def test_dashboard_supports_multiple_destinations_and_browser_zip_download():
     assert 'id="destDownload" type="checkbox"' in HTML
     assert "destinations }" in HTML
     assert "data.download?.url" in HTML
-    assert "Browser download" in HTML
+    assert "ดาวน์โหลด ZIP" in HTML
 
 
 def test_dashboard_supports_dropbox_destination():
     assert 'id="destDropbox" type="checkbox"' in HTML
     assert "['dropbox', 'destDropbox']" in HTML
     assert "dropbox: 'Dropbox'" in HTML
+
+
+def test_dashboard_shows_clear_job_progress_and_human_readable_statuses():
+    assert 'id="jobStepper"' in HTML
+    assert 'data-stage="1"' in HTML
+    assert 'data-stage="4"' in HTML
+    assert 'id="progressTrack" role="progressbar"' in HTML
+    assert 'id="runDescription"' in HTML
+    assert "รับงานแล้ว" in HTML
+    assert "กำลังประมวลผล" in HTML
+    assert "งานเสร็จแล้ว" in HTML
+    assert "aria-valuenow" in HTML
+
+
+def test_dashboard_hides_internal_implementation_explanations_from_main_page():
+    assert "yt-dlp → syndication → FxTwitter" not in HTML
+    assert "หลักการระบบ" not in HTML
+    assert "กลุ่ม Telegram ที่กำหนดตายตัว" not in HTML
+    assert 'href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml"' not in HTML
