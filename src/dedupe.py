@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import os
+import re
 import tempfile
 from typing import Iterator
 
@@ -73,7 +74,7 @@ class DedupeStore:
         # Dedupe only needs the key, media fingerprints, destination checkpoints, and
         # legacy Telegram message IDs. Do not grow the public repository state with
         # usernames, source URLs, or delivery timestamps.
-        for record in payload.get("posts", {}).values():
+        for post_key, record in payload.get("posts", {}).items():
             if not isinstance(record, dict):
                 continue
             for field in ("post_id", "username", "source_url", "sent_at", "updated_at"):
@@ -81,9 +82,11 @@ class DedupeStore:
             for media in (record.get("media") or {}).values():
                 if not isinstance(media, dict):
                     continue
+                self._scrub_filename(media, str(post_key))
                 media.pop("sent_at", None)
                 for delivery in (media.get("destinations") or {}).values():
                     if isinstance(delivery, dict):
+                        self._scrub_filename(delivery, str(post_key))
                         delivery.pop("delivered_at", None)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_name = tempfile.mkstemp(prefix=".dedupe-", suffix=".tmp", dir=self.path.parent)
@@ -96,6 +99,23 @@ class DedupeStore:
             os.replace(temp_name, self.path)
         finally:
             Path(temp_name).unlink(missing_ok=True)
+
+    @staticmethod
+    def _scrub_filename(record: dict, post_id: str) -> None:
+        """Remove legacy usernames from persisted filenames and remote paths."""
+        for field in ("filename", "dropbox_path"):
+            value = record.get(field)
+            if not isinstance(value, str):
+                continue
+            prefix, separator, basename = value.rpartition("/")
+            match = re.match(
+                rf"^.+?_{re.escape(post_id)}_(\d{{2}}(?:_[0-9a-f]{{64}})?\.[A-Za-z0-9]{{1,8}})$",
+                basename,
+                re.IGNORECASE,
+            )
+            if match:
+                clean_name = f"{post_id}_{match.group(1)}"
+                record[field] = f"{prefix}{separator}{clean_name}" if separator else clean_name
 
     def get(self, key: str) -> dict | None:
         with self._locked():

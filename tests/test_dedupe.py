@@ -95,6 +95,29 @@ def test_legacy_metadata_is_accepted_and_scrubbed_on_next_write(tmp_path: Path):
     assert record["message_ids"] == [42]
 
 
+def test_legacy_usernames_are_scrubbed_from_persisted_filenames(tmp_path: Path):
+    state_path = tmp_path / "dedupe.json"
+    state_path.write_text(json.dumps({
+        "version": 3,
+        "posts": {"123": {
+            "media": {"fingerprint": {
+                "filename": "legacy_user_123_01.mp4",
+                "destinations": {
+                    "mega": {"filename": "legacy_user_123_01_" + "a" * 64 + ".mp4", "status": "success"},
+                    "dropbox": {"dropbox_path": "/X2Telegram/legacy_user_123_01.mp4", "status": "success"},
+                },
+            }},
+        }},
+    }), encoding="utf-8")
+    store = DedupeStore(state_path)
+    store.mark_complete("123")
+    record = json.loads(state_path.read_text(encoding="utf-8"))["posts"]["123"]
+    media = record["media"]["fingerprint"]
+    assert media["filename"] == "123_01.mp4"
+    assert media["destinations"]["mega"]["filename"] == "123_01_" + "a" * 64 + ".mp4"
+    assert media["destinations"]["dropbox"]["dropbox_path"] == "/X2Telegram/123_01.mp4"
+
+
 def test_processor_skips_duplicate_before_metadata_or_download(tmp_path: Path):
     store = DedupeStore(tmp_path / "dedupe.json")
     store.mark_sent("123", post_id="123", username="user", source_url="https://x.com/user/status/123", message_ids=[42])

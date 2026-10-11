@@ -95,16 +95,16 @@ def test_all_three_destinations_use_one_download_and_report_each_status(tmp_path
         result = processor.process(parse_x_url("https://x.com/user/status/123"))
     assert download.call_count == 1
     assert telegram.calls == 1 and mega.calls == 1
-    assert telegram.uploaded_names == ["user_123_01.mp4"]
-    assert mega.uploaded_names == ["user_123_01.mp4"]
+    assert telegram.uploaded_names == ["123_01.mp4"]
+    assert mega.uploaded_names == ["123_01.mp4"]
     assert len(mega.requested_filenames) == 1
-    assert __import__("re").fullmatch(r"user_123_01_[0-9a-f]{64}\.mp4", mega.requested_filenames[0])
+    assert __import__("re").fullmatch(r"123_01_[0-9a-f]{64}\.mp4", mega.requested_filenames[0])
     assert result.destinations["mega"]["items"][0]["filename"] == mega.requested_filenames[0]
     assert result.status == ResultStatus.SUCCESS
     assert result.destinations["telegram"]["status"] == "success"
     assert result.destinations["mega"]["status"] == "success"
     assert result.destinations["download"]["status"] == "ready"
-    exported = tmp_path / "exports" / "user_123_01.mp4"
+    exported = tmp_path / "exports" / "123_01.mp4"
     assert exported.read_bytes() == b"valid-enough-test-fixture"
 
 
@@ -129,7 +129,7 @@ def test_mixed_photo_video_post_keeps_photo_and_downloads_best_video_once(tmp_pa
     assert downloaded == ["https://media.invalid/photo.jpg", "https://media.invalid/high.mp4"]
     assert telegram.calls == 2 and mega.calls == 2
     assert result.media_count == 2
-    assert sorted(item.name for item in (tmp_path / "exports").iterdir()) == ["user_126_01.jpg", "user_126_02.mp4"]
+    assert sorted(item.name for item in (tmp_path / "exports").iterdir()) == ["126_01.jpg", "126_02.mp4"]
 
 
 @pytest.mark.parametrize("destinations", [("mega",), ("download",), ("telegram", "download")])
@@ -178,7 +178,7 @@ def test_mega_reuploads_when_saved_checkpoint_uses_legacy_filename(tmp_path):
     with patch.object(processor.downloader, "download", return_value=media_path):
         result = processor.process(post)
 
-    expected_filename = f"user_456_01_{fingerprint}.mp4"
+    expected_filename = f"456_01_{fingerprint}.mp4"
     assert mega.calls == 1
     assert mega.requested_filenames == [expected_filename]
     assert result.destinations["mega"]["items"][0]["status"] == "success"
@@ -343,7 +343,7 @@ def test_totp_uses_rfc6238_six_digit_vector():
 
 
 def test_safe_filename_prevents_path_injection():
-    assert safe_filename("../evil user", "123/../../", 2, ".MP4") == "evil_user_123_02.mp4"
+    assert safe_filename("../evil user", "123/../../", 2, ".MP4") == "123_02.mp4"
 
 
 def test_download_export_enforces_total_archive_size_before_copy(tmp_path):

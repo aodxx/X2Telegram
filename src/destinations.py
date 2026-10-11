@@ -22,10 +22,14 @@ DESTINATIONS = ("telegram", "mega", "dropbox", "download")
 
 
 def safe_filename(username: str | None, post_id: str | None, index: int, suffix: str) -> str:
-    user = re.sub(r"[^A-Za-z0-9_-]+", "_", username or "xpost").strip("._-") or "xpost"
+    """Return a stable filename without exposing the X account name.
+
+    ``username`` remains in the signature for caller compatibility, but filenames
+    are intentionally derived only from the post ID and media index.
+    """
     post = re.sub(r"[^0-9]+", "", post_id or "") or "media"
     extension = suffix if re.fullmatch(r"\.[A-Za-z0-9]{1,8}", suffix or "") else ".bin"
-    return f"{user}_{post}_{index:02d}{extension.lower()}"
+    return f"{post}_{index:02d}{extension.lower()}"
 
 
 def totp_code(secret: str, timestamp: float | None = None) -> str:
