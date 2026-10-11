@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-11
-**สรุป:** Telegram normal path, batch no-resend, Dashboard Access, Browser ZIP และ MEGA-only live smoke tests ผ่าน; MEGA filename overwrite ถูกแก้ด้วย SHA-256 content-versioned names และมี automated regression tests; ไม่ได้ทำ live re-upload หลัง fix เพื่อไม่สร้างสำเนา media ซ้ำ. Dropbox connector และ combinations ครอบคลุมด้วย automated tests แต่ยังไม่มี Dropbox OAuth live test
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4. MEGA content-version retention integration หลัง fix ผ่านจริง. มีบาง URL ล้มที่ shared `download_error` ก่อนถึง destinations; Telegram >50 MB ใน standard mode ล้มตาม size limit ที่กำหนด ไม่ใช่ปลายทางอื่นล้มตาม
 
 ## หลักฐาน live
 
@@ -31,7 +31,26 @@
 - Dashboard dispatch run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753), job `job-c1a0a40e4e92b6d35ed17eeb39319d04`, สำหรับ URL ที่เจ้าของระบุก่อนหน้า
 - เลือก **MEGA-only**; Telegram และ Browser ZIP ไม่ได้เลือก. Actions success และ sanitized Dashboard report แสดง `MEGA: สำเร็จ`, `sent=1`, `failed=0`
 - Attempt ก่อนหน้า run [#37848220624](https://github.com/aodxx/X2Telegram/actions/runs/37848220624) หยุดก่อน login เพราะพบ TOTP setting ที่ไม่ใช่ Base32; หลังเจ้าของยืนยันว่า MEGA 2FA ปิดและลบ secret ที่ไม่จำเป็น การ retry ผ่าน. ไม่มี Telegram send ในทั้งสอง run
-- ผู้ใช้รายงานภายหลังว่า media ที่ชื่อเดิมถูกแทนที่เมื่ออัปโหลดเนื้อหาใหม่. PR [#9](https://github.com/aodxx/X2Telegram/pull/9) แก้ MEGA โดยต่อ SHA-256 เต็มของ media เข้า filename, migrate checkpoint เก่าที่ใช้ชื่อ legacy และตรวจชื่อไฟล์จากรายการ remote หลัง upload. การแก้ได้รับ automated coverage; **ยังไม่มี live re-upload หลัง merge**
+- ผู้ใช้รายงานภายหลังว่า media ที่ชื่อเดิมถูกแทนที่เมื่ออัปโหลดเนื้อหาใหม่. PR [#9](https://github.com/aodxx/X2Telegram/pull/9) แก้ MEGA โดยต่อ SHA-256 เต็มของ media เข้า filename, migrate checkpoint เก่าที่ใช้ชื่อ legacy และตรวจชื่อไฟล์จากรายการ remote หลัง upload.
+
+### Live MEGA version-retention integration หลัง fix
+
+- Run [#37984146026](https://github.com/aodxx/X2Telegram/actions/runs/37984146026) ผ่าน workflow `MEGA version-retention integration` บน commit ที่เป็นบรรพบุรุษของ main ปัจจุบัน
+- ใช้ fixture media สองชุดแทนเนื้อหาคนละเวอร์ชันของ post ID เดียว; upload ผ่าน MEGAcmd, ยืนยันว่า remote listing มีทั้งสอง filename แล้วดาวน์โหลดกลับมาเทียบ byte content กับ fixture
+- ผ่าน; เป็น live storage integration test แต่ **ไม่ใช่การดาวน์โหลด media จริงจาก X**. ใช้ folder แยกตาม run ID
+
+### Combined four-destination live run
+
+- Run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) เลือก Telegram, MEGA, Dropbox และ Download
+- ผล URL/media รายการแรก: ดาวน์โหลดได้หนึ่ง media และทั้ง 4 destinations สำเร็จ (`telegram=success`, `mega=success`, `dropbox=success`, `download=ready`)
+- ผลรายการที่สอง: shared `download_error` ก่อนเริ่ม dispatch; ทั้ง 4 destinations จึงไม่มีไฟล์สำหรับรายการนั้น. Workflow สรุปเป็น partial success และ Actions conclusion เป็น failure
+- ข้อสรุป: ยืนยัน live path ของ Dropbox และการส่งร่วม 4 destinations สำหรับหนึ่ง media; run นี้ไม่ใช่ full-pass สำหรับ URL ทั้งคู่
+
+### Telegram recent outcomes
+
+- Run [#38102180526](https://github.com/aodxx/X2Telegram/actions/runs/38102180526): Telegram-only send success
+- Run [#38102024465](https://github.com/aodxx/X2Telegram/actions/runs/38102024465): MEGA success แต่ Telegram item fail ด้วย `telegram_file_too_large`; standard Telegram Bot API policy คือ 50 MB เมื่อไม่ได้เปิด Large-file mode
+- Run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635): `download_error` ก่อนถึง Telegram send; จัดเป็น X/media source retrieval issue ไม่ใช่ Telegram API error
 
 ## Scenario status
 
@@ -42,16 +61,17 @@
 | Batch URL dispatch 1–50 | PASS (live 2 URLs) | Run #37816856323; completed posts ถูก dedupe ไม่ส่งซ้ำ |
 | Download-only, multiple URL job | PASS (live 2 URLs) | Run #37843359593; private artifact พร้อมและ report แสดง 2 files |
 | Worker protected ZIP streaming | PASS (live) | Browser ดาวน์โหลดจริงผ่าน Access route; ZIP CRC ผ่าน |
-| Telegram/MEGA/Dropbox/Download combinations | PASS (automated mock) | Python processor tests ครอบ single/pair/all-three paths; live combination ยังไม่ทำ |
+| Telegram/MEGA/Dropbox/Download combinations | PASS สำหรับ media 1 รายการ (live); อีก URL ล้มก่อนถึง targets | Run #38037210973; all 4 destinations success/ready สำหรับรายการที่ดึงได้ |
 | Retry เฉพาะ destination ที่ล้มเหลว | PASS (automated mock) | Mega failure แล้ว retry; Telegram ที่สำเร็จไม่ถูกส่งซ้ำ |
 | ภาพ+วิดีโอในโพสต์เดียว | PASS (automated mock) | ภาพยังคงอยู่ และเลือก video variant สูงสุด; download หนึ่งครั้งต่อ media |
 | Invalid MEGA folder/credential failure | PASS (automated mock) | MEGA failure ไม่หยุด Telegram/Download; ไม่มี command output ใน report |
 | MEGA upload จริง | PASS (live MEGA-only) | Run #37848879753; หนึ่ง media upload สำเร็จ; Telegram ไม่ได้เลือก |
-| MEGA changed content preserves prior file | PASS (automated regression) | Filename มี SHA-256 เต็ม; legacy checkpoint ถูก migrate; ยังไม่ได้ทดสอบ live re-upload หลัง PR #9 |
-| Dropbox connector | PASS (automated mock only) | ครอบ OAuth refresh (รวม refresh-token-only), 429 Retry-After, upload session, no-overwrite filename และ per-destination dedupe; live Dropbox run ยังไม่ได้เริ่ม |
-| Dropbox upload จริง | NOT RUN | Secrets ถูกตั้งตามคำแจ้งของเจ้าของ repository; ต้องรัน Dropbox-only test ด้วย URL ที่อนุญาตและตรวจผลใน Dashboard |
-| Telegram+MEGA live combined send | NOT RUN | ยังไม่ทำ combined fresh send เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น |
-| Telegram Local Bot API large file | NOT RUN (live) | Standard-size target policy มี local tests; ยังไม่ส่งไฟล์ใหญ่จริง |
+| MEGA changed content preserves prior file | PASS (live integration + regression) | Run #37984146026 อัปโหลด fixture สองเวอร์ชันใน post เดียว, ตรวจ listing และ downloaded bytes; ไม่ได้ใช้ media จาก X |
+| Dropbox connector | PASS (one live item + automated edge cases) | Run #38037210973; OAuth refresh (รวม refresh-token-only), 429 และ large-file session ยัง automated only |
+| Dropbox upload จริง | PASS (live one media) | Run #38037210973; รายการที่ดึงได้อัปโหลดสำเร็จ; ไม่มี Dropbox-specific error |
+| Telegram+MEGA live combined send | PASS (one live media item) | Run #38037210973; ทั้ง Telegram และ MEGA สำเร็จ; Telegram >50 MB ยังต้องใช้ Large-file mode |
+| Telegram Local Bot API large file | NOT RUN (live) | Run #38102024465 เจอ `telegram_file_too_large` ใน standard mode; ไม่ได้ยืนยัน large-file mode จริง |
+| X/media shared download | PARTIAL (live failures observed) | `download_error` ใน runs #38037210973 และ #38102121635; เมื่อ source media ดึงไม่ได้ ทุก target ของ URL นั้น fail ก่อน dispatch |
 | Mobile browser | NOT RUN | ยังไม่มีการทดสอบบนอุปกรณ์มือถือจริง |
 | Invalid URL, body cap, unauthorized | PASS (Worker tests/live safe checks เดิม) | 400/413/401/403 paths ปฏิเสธก่อน dispatch ตาม report/contract เดิม |
 
@@ -64,4 +84,4 @@
 
 ## ข้อสรุป
 
-ระบบ deployed และผ่าน live verification แยกปลายทางสำหรับ Telegram, Browser ZIP และ MEGA. Live ZIP path ผ่านตั้งแต่ Dashboard → Access → Worker → GitHub Actions → report/artifact → Access-protected Worker stream → browser file ที่ตรวจ ZIP CRC ผ่าน; run #37848879753 ยืนยัน MEGA-only upload สำเร็จ. โค้ด multi-destination, per-target dedupe/retry และ Dropbox connector ได้รับ automated coverage; Dropbox live test และ live Telegram+MEGA combined send ยังไม่ได้ทดสอบ
+ระบบ deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. Run #37984146026 ยืนยัน MEGA version-retention หลังแก้ชื่อไฟล์. สิ่งที่ยังไม่สมบูรณ์/ยืนยัน live คือ source fetch ที่มี `download_error` บาง URL, Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox token-refresh และ large-file edge paths, รวมถึงการใช้งาน browser บนมือถือจริง
