@@ -62,3 +62,22 @@ def test_dedupe_state_is_transferred_to_a_separate_write_job():
     assert "actions/download-artifact" in persist_state
     assert "state/dedupe.json" in persist_state
     assert "git push" in persist_state
+
+
+def test_production_workflow_pins_external_actions_and_runtime_artifacts():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in text
+    assert "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065" in text
+    assert "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02" in text
+    assert "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093" in text
+    assert "aiogram/telegram-bot-api@sha256:13612626f031fe154fbcd6dbdfc945b6debdb2a02b51ed02b6a5df09c46bced7" in text
+    assert "aiogram/telegram-bot-api:latest" not in text
+    assert "sha256sum --check --strict" in text
+
+
+def test_dependabot_covers_runtime_and_github_actions_dependencies():
+    config = WORKFLOW.parents[2] / ".github/dependabot.yml"
+    text = config.read_text(encoding="utf-8")
+    assert "package-ecosystem: pip" in text
+    assert "package-ecosystem: npm" in text
+    assert "package-ecosystem: github-actions" in text

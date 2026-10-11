@@ -12,6 +12,15 @@ DASHBOARD_ORIGIN = "https://x2telegram-control-plane.pantipa3826.workers.dev"
 ACCESS_TEAM_DOMAIN = "https://falling-sky-a8ee.cloudflareaccess.com"
 ACCESS_AUD = "28c95cefdac506b1cc3f66746de3d3d2a85c6ea91a78777827f4497b6bffa64e"
 
+[[ratelimits]]
+name = "JOB_DISPATCH_RATE_LIMITER"
+# Must be a positive integer unique within the Cloudflare account.
+namespace_id = "21061011"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
 [assets]
 directory = "../web"
 binding = "ASSETS"

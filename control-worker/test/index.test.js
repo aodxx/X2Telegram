@@ -100,7 +100,7 @@ before(() => {
 });
 
 after(() => { globalThis.fetch = originalFetch; });
-beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; omitMediaArtifact = false; });
+beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; omitMediaArtifact = false; delete ENV.JOB_DISPATCH_RATE_LIMITER; });
 
 test("health is public and does not expose credentials", async () => {
   const response = await worker.fetch(new Request("https://worker.test/health"), ENV);
@@ -203,6 +203,46 @@ test("per-isolate POST rate limit blocks the 21st request without dispatch", asy
   } finally {
     ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
   }
+});
+
+test("configured edge rate limit is keyed by Access identity and blocks dispatch", async () => {
+  const originalEmail = ENV.ACCESS_ALLOWED_EMAIL;
+  const email = "edge-rate-test@example.com";
+  let calls = 0;
+  ENV.ACCESS_ALLOWED_EMAIL = email;
+  ENV.JOB_DISPATCH_RATE_LIMITER = {
+    async limit({ key }) {
+      assert.equal(key, `jobs:${email}`);
+      calls += 1;
+      return { success: calls === 1 };
+    },
+  };
+  try {
+    const first = await worker.fetch(new Request("https://worker.test/jobs", {
+      method: "POST", headers: { Origin: ENV.DASHBOARD_ORIGIN, "Content-Type": "application/json", "Cf-Access-Jwt-Assertion": accessJwt(email) },
+      body: JSON.stringify({ url: "https://x.com/person/status/123", request_id: "edge-rate-1" }),
+    }), ENV);
+    assert.equal(first.status, 202);
+    const second = await worker.fetch(new Request("https://worker.test/jobs", {
+      method: "POST", headers: { Origin: ENV.DASHBOARD_ORIGIN, "Content-Type": "application/json", "Cf-Access-Jwt-Assertion": accessJwt(email) },
+      body: JSON.stringify({ url: "https://x.com/person/status/124", request_id: "edge-rate-2" }),
+    }), ENV);
+    assert.equal(second.status, 429);
+    assert.equal((await second.json()).error.code, "rate_limited");
+    assert.equal(dispatches.length, 1);
+  } finally {
+    ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
+  }
+});
+
+test("configured edge rate limiter fails closed when the binding errors", async () => {
+  ENV.JOB_DISPATCH_RATE_LIMITER = { async limit() { throw new Error("binding unavailable"); } };
+  const response = await worker.fetch(request("/jobs", {
+    method: "POST", body: { url: "https://x.com/person/status/125", request_id: "edge-rate-error" },
+  }), ENV);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).error.code, "rate_limiter_unavailable");
+  assert.equal(dispatches.length, 0);
 });
 
 test("unsupported client fields are rejected", async () => {

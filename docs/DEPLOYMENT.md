@@ -88,7 +88,7 @@ npx wrangler deploy --config wrangler.toml
 ## 6. Retry, dedupe และ report
 
 - Media ถูกดาวน์โหลดและตรวจครั้งเดียวก่อนส่งให้ dispatcher
-- `state/dedupe.json` รุ่น v3 เก็บ SHA-256 fingerprint และ success แยกตาม destination ที่มีการส่งซ้ำได้ (Telegram/MEGA/Dropbox); retry จะข้าม target ที่สำเร็จแล้ว
+- `state/dedupe.json` รุ่น v3 เก็บ SHA-256 fingerprint และ success แยกตาม destination ที่มีการส่งซ้ำได้ (Telegram/MEGA/Dropbox); retry จะข้าม target ที่สำเร็จแล้ว. State รุ่นปัจจุบันเก็บเฉพาะข้อมูลที่จำเป็นต่อ dedupe (ไม่มี username, source URL หรือ timestamps) และยังอ่าน state รุ่นเก่าได้; state ที่ถูกเขียนใหม่จะ scrub metadata เก่าออก
 - Browser artifact เป็นผลลัพธ์ของ job ไม่ได้บันทึกเป็น persistent target-dedupe; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่
 - `report.json` และ sanitized Dashboard artifact มี status ต่อ post/destination/media; private media ZIP แยก artifact จาก report
 - Worker ดึง media ZIP แบบ streaming ผ่าน Access ไม่ส่ง signed GitHub URL ให้ frontend และไม่ buffer archive ทั้งก้อนใน Worker

@@ -117,7 +117,16 @@ async function makeJobId(requestId, urls, largeFileMode, destinations) {
   return `job-${hex.slice(0, 32)}`;
 }
 
-function checkRate(email) {
+async function checkRate(email, env) {
+  if (env.JOB_DISPATCH_RATE_LIMITER?.limit) {
+    try {
+      const result = await env.JOB_DISPATCH_RATE_LIMITER.limit({ key: `jobs:${email}` });
+      return result?.success === true;
+    } catch (_) {
+      // Never silently bypass the edge limiter if the binding is configured but unavailable.
+      return null;
+    }
+  }
   const now = Date.now();
   const old = attemptsByIdentity.get(email);
   if (!old || now - old.start >= RATE_WINDOW_MS) {
@@ -205,7 +214,9 @@ function hasRequestIdConflict(runs, requestId, jobId) {
 
 async function dispatch(request, env, identity) {
   if (githubConfigError(env)) return errorResponse(request, env, 503, "backend_not_configured", "Control Worker is missing server configuration");
-  if (!checkRate(identity.email)) return errorResponse(request, env, 429, "rate_limited", "Too many requests; retry later");
+  const rateAllowed = await checkRate(identity.email, env);
+  if (rateAllowed === null) return errorResponse(request, env, 503, "rate_limiter_unavailable", "The request limiter is temporarily unavailable; retry later");
+  if (!rateAllowed) return errorResponse(request, env, 429, "rate_limited", "Too many requests; retry later");
   const length = Number(request.headers.get("Content-Length") || 0);
   if (Number.isFinite(length) && length > BODY_LIMIT) return errorResponse(request, env, 413, "request_too_large", "Request body is too large");
   const bodyRead = await readBoundedBody(request);

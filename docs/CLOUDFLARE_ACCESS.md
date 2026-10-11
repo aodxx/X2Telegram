@@ -32,7 +32,7 @@ Worker ตั้ง `DASHBOARD_ORIGIN` เป็น `https://x2telegram-control-
 
 ## Rate limiting
 
-Worker มี best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่งนาทีต่อ identity. Local unit test ยืนยันว่า request ที่ 21 ได้ `429` โดยไม่มี dispatch. เนื่องจาก memory ใน isolate ไม่ใช่ shared/durable state จึงไม่ใช่ global rate limit; สำหรับ production ให้ตั้ง rate limiting ที่ Cloudflare edge/Worker platform หาก account plan/permissions รองรับ และทดสอบ burst/cross-isolate requests. Workflow concurrency และ dedupe ปกป้อง execution/delivery ต่อเนื่อง แต่ไม่ใช่ API flood control
+Worker มี fallback best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่งนาทีต่อ identity. สำหรับ production เพิ่ม Cloudflare Workers Rate Limiting binding ชื่อ `JOB_DISPATCH_RATE_LIMITER` ใน `control-worker/wrangler.toml` ที่ 20 ครั้ง/60 วินาที โดยใช้ key `jobs:<Access email>`; เมื่อ binding มีอยู่ Worker จะใช้ binding และ fail-closed เป็น `503 rate_limiter_unavailable` หาก binding error. Cloudflare binding ช่วยกระจายการนับระดับ edge แต่เอกสาร Cloudflare ระบุว่า counter แยกตาม Cloudflare location และ eventually consistent จึงไม่ใช่ global exact accounting. หากต้องการ hard global block ข้ามทุก location ให้เพิ่ม Cloudflare WAF Rate Limiting Rule ที่ route `/jobs` เป็นชั้นนอกเพิ่มเติม. Local unit tests ครอบทั้ง binding `429` และ fail-closed; ต้อง deploy และทดสอบ burst/cross-location จริงหลังยืนยัน namespace ID ไม่ชนกับ binding อื่น. Workflow concurrency และ dedupe ปกป้อง execution/delivery ต่อเนื่อง แต่ไม่ใช่ API flood control
 
 ## ขั้นตอนเข้าใช้งานครั้งแรกของเจ้าของ
 

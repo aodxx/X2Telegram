@@ -66,6 +66,35 @@ def test_dedupe_store_is_atomic_and_reloadable(tmp_path: Path):
     assert not list((tmp_path / "state").glob(".dedupe-*.tmp"))
 
 
+def test_new_dedupe_writes_do_not_persist_profile_url_or_timestamps(tmp_path: Path):
+    state_path = tmp_path / "dedupe.json"
+    store = DedupeStore(state_path)
+    store.mark_sent("123", post_id="123", username="user", source_url="https://x.com/user/status/123", message_ids=[42])
+    record = json.loads(state_path.read_text(encoding="utf-8"))["posts"]["123"]
+    assert "post_id" not in record
+    assert "username" not in record
+    assert "source_url" not in record
+    assert "sent_at" not in record
+    assert "updated_at" not in record
+
+
+def test_legacy_metadata_is_accepted_and_scrubbed_on_next_write(tmp_path: Path):
+    state_path = tmp_path / "dedupe.json"
+    state_path.write_text(json.dumps({
+        "version": 3,
+        "posts": {"123": {
+            "post_id": "123", "username": "user", "source_url": "https://x.com/user/status/123",
+            "message_ids": [42], "media": {}, "completed": True,
+        }},
+    }), encoding="utf-8")
+    store = DedupeStore(state_path)
+    store.mark_complete("123")
+    record = json.loads(state_path.read_text(encoding="utf-8"))["posts"]["123"]
+    assert "username" not in record
+    assert "source_url" not in record
+    assert record["message_ids"] == [42]
+
+
 def test_processor_skips_duplicate_before_metadata_or_download(tmp_path: Path):
     store = DedupeStore(tmp_path / "dedupe.json")
     store.mark_sent("123", post_id="123", username="user", source_url="https://x.com/user/status/123", message_ids=[42])

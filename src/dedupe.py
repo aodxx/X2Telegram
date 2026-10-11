@@ -8,7 +8,12 @@ from typing import Iterator
 
 
 class DedupeStore:
-    """Atomic per-post/media/destination checkpoints with v1/v2 read compatibility."""
+    """Atomic per-post/media/destination checkpoints with privacy-minimized writes.
+
+    The post ID remains the dictionary key because it is required for dedupe. Usernames,
+    source URLs, and timestamps from older state files are tolerated for compatibility,
+    but new writes do not persist those fields.
+    """
 
     VERSION = 3
 
@@ -65,6 +70,21 @@ class DedupeStore:
                     pass
 
     def _save(self, payload: dict) -> None:
+        # Dedupe only needs the key, media fingerprints, destination checkpoints, and
+        # legacy Telegram message IDs. Do not grow the public repository state with
+        # usernames, source URLs, or delivery timestamps.
+        for record in payload.get("posts", {}).values():
+            if not isinstance(record, dict):
+                continue
+            for field in ("post_id", "username", "source_url", "sent_at", "updated_at"):
+                record.pop(field, None)
+            for media in (record.get("media") or {}).values():
+                if not isinstance(media, dict):
+                    continue
+                media.pop("sent_at", None)
+                for delivery in (media.get("destinations") or {}).values():
+                    if isinstance(delivery, dict):
+                        delivery.pop("delivered_at", None)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_name = tempfile.mkstemp(prefix=".dedupe-", suffix=".tmp", dir=self.path.parent)
         try:

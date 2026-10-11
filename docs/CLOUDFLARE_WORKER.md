@@ -38,7 +38,7 @@ npm test
 npx wrangler deploy --config wrangler.toml
 ```
 
-การ publish HTML/static assets ใช้ config เดียวกันและ deploy พร้อม Worker source. ตรวจสถานะจาก Dashboard ผ่าน browser ที่ลงชื่อเข้าใช้ Access แล้ว; สำหรับ HTTP liveness ให้ตรวจเฉพาะ status code และไม่พิมพ์ Access redirect location หรือ auth query ลง log
+การ publish HTML/static assets ใช้ config เดียวกันและ deploy พร้อม Worker source. **หมายเหตุ:** source route `/health` ไม่เรียก `verifyAccess()` แต่ Cloudflare Access เป็น edge layer แยกจาก Worker จึงสามารถ redirect ก่อนถึง Worker ได้ตาม production behavior ปัจจุบัน ตรวจสถานะจาก Dashboard ผ่าน browser ที่ลงชื่อเข้าใช้ Access แล้ว; สำหรับ HTTP liveness ให้ตรวจเฉพาะ status code และไม่พิมพ์ Access redirect location หรือ auth query ลง log
 
 ## Endpoints
 
@@ -46,7 +46,7 @@ npx wrangler deploy --config wrangler.toml
 |---|---|---|
 | `GET /` และ static assets | Cloudflare Access at edge + Worker JWT identity validation | เสิร์ฟ Dashboard จาก Worker origin; หน้าเว็บและ API ใช้ same-origin |
 | `GET /auth/check` | Access JWT + owner email | ให้ Dashboard ตรวจ session ก่อนเปิดปุ่ม submit |
-| `GET /health` | Cloudflare Access at edge | Liveness only; ไม่แสดง secret หรือยืนยัน upstream readiness |
+| `GET /health` | Worker route ไม่ต้องใช้ JWT; **production edge ยังถูก Cloudflare Access ครอบอยู่** | Liveness only; ไม่แสดง secret หรือยืนยัน upstream readiness. หากต้องการ public monitoring ต้องตั้ง Access bypass เฉพาะ path นี้ |
 | `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–50; validate และ dispatch `destinations` ไปยัง workflow |
 | `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
 | `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |

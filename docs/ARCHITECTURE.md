@@ -26,7 +26,7 @@ GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร�
 
 ## Retry และ state
 
-`state/dedupe.json` ใช้ SHA-256 media fingerprint และสถานะ destination แยกกัน (state v3); รุ่นเดิมอ่านต่อได้. Target ที่สำเร็จแล้วไม่ถูกส่งซ้ำเมื่อ retry post เดิม ขณะที่ target ที่ล้มเหลวยังลองใหม่ได้. Download ZIP เป็น artifact เฉพาะ job ไม่ใช่ dedupe-persistent destination; เริ่ม job ใหม่เพื่อสร้าง artifact อีกครั้ง. GitHub Actions concurrency ป้องกันการเขียน state พร้อมกัน
+`state/dedupe.json` ใช้ SHA-256 media fingerprint และสถานะ destination แยกกัน (state v3); รุ่นเดิมอ่านต่อได้. การเขียน state ใหม่เก็บเฉพาะข้อมูล dedupe ที่จำเป็น ไม่เก็บ username, source URL หรือ timestamps; metadata จาก state รุ่นเก่าจะถูก scrub เมื่อมีการเขียนครั้งถัดไป. Target ที่สำเร็จแล้วไม่ถูกส่งซ้ำเมื่อ retry post เดิม ขณะที่ target ที่ล้มเหลวยังลองใหม่ได้. Download ZIP เป็น artifact เฉพาะ job ไม่ใช่ dedupe-persistent destination; เริ่ม job ใหม่เพื่อสร้าง artifact อีกครั้ง. GitHub Actions concurrency ป้องกันการเขียน state พร้อมกัน
 
 ไม่ใช้ database/Redis/queue. Idempotency ของ Worker ป้องกัน dispatch ซ้ำเมื่อใช้ request ID เดิม แต่ระบบไม่รับประกัน exactly-once หากบริการปลายทางรับไฟล์แล้ว response/checkpoint หายก่อนบันทึก state
 

@@ -2,24 +2,16 @@
   "version": 3,
   "posts": {
     "2105840724075798807": {
-      "post_id": "2105840724075798807",
-      "username": "Tramsexvn",
-      "source_url": "https://x.com/Tramsexvn/status/2105840724075798807",
       "message_ids": [
         345
       ],
-      "sent_at": "2026-10-02T07:50:03.238838+00:00",
       "media": {},
       "legacy_complete": true
     },
     "2105907520187543794": {
-      "post_id": "2105907520187543794",
-      "username": "SaTaLee3",
-      "source_url": "https://x.com/SaTaLee3/status/2105907520187543794",
       "message_ids": [
         346
       ],
-      "sent_at": "2026-10-02T19:04:10.881868+00:00",
       "media": {},
       "legacy_complete": true
     },
@@ -29,79 +21,58 @@
           "kind": "video",
           "message_id": 347,
           "filename": "ninmopmn_2107508912392171879_01.mp4",
-          "sent_at": "2026-10-08T16:15:07.972370+00:00",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "ninmopmn_2107508912392171879_01.mp4",
-              "delivered_at": "2026-10-08T21:45:26.312785+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2107508912392171879",
-      "username": "ninmopmn",
-      "source_url": "https://x.com/ninmopmn/status/2107508912392171879",
       "message_ids": [
         347
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T21:45:26.315891+00:00"
+      "completed": true
     },
     "2108210814209724689": {
       "media": {
         "ef3c6ea7f7aa965f1dc455ba25c5b4a60d9979a28cf954f10f71e1fb1311cbdd": {
           "kind": "video",
           "message_id": 348,
-          "filename": "Gyuu652rq_2108210814209724689_01.mp4",
-          "sent_at": "2026-10-08T17:39:11.961823+00:00"
+          "filename": "Gyuu652rq_2108210814209724689_01.mp4"
         }
       },
-      "post_id": "2108210814209724689",
-      "username": "Gyuu652rq",
-      "source_url": "https://x.com/Gyuu652rq/status/2108210814209724689",
       "message_ids": [
         348
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T17:39:11.965838+00:00"
+      "completed": true
     },
     "2108200207133688074": {
       "media": {
         "ec0e69e3ba5a14f12f8b413859f08b6b52f0aea6fb6254fd3357c53b2905cc3d": {
           "kind": "video",
           "message_id": 349,
-          "filename": "sweaeti_2108200207133688074_01.mp4",
-          "sent_at": "2026-10-08T17:55:38.980772+00:00"
+          "filename": "sweaeti_2108200207133688074_01.mp4"
         }
       },
-      "post_id": "2108200207133688074",
-      "username": "sweaeti",
-      "source_url": "https://x.com/sweaeti/status/2108200207133688074",
       "message_ids": [
         349
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T17:55:38.984473+00:00"
+      "completed": true
     },
     "2096961897065336863": {
       "media": {
         "a8e53b4e29a3b46c13ed42df7376d2a41540e2433ef1939aee0c999ec0d77198": {
           "kind": "video",
           "message_id": 350,
-          "filename": "sweaeti_2096961897065336863_01.mp4",
-          "sent_at": "2026-10-08T17:55:49.245288+00:00"
+          "filename": "sweaeti_2096961897065336863_01.mp4"
         }
       },
-      "post_id": "2096961897065336863",
-      "username": "sweaeti",
-      "source_url": "https://x.com/sweaeti/status/2096961897065336863",
       "message_ids": [
         350
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T17:55:49.248813+00:00"
+      "completed": true
     },
     "2107842151883411967": {
       "media": {
@@ -109,25 +80,19 @@
           "kind": "video",
           "message_id": 351,
           "filename": "ninmopmn_2107842151883411967_01.mp4",
-          "sent_at": "2026-10-08T18:07:36.676996+00:00",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "ninmopmn_2107842151883411967_01.mp4",
-              "delivered_at": "2026-10-08T21:54:37.793604+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2107842151883411967",
-      "username": "ninmopmn",
-      "source_url": "https://x.com/ninmopmn/status/2107842151883411967",
       "message_ids": [
         351
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T22:12:02.569776+00:00"
+      "completed": true
     },
     "2108235160718364999": {
       "media": {
@@ -135,25 +100,19 @@
           "kind": "video",
           "message_id": 352,
           "filename": "benmclean1992_2108235160718364999_01.mp4",
-          "sent_at": "2026-10-08T18:07:41.525970+00:00",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "benmclean1992_2108235160718364999_01.mp4",
-              "delivered_at": "2026-10-08T21:54:41.202604+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2108235160718364999",
-      "username": "benmclean1992",
-      "source_url": "https://x.com/benmclean1992/status/2108235160718364999",
       "message_ids": [
         352
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T22:12:05.485921+00:00"
+      "completed": true
     },
     "2107852068119879705": {
       "media": {
@@ -161,25 +120,19 @@
           "kind": "video",
           "message_id": 353,
           "filename": "LegeTole_2107852068119879705_01.mp4",
-          "sent_at": "2026-10-08T18:07:47.254319+00:00",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "LegeTole_2107852068119879705_01.mp4",
-              "delivered_at": "2026-10-08T21:54:42.994121+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2107852068119879705",
-      "username": "LegeTole",
-      "source_url": "https://x.com/LegeTole/status/2107852068119879705",
       "message_ids": [
         353
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T22:12:07.728930+00:00"
+      "completed": true
     },
     "2108210803795263683": {
       "media": {
@@ -187,385 +140,279 @@
           "kind": "video",
           "message_id": 354,
           "filename": "nyonyahmeli_2108210803795263683_01.mp4",
-          "sent_at": "2026-10-08T18:07:52.687428+00:00",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "nyonyahmeli_2108210803795263683_01.mp4",
-              "delivered_at": "2026-10-08T21:54:45.493508+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2108210803795263683",
-      "username": "nyonyahmeli",
-      "source_url": "https://x.com/nyonyahmeli/status/2108210803795263683",
       "message_ids": [
         354
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T22:12:11.376172+00:00"
+      "completed": true
     },
     "2108261895740543032": {
       "media": {
         "bb91c72ac310c26e29f52e7550a86ec92c27ace3838b0df8b8e6201af970cc77": {
           "kind": "video",
           "message_id": 355,
-          "filename": "SalvatoreE99643_2108261895740543032_01.mp4",
-          "sent_at": "2026-10-08T19:36:28.496551+00:00"
+          "filename": "SalvatoreE99643_2108261895740543032_01.mp4"
         }
       },
-      "post_id": "2108261895740543032",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2108261895740543032",
       "message_ids": [
         355
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:36:28.500649+00:00"
+      "completed": true
     },
     "2108260385715269747": {
       "media": {
         "b8723fc34f6ae07f8ba05245353e702af5a895d6b615b9cf8795e3def2d426ae": {
           "kind": "video",
           "message_id": 356,
-          "filename": "SalvatoreE99643_2108260385715269747_01.mp4",
-          "sent_at": "2026-10-08T19:36:39.781089+00:00"
+          "filename": "SalvatoreE99643_2108260385715269747_01.mp4"
         }
       },
-      "post_id": "2108260385715269747",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2108260385715269747",
       "message_ids": [
         356
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:36:39.784862+00:00"
+      "completed": true
     },
     "2108259882608849082": {
       "media": {
         "e625c30eceb3d3c3fd9a5b68c6913a74b1cacaaf9a07b62fccef21a929008d3f": {
           "kind": "video",
           "message_id": 357,
-          "filename": "SalvatoreE99643_2108259882608849082_01.mp4",
-          "sent_at": "2026-10-08T19:36:43.963118+00:00"
+          "filename": "SalvatoreE99643_2108259882608849082_01.mp4"
         }
       },
-      "post_id": "2108259882608849082",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2108259882608849082",
       "message_ids": [
         357
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:36:43.965309+00:00"
+      "completed": true
     },
     "2108253630830952742": {
       "media": {
         "0bc5f1598e6ebc4536b60adef261fb14448f25a1ce98d5589098c8cae5d8809e": {
           "kind": "video",
           "message_id": 358,
-          "filename": "SalvatoreE99643_2108253630830952742_01.mp4",
-          "sent_at": "2026-10-08T19:36:53.998477+00:00"
+          "filename": "SalvatoreE99643_2108253630830952742_01.mp4"
         }
       },
-      "post_id": "2108253630830952742",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2108253630830952742",
       "message_ids": [
         358
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:36:54.002509+00:00"
+      "completed": true
     },
     "2106788393149731134": {
       "media": {
         "fc17dac09d03152e6ed92c02e4a4a30c0494ba66ab6498a81610b63ace34e45a": {
           "kind": "video",
           "message_id": 359,
-          "filename": "SalvatoreE99643_2106788393149731134_01.mp4",
-          "sent_at": "2026-10-08T19:37:08.502744+00:00"
+          "filename": "SalvatoreE99643_2106788393149731134_01.mp4"
         }
       },
-      "post_id": "2106788393149731134",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2106788393149731134",
       "message_ids": [
         359
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:08.505975+00:00"
+      "completed": true
     },
     "2106312850583302435": {
       "media": {
         "d6622fda8154fcc2a3aea2aab966e879f084a2111bb61d21ea8710fc87189def": {
           "kind": "video",
           "message_id": 360,
-          "filename": "SalvatoreE99643_2106312850583302435_01.mp4",
-          "sent_at": "2026-10-08T19:37:14.720066+00:00"
+          "filename": "SalvatoreE99643_2106312850583302435_01.mp4"
         }
       },
-      "post_id": "2106312850583302435",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2106312850583302435",
       "message_ids": [
         360
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:14.721947+00:00"
+      "completed": true
     },
     "2106274782786543802": {
       "media": {
         "888bba061816b04833140ae24eb6adb2ae92e90c706e69e774e7603abe7c6918": {
           "kind": "video",
           "message_id": 361,
-          "filename": "SalvatoreE99643_2106274782786543802_01.mp4",
-          "sent_at": "2026-10-08T19:37:19.624772+00:00"
+          "filename": "SalvatoreE99643_2106274782786543802_01.mp4"
         }
       },
-      "post_id": "2106274782786543802",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2106274782786543802",
       "message_ids": [
         361
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:19.626860+00:00"
+      "completed": true
     },
     "2106274271123353839": {
       "media": {
         "c6c5600f80616ef091d021ae2f21e5e67c1a52f5791de61af2b83d18581351b9": {
           "kind": "video",
           "message_id": 362,
-          "filename": "SalvatoreE99643_2106274271123353839_01.mp4",
-          "sent_at": "2026-10-08T19:37:23.878852+00:00"
+          "filename": "SalvatoreE99643_2106274271123353839_01.mp4"
         }
       },
-      "post_id": "2106274271123353839",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2106274271123353839",
       "message_ids": [
         362
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:23.881117+00:00"
+      "completed": true
     },
     "2105052125596438889": {
       "media": {
         "08f924ee23af1d60f61ad76ba503e7902318593bdc9b108e1ec976b0c8a60d0e": {
           "kind": "video",
           "message_id": 363,
-          "filename": "SalvatoreE99643_2105052125596438889_01.mp4",
-          "sent_at": "2026-10-08T19:37:30.007815+00:00"
+          "filename": "SalvatoreE99643_2105052125596438889_01.mp4"
         }
       },
-      "post_id": "2105052125596438889",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2105052125596438889",
       "message_ids": [
         363
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:30.010081+00:00"
+      "completed": true
     },
     "2105052023901343832": {
       "media": {
         "0e21556b1351660e448db932760194196e8b0eb2f6be71ba59b9094a7757f7c6": {
           "kind": "video",
           "message_id": 364,
-          "filename": "SalvatoreE99643_2105052023901343832_01.mp4",
-          "sent_at": "2026-10-08T19:37:36.570465+00:00"
+          "filename": "SalvatoreE99643_2105052023901343832_01.mp4"
         }
       },
-      "post_id": "2105052023901343832",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2105052023901343832",
       "message_ids": [
         364
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:36.573225+00:00"
+      "completed": true
     },
     "2104695017969496480": {
       "media": {
         "ef988dca7a55ce3d6a65dd797dd6483e338de50c6dce68f0dc23ac16cf29d4c6": {
           "kind": "video",
           "message_id": 365,
-          "filename": "SalvatoreE99643_2104695017969496480_01.mp4",
-          "sent_at": "2026-10-08T19:37:46.476537+00:00"
+          "filename": "SalvatoreE99643_2104695017969496480_01.mp4"
         }
       },
-      "post_id": "2104695017969496480",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2104695017969496480",
       "message_ids": [
         365
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:46.479158+00:00"
+      "completed": true
     },
     "2103919831414374511": {
       "media": {
         "28a86e0c5c768be4b5e3165cfa07a8dde0497e6d67c4c3d00e54170f319375d7": {
           "kind": "video",
           "message_id": 366,
-          "filename": "SalvatoreE99643_2103919831414374511_01.mp4",
-          "sent_at": "2026-10-08T19:37:55.255421+00:00"
+          "filename": "SalvatoreE99643_2103919831414374511_01.mp4"
         }
       },
-      "post_id": "2103919831414374511",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103919831414374511",
       "message_ids": [
         366
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:37:55.257733+00:00"
+      "completed": true
     },
     "2103469583109701794": {
       "media": {
         "6ac2cd281b25ef1cfe34e89356321ef72f6e723086d834ae20f3c14ef1306859": {
           "kind": "video",
           "message_id": 367,
-          "filename": "SalvatoreE99643_2103469583109701794_01.mp4",
-          "sent_at": "2026-10-08T19:38:07.162633+00:00"
+          "filename": "SalvatoreE99643_2103469583109701794_01.mp4"
         }
       },
-      "post_id": "2103469583109701794",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103469583109701794",
       "message_ids": [
         367
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:07.165566+00:00"
+      "completed": true
     },
     "2103422104448479717": {
       "media": {
         "38ebde8f484995fcb001d5c59520279df83d146b31353325b84f663ed333a08d": {
           "kind": "video",
           "message_id": 368,
-          "filename": "SalvatoreE99643_2103422104448479717_01.mp4",
-          "sent_at": "2026-10-08T19:38:19.448273+00:00"
+          "filename": "SalvatoreE99643_2103422104448479717_01.mp4"
         }
       },
-      "post_id": "2103422104448479717",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103422104448479717",
       "message_ids": [
         368
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:19.451874+00:00"
+      "completed": true
     },
     "2103206730859688055": {
       "media": {
         "44d208406256c8fc26dbfca992853dbde0df474a420a2dc9a0a52d0ac5301d2a": {
           "kind": "video",
           "message_id": 369,
-          "filename": "SalvatoreE99643_2103206730859688055_01.mp4",
-          "sent_at": "2026-10-08T19:38:32.402213+00:00"
+          "filename": "SalvatoreE99643_2103206730859688055_01.mp4"
         }
       },
-      "post_id": "2103206730859688055",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103206730859688055",
       "message_ids": [
         369
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:32.406393+00:00"
+      "completed": true
     },
     "2103195346994376773": {
       "media": {
         "81e485badd9fd91af814f10ea7630b17ffae987b14c69e452675bc18fea218b0": {
           "kind": "video",
           "message_id": 370,
-          "filename": "SalvatoreE99643_2103195346994376773_01.mp4",
-          "sent_at": "2026-10-08T19:38:39.504068+00:00"
+          "filename": "SalvatoreE99643_2103195346994376773_01.mp4"
         }
       },
-      "post_id": "2103195346994376773",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103195346994376773",
       "message_ids": [
         370
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:39.506927+00:00"
+      "completed": true
     },
     "2103188715443286361": {
       "media": {
         "bbaeed6ec0d2ea279d1ae195d8463cf9fb821814649ec31e253fa489d66ae10b": {
           "kind": "video",
           "message_id": 371,
-          "filename": "SalvatoreE99643_2103188715443286361_01.mp4",
-          "sent_at": "2026-10-08T19:38:43.780958+00:00"
+          "filename": "SalvatoreE99643_2103188715443286361_01.mp4"
         }
       },
-      "post_id": "2103188715443286361",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103188715443286361",
       "message_ids": [
         371
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:43.783100+00:00"
+      "completed": true
     },
     "2103187614413312167": {
       "media": {
         "4d964eb5f1f1279b8c682b559917d0d9e1e730bac16edd08ec5dce3566f8dc2b": {
           "kind": "video",
           "message_id": 372,
-          "filename": "SalvatoreE99643_2103187614413312167_01.mp4",
-          "sent_at": "2026-10-08T19:38:52.463187+00:00"
+          "filename": "SalvatoreE99643_2103187614413312167_01.mp4"
         }
       },
-      "post_id": "2103187614413312167",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103187614413312167",
       "message_ids": [
         372
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:52.466252+00:00"
+      "completed": true
     },
     "2103082169350635588": {
       "media": {
         "f55aaa78ec9bb506e49b842299e5d99ee53665e26ee442187db6528ef426add5": {
           "kind": "video",
           "message_id": 373,
-          "filename": "SalvatoreE99643_2103082169350635588_01.mp4",
-          "sent_at": "2026-10-08T19:38:57.036238+00:00"
+          "filename": "SalvatoreE99643_2103082169350635588_01.mp4"
         }
       },
-      "post_id": "2103082169350635588",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2103082169350635588",
       "message_ids": [
         373
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:38:57.038320+00:00"
+      "completed": true
     },
     "2102729784883323093": {
       "media": {
         "a1fadff64eebfa64035680a9d91a8c0f7b2930a5a4854677c54e7facbe37ef1f": {
           "kind": "video",
           "message_id": 374,
-          "filename": "SalvatoreE99643_2102729784883323093_01.mp4",
-          "sent_at": "2026-10-08T19:39:05.465459+00:00"
+          "filename": "SalvatoreE99643_2102729784883323093_01.mp4"
         }
       },
-      "post_id": "2102729784883323093",
-      "username": "SalvatoreE99643",
-      "source_url": "https://x.com/SalvatoreE99643/status/2102729784883323093",
       "message_ids": [
         374
       ],
-      "completed": true,
-      "updated_at": "2026-10-08T19:39:05.468971+00:00"
+      "completed": true
     },
     "2108234782203387942": {
       "media": {
@@ -576,18 +423,13 @@
             "mega": {
               "status": "success",
               "filename": "Prito534008_2108234782203387942_01.mp4",
-              "delivered_at": "2026-10-08T22:16:10.509498+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2108234782203387942",
-      "username": "Prito534008",
-      "source_url": "https://x.com/Prito534008/status/2108234782203387942",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-09T16:06:51.836943+00:00"
+      "completed": true
     },
     "2108290374049608178": {
       "media": {
@@ -598,18 +440,13 @@
             "mega": {
               "status": "success",
               "filename": "vaelourin_2108290374049608178_01.mp4",
-              "delivered_at": "2026-10-08T22:16:14.130446+00:00",
               "remote_folder": "/X2Telegram/2026-10-08"
             }
           }
         }
       },
-      "post_id": "2108290374049608178",
-      "username": "vaelourin",
-      "source_url": "https://x.com/vaelourin/status/2108290374049608178",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-09T16:06:54.761039+00:00"
+      "completed": true
     },
     "2107965640325972318": {
       "media": {
@@ -620,28 +457,21 @@
             "telegram": {
               "status": "success",
               "filename": "reefdeennoo_2107965640325972318_01.mp4",
-              "delivered_at": "2026-10-09T18:32:01.837567+00:00",
               "message_id": 375
             },
             "mega": {
               "status": "success",
               "filename": "reefdeennoo_2107965640325972318_01_2ccc44154b.mp4",
-              "delivered_at": "2026-10-09T18:32:05.752045+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             }
           },
-          "message_id": 375,
-          "sent_at": "2026-10-09T18:32:01.837567+00:00"
+          "message_id": 375
         }
       },
-      "post_id": "2107965640325972318",
-      "username": "reefdeennoo",
-      "source_url": "https://x.com/reefdeennoo/status/2107965640325972318",
       "message_ids": [
         375
       ],
-      "completed": true,
-      "updated_at": "2026-10-09T18:32:05.755345+00:00"
+      "completed": true
     },
     "2106644488336941452": {
       "media": {
@@ -652,28 +482,21 @@
             "mega": {
               "status": "success",
               "filename": "CyndiFerguson61_2106644488336941452_01_df63003d51.mp4",
-              "delivered_at": "2026-10-09T18:35:43.277845+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             },
             "telegram": {
               "status": "success",
               "filename": "CyndiFerguson61_2106644488336941452_01.mp4",
-              "delivered_at": "2026-10-09T18:37:33.274342+00:00",
               "message_id": 377
             }
           },
-          "message_id": 377,
-          "sent_at": "2026-10-09T18:37:33.274342+00:00"
+          "message_id": 377
         }
       },
-      "post_id": "2106644488336941452",
-      "username": "CyndiFerguson61",
-      "source_url": "https://x.com/CyndiFerguson61/status/2106644488336941452",
       "message_ids": [
         377
       ],
-      "completed": true,
-      "updated_at": "2026-10-09T19:35:50.543960+00:00"
+      "completed": true
     },
     "2108606651276394498": {
       "media": {
@@ -684,28 +507,21 @@
             "mega": {
               "status": "success",
               "filename": "Trsetea_2108606651276394498_01_e7e92cc231.mp4",
-              "delivered_at": "2026-10-09T18:35:57.993510+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             },
             "telegram": {
               "status": "success",
               "filename": "Trsetea_2108606651276394498_01.mp4",
-              "delivered_at": "2026-10-09T18:37:43.246016+00:00",
               "message_id": 378
             }
           },
-          "message_id": 378,
-          "sent_at": "2026-10-09T18:37:43.246016+00:00"
+          "message_id": 378
         }
       },
-      "post_id": "2108606651276394498",
-      "username": "Trsetea",
-      "source_url": "https://x.com/Trsetea/status/2108606651276394498",
       "message_ids": [
         378
       ],
-      "completed": true,
-      "updated_at": "2026-10-09T19:36:01.173770+00:00"
+      "completed": true
     },
     "2108578189123756092": {
       "media": {
@@ -716,28 +532,21 @@
             "telegram": {
               "status": "success",
               "filename": "clnaves_2108578189123756092_01.mp4",
-              "delivered_at": "2026-10-09T18:36:04.320990+00:00",
               "message_id": 376
             },
             "mega": {
               "status": "success",
               "filename": "clnaves_2108578189123756092_01_58e0f6ce12.mp4",
-              "delivered_at": "2026-10-09T18:36:05.245927+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             }
           },
-          "message_id": 376,
-          "sent_at": "2026-10-09T18:36:04.320990+00:00"
+          "message_id": 376
         }
       },
-      "post_id": "2108578189123756092",
-      "username": "clnaves",
-      "source_url": "https://x.com/clnaves/status/2108578189123756092",
       "message_ids": [
         376
       ],
-      "completed": true,
-      "updated_at": "2026-10-09T19:36:03.797793+00:00"
+      "completed": true
     },
     "2108588986033905992": {
       "media": {
@@ -748,18 +557,13 @@
             "mega": {
               "status": "success",
               "filename": "baebiemootwit_2108588986033905992_01_d3b361bf4d0f4d42fd3624981ecac8ac56e26aebeb4d3cc822b99952b5639b81.mp4",
-              "delivered_at": "2026-10-09T19:38:59.092791+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             }
           }
         }
       },
-      "post_id": "2108588986033905992",
-      "username": "baebiemootwit",
-      "source_url": "https://x.com/baebiemootwit/status/2108588986033905992",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-09T19:38:59.096841+00:00"
+      "completed": true
     },
     "2108593735911321903": {
       "media": {
@@ -770,18 +574,13 @@
             "mega": {
               "status": "success",
               "filename": "Tramsexvn_2108593735911321903_01_033fb7d6b53cd3a29db3ae503c28a9e9a29912e2da1ab23dfed74f88947892c5.mp4",
-              "delivered_at": "2026-10-09T19:39:18.910992+00:00",
               "remote_folder": "/X2Telegram/2026-10-09"
             }
           }
         }
       },
-      "post_id": "2108593735911321903",
-      "username": "Tramsexvn",
-      "source_url": "https://x.com/Tramsexvn/status/2108593735911321903",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-09T19:39:18.919577+00:00"
+      "completed": true
     },
     "2105352846149366019": {
       "media": {
@@ -792,34 +591,26 @@
             "telegram": {
               "status": "success",
               "filename": "NASAEarth_2105352846149366019_01.jpg",
-              "delivered_at": "2026-10-10T08:15:24.628374+00:00",
               "message_id": 379
             },
             "mega": {
               "status": "success",
               "filename": "NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg",
-              "delivered_at": "2026-10-10T08:15:29.534455+00:00",
               "remote_folder": "/X2Telegram/2026-10-10"
             },
             "dropbox": {
               "status": "success",
               "filename": "NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg",
-              "delivered_at": "2026-10-10T08:15:31.177518+00:00",
               "dropbox_path": "/X2Telegram/NASAEarth_2105352846149366019_01_36a59198faa46f70581381ebe52d8db9d2c6f76bb89f56e094bcf8aca0d3c893.jpg"
             }
           },
-          "message_id": 379,
-          "sent_at": "2026-10-10T08:15:24.628374+00:00"
+          "message_id": 379
         }
       },
-      "post_id": "2105352846149366019",
-      "username": "NASAEarth",
-      "source_url": "https://x.com/NASAEarth/status/2105352846149366019",
       "message_ids": [
         379
       ],
-      "completed": true,
-      "updated_at": "2026-10-10T08:15:31.179444+00:00"
+      "completed": true
     },
     "2108928241461551160": {
       "media": {
@@ -830,28 +621,21 @@
             "mega": {
               "status": "success",
               "filename": "cock82_2108928241461551160_01_88f18cab80e04851bad22c562617584ce6a20454d8b498ed86485c0b72a25252.mp4",
-              "delivered_at": "2026-10-11T01:30:31.075322+00:00",
               "remote_folder": "/X2Telegram/2026-10-11"
             },
             "telegram": {
               "status": "success",
               "filename": "cock82_2108928241461551160_01.mp4",
-              "delivered_at": "2026-10-11T01:33:10.404853+00:00",
               "message_id": 380
             }
           },
-          "message_id": 380,
-          "sent_at": "2026-10-11T01:33:10.404853+00:00"
+          "message_id": 380
         }
       },
-      "post_id": "2108928241461551160",
-      "username": "cock82",
-      "source_url": "https://x.com/cock82/status/2108928241461551160",
       "message_ids": [
         380
       ],
-      "completed": true,
-      "updated_at": "2026-10-11T01:33:10.413891+00:00"
+      "completed": true
     },
     "2109106920602890744": {
       "media": {
@@ -862,18 +646,13 @@
             "dropbox": {
               "status": "success",
               "filename": "Uki365u2_2109106920602890744_01_082342319bd0219cda9593de390c25771c1799b4648fb3e9e84fd5b6c4fc1aa5.mp4",
-              "delivered_at": "2026-10-11T08:14:18.853708+00:00",
               "dropbox_path": "/X2Telegram/Uki365u2_2109106920602890744_01_082342319bd0219cda9593de390c25771c1799b4648fb3e9e84fd5b6c4fc1aa5.mp4"
             }
           }
         }
       },
-      "post_id": "2109106920602890744",
-      "username": "Uki365u2",
-      "source_url": "https://x.com/Uki365u2/status/2109106920602890744",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:14:18.859656+00:00"
+      "completed": true
     },
     "2108990059454292282": {
       "media": {
@@ -884,18 +663,13 @@
             "dropbox": {
               "status": "success",
               "filename": "Jimwhan01_2108990059454292282_01_2050750440587e2d57da881b479e8b2becfcf5cc8364bf213ab5a85d109734fd.mp4",
-              "delivered_at": "2026-10-11T08:40:46.245724+00:00",
               "dropbox_path": "/X2Telegram/Jimwhan01_2108990059454292282_01_2050750440587e2d57da881b479e8b2becfcf5cc8364bf213ab5a85d109734fd.mp4"
             }
           }
         }
       },
-      "post_id": "2108990059454292282",
-      "username": "Jimwhan01",
-      "source_url": "https://x.com/Jimwhan01/status/2108990059454292282",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:40:46.258423+00:00"
+      "completed": true
     },
     "2108987860032594012": {
       "media": {
@@ -906,18 +680,13 @@
             "dropbox": {
               "status": "success",
               "filename": "Ppxpjh6_2108987860032594012_01_be797803489f852ee2094fac172f5691f646a9755ded63f5b636a4cfde585f65.mp4",
-              "delivered_at": "2026-10-11T08:40:48.531338+00:00",
               "dropbox_path": "/X2Telegram/Ppxpjh6_2108987860032594012_01_be797803489f852ee2094fac172f5691f646a9755ded63f5b636a4cfde585f65.mp4"
             }
           }
         }
       },
-      "post_id": "2108987860032594012",
-      "username": "Ppxpjh6",
-      "source_url": "https://x.com/Ppxpjh6/status/2108987860032594012",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:40:48.534700+00:00"
+      "completed": true
     },
     "2109036783963148305": {
       "media": {
@@ -928,18 +697,13 @@
             "dropbox": {
               "status": "success",
               "filename": "tidmun_x_2109036783963148305_01_da9b0d1d67fd5c0b46aec89a016b5057a6c37da7ae86b125302381643924bac4.mp4",
-              "delivered_at": "2026-10-11T08:58:29.423906+00:00",
               "dropbox_path": "/X2Telegram/tidmun_x_2109036783963148305_01_da9b0d1d67fd5c0b46aec89a016b5057a6c37da7ae86b125302381643924bac4.mp4"
             }
           }
         }
       },
-      "post_id": "2109036783963148305",
-      "username": "tidmun_x",
-      "source_url": "https://x.com/tidmun_x/status/2109036783963148305",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:58:29.435243+00:00"
+      "completed": true
     },
     "2109155687284818148": {
       "media": {
@@ -950,18 +714,13 @@
             "dropbox": {
               "status": "success",
               "filename": "Clementinek7f5_2109155687284818148_01_56b014a9b1c37f639c58364d388b39f6d064ebdd7c05a068b475a61c21554bae.mp4",
-              "delivered_at": "2026-10-11T08:58:31.456685+00:00",
               "dropbox_path": "/X2Telegram/Clementinek7f5_2109155687284818148_01_56b014a9b1c37f639c58364d388b39f6d064ebdd7c05a068b475a61c21554bae.mp4"
             }
           }
         }
       },
-      "post_id": "2109155687284818148",
-      "username": "Clementinek7f5",
-      "source_url": "https://x.com/Clementinek7f5/status/2109155687284818148",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:58:31.461149+00:00"
+      "completed": true
     },
     "2108889555684225341": {
       "media": {
@@ -972,18 +731,13 @@
             "dropbox": {
               "status": "success",
               "filename": "louislivesodv1_2108889555684225341_01_b3c0cc0e7d736b1e8247fb93b87a43f17f40c2bc53c6805777b95c36ad82dc39.mp4",
-              "delivered_at": "2026-10-11T08:58:34.172162+00:00",
               "dropbox_path": "/X2Telegram/louislivesodv1_2108889555684225341_01_b3c0cc0e7d736b1e8247fb93b87a43f17f40c2bc53c6805777b95c36ad82dc39.mp4"
             }
           }
         }
       },
-      "post_id": "2108889555684225341",
-      "username": "louislivesodv1",
-      "source_url": "https://x.com/louislivesodv1/status/2108889555684225341",
       "message_ids": [],
-      "completed": true,
-      "updated_at": "2026-10-11T08:58:34.176838+00:00"
+      "completed": true
     }
   }
 }
