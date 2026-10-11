@@ -825,23 +825,33 @@
       "media": {
         "88f18cab80e04851bad22c562617584ce6a20454d8b498ed86485c0b72a25252": {
           "kind": "video",
-          "filename": "cock82_2108928241461551160_01_88f18cab80e04851bad22c562617584ce6a20454d8b498ed86485c0b72a25252.mp4",
+          "filename": "cock82_2108928241461551160_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
               "filename": "cock82_2108928241461551160_01_88f18cab80e04851bad22c562617584ce6a20454d8b498ed86485c0b72a25252.mp4",
               "delivered_at": "2026-10-11T01:30:31.075322+00:00",
               "remote_folder": "/X2Telegram/2026-10-11"
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "cock82_2108928241461551160_01.mp4",
+              "delivered_at": "2026-10-11T01:33:10.404853+00:00",
+              "message_id": 380
             }
-          }
+          },
+          "message_id": 380,
+          "sent_at": "2026-10-11T01:33:10.404853+00:00"
         }
       },
       "post_id": "2108928241461551160",
       "username": "cock82",
       "source_url": "https://x.com/cock82/status/2108928241461551160",
-      "message_ids": [],
-      "completed": false,
-      "updated_at": "2026-10-11T01:30:31.075338+00:00"
+      "message_ids": [
+        380
+      ],
+      "completed": true,
+      "updated_at": "2026-10-11T01:33:10.413891+00:00"
     }
   }
 }
