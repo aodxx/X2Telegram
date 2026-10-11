@@ -1,7 +1,7 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-10-12
-**จุดอ้างอิง:** `main` / commit `64c36bd` (เอกสารล่าสุด)
+**จุดอ้างอิง:** `main` / production deployment commit `6e673c4`
 **สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
 
 ## 1. สรุปสำหรับ agent ที่เพิ่งเข้ามา
@@ -37,13 +37,13 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Branch | `main` |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
-| Worker version | `c44298fb-47f9-4798-a3db-9cd6946018fb` |
-| Deploy commit | `fe3170fb` |
-| Deploy run | [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) |
-| Python tests | 95 passed |
+| Worker version | `25c4517d-56fc-402b-bc62-c65a525d2618` |
+| Deploy commit | `6e673c47842343dee9845ceb4d2a4489fced5d39` |
+| Deploy run | [#38174506806](https://github.com/aodxx/X2Telegram/actions/runs/38174506806) — success |
+| Python tests | 97 passed |
 | Worker tests | 27 passed |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
-| Access | owner-only Cloudflare Access; unauthenticated `/health` redirects to login |
+| Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 403 |
 
 หลักฐานและรายละเอียดอยู่ใน:
 

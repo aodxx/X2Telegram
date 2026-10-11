@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-12
-**สถานะ:** Production Worker deploy แล้วผ่าน GitHub Actions พร้อม edge rate limiting; Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ขอบเขต large-file ของ Telegram/Dropbox และความสำเร็จในการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
+**สถานะ:** Production Worker deploy ผ่าน GitHub Actions แล้ว พร้อม edge rate limiting; Dashboard UX รุ่นล่าสุด deploy ด้วย commit `6e673c4`. Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ขอบเขต large-file ของ Telegram/Dropbox และการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -14,11 +14,12 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## Deployment ปัจจุบัน
 
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Current Worker version ID: `c44298fb-47f9-4798-a3db-9cd6946018fb`
-- Deploy commit: `fe3170fb3fc23cf06ee8a9a838866e38d207480c`
-- Deploy workflow: [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) — success
+- Current Worker version ID: `25c4517d-56fc-402b-bc62-c65a525d2618`
+- Deploy commit: `6e673c47842343dee9845ceb4d2a4489fced5d39`
+- Deploy workflow: [#38174506806](https://github.com/aodxx/X2Telegram/actions/runs/38174506806) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
 - `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
-- GitHub Pages deploy run [#37842981450](https://github.com/aodxx/X2Telegram/actions/runs/37842981450) ผ่าน; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access และ browser live แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง`
+- GitHub Pages deploy run [#37842981450](https://github.com/aodxx/X2Telegram/actions/runs/37842981450) ผ่าน; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access
+- Production smoke check: unauthenticated `GET /` และ `/health` ตอบ HTTP 403; เนื้อหา Dashboard ต้องมี Cloudflare Access session จึงจะเปิดได้
 
 ## ปลายทาง
 
@@ -44,9 +45,9 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## Validation ล่าสุด
 
-- Python: `python3 -m pytest -q` — **95 passed**
+- Python: `python3 -m pytest -q` — **97 passed**
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
-- `node --check control-worker/src/index.js`, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
+- `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
 - Live Actions run #37848879753 ผ่าน automated tests และ MEGA-only process/report; Dashboard report ยืนยัน media success
 
