@@ -18,7 +18,7 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 |---|---:|---|
 | Telegram Bot API | 50 MB/ไฟล์ | Telegram chat ที่ workflow ล็อกไว้ |
 | Telegram Local Bot API (Large-file mode) | 2,000 MB/ไฟล์ | Telegram chat ที่ workflow ล็อกไว้ |
-| MEGA | 2,000 MB/ไฟล์ตาม media downloader | `/X2Telegram/YYYY-MM-DD` โดยค่าเริ่มต้น |
+| MEGA | 2,000 MB/ไฟล์ตาม media downloader | `/X2Telegram/YYYY-MM-DD`; filename ต่อท้าย SHA-256 ของ media |
 | Browser ZIP | 2,000 MB/ไฟล์; ZIP รวม 8 GiB/job | Private GitHub Actions artifact 7 วัน |
 
 ## 2. GitHub Actions Secrets
@@ -43,7 +43,7 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 
 MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
 
-โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. ใช้ path แบบ `Archive/X2Telegram` ได้; worker จะเพิ่ม subfolder วันที่ `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload
+โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. ใช้ path แบบ `Archive/X2Telegram` ได้; worker จะเพิ่ม subfolder วันที่ `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload. Python ต่อ SHA-256 เต็มของเนื้อหาเข้ากับ basename สำหรับ MEGA/Dropbox; media ต่างเวอร์ชันจึงไม่ชนชื่อเดิม และ uploader ตรวจไฟล์ remote หลังอัปโหลด
 
 เอกสารการใช้งาน MEGAcmd: [คำสั่ง login/MFA ทางการ](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). คำแนะนำการใช้งานผู้ใช้: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
 

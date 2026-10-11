@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
-**วันที่:** 2026-10-09
-**สรุป:** Telegram normal path, batch no-resend, Dashboard Access, Browser ZIP และ MEGA-only live smoke tests ผ่าน; Dropbox connector และ combinations ครอบคลุมด้วย automated tests แต่ยังไม่มี Dropbox OAuth live test; repository owner reports the OAuth secrets are now configured. ยังไม่ได้ทดสอบ live Telegram+MEGA combined send
+**วันที่:** 2026-10-11
+**สรุป:** Telegram normal path, batch no-resend, Dashboard Access, Browser ZIP และ MEGA-only live smoke tests ผ่าน; MEGA filename overwrite ถูกแก้ด้วย SHA-256 content-versioned names และมี automated regression tests; ไม่ได้ทำ live re-upload หลัง fix เพื่อไม่สร้างสำเนา media ซ้ำ. Dropbox connector และ combinations ครอบคลุมด้วย automated tests แต่ยังไม่มี Dropbox OAuth live test
 
 ## หลักฐาน live
 
@@ -31,6 +31,7 @@
 - Dashboard dispatch run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753), job `job-c1a0a40e4e92b6d35ed17eeb39319d04`, สำหรับ URL ที่เจ้าของระบุก่อนหน้า
 - เลือก **MEGA-only**; Telegram และ Browser ZIP ไม่ได้เลือก. Actions success และ sanitized Dashboard report แสดง `MEGA: สำเร็จ`, `sent=1`, `failed=0`
 - Attempt ก่อนหน้า run [#37848220624](https://github.com/aodxx/X2Telegram/actions/runs/37848220624) หยุดก่อน login เพราะพบ TOTP setting ที่ไม่ใช่ Base32; หลังเจ้าของยืนยันว่า MEGA 2FA ปิดและลบ secret ที่ไม่จำเป็น การ retry ผ่าน. ไม่มี Telegram send ในทั้งสอง run
+- ผู้ใช้รายงานภายหลังว่า media ที่ชื่อเดิมถูกแทนที่เมื่ออัปโหลดเนื้อหาใหม่. PR [#9](https://github.com/aodxx/X2Telegram/pull/9) แก้ MEGA โดยต่อ SHA-256 เต็มของ media เข้า filename, migrate checkpoint เก่าที่ใช้ชื่อ legacy และตรวจชื่อไฟล์จากรายการ remote หลัง upload. การแก้ได้รับ automated coverage; **ยังไม่มี live re-upload หลัง merge**
 
 ## Scenario status
 
@@ -46,6 +47,7 @@
 | ภาพ+วิดีโอในโพสต์เดียว | PASS (automated mock) | ภาพยังคงอยู่ และเลือก video variant สูงสุด; download หนึ่งครั้งต่อ media |
 | Invalid MEGA folder/credential failure | PASS (automated mock) | MEGA failure ไม่หยุด Telegram/Download; ไม่มี command output ใน report |
 | MEGA upload จริง | PASS (live MEGA-only) | Run #37848879753; หนึ่ง media upload สำเร็จ; Telegram ไม่ได้เลือก |
+| MEGA changed content preserves prior file | PASS (automated regression) | Filename มี SHA-256 เต็ม; legacy checkpoint ถูก migrate; ยังไม่ได้ทดสอบ live re-upload หลัง PR #9 |
 | Dropbox connector | PASS (automated mock only) | ครอบ OAuth refresh (รวม refresh-token-only), 429 Retry-After, upload session, no-overwrite filename และ per-destination dedupe; live Dropbox run ยังไม่ได้เริ่ม |
 | Dropbox upload จริง | NOT RUN | Secrets ถูกตั้งตามคำแจ้งของเจ้าของ repository; ต้องรัน Dropbox-only test ด้วย URL ที่อนุญาตและตรวจผลใน Dashboard |
 | Telegram+MEGA live combined send | NOT RUN | ยังไม่ทำ combined fresh send เพื่อหลีกเลี่ยงการส่ง Telegram ซ้ำโดยไม่จำเป็น |
@@ -55,7 +57,7 @@
 
 ## Automated validation หลัง merge
 
-- Python: `python -m pytest -q` — **82 passed**
+- Python: `python3 -m pytest -q` — **89 passed**
 - Cloudflare Worker: `npm test --prefix control-worker` — **25 passed**
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live run #37843359593 ผ่าน automated Python/Worker tests ก่อน process, report และ media artifact upload

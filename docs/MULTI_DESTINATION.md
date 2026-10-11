@@ -20,7 +20,7 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
 | ปลายทาง | ผลลัพธ์ | ข้อจำกัด/การตั้งค่า |
 |---|---|---|
 | **Telegram** | ส่งวิดีโอ/รูปภาพ/เอกสารไปยังกลุ่มที่ล็อกไว้ | Bot API ปกติรองรับไม่เกิน 50 MB ต่อไฟล์; Large-file mode ใช้ Local Bot API และเพดานระบบ 2,000 MB |
-| **MEGA** | อัปโหลดไปยัง `/X2Telegram/YYYY-MM-DD/` (หรือ folder ที่ตั้งในฝั่ง workflow) | ต้องตั้ง `MEGA_EMAIL`, `MEGA_PASSWORD`; `MEGA_TOTP_SECRET` ใช้เมื่อบัญชีเปิด MFA/TOTP. ใช้ MEGAcmd ทางการใน runner ชั่วคราว |
+| **MEGA** | อัปโหลดไปยัง `/X2Telegram/YYYY-MM-DD/` (หรือ root ที่ตั้งไว้); ชื่อไฟล์ต่อท้าย SHA-256 ของเนื้อหา | ต้องตั้ง `MEGA_EMAIL`, `MEGA_PASSWORD`; `MEGA_TOTP_SECRET` ใช้เมื่อบัญชีเปิด MFA/TOTP. ใช้ MEGAcmd ทางการใน runner ชั่วคราว |
 | **Dropbox** | อัปโหลดผ่าน Dropbox API v2 ไปยัง `/X2Telegram/` (หรือ folder ที่ตั้งไว้) | ใช้ OAuth refresh token; ไฟล์เกิน 150 MB ใช้ upload session; ชื่อไฟล์เติม content fingerprint และใช้ `add`/ห้าม overwrite |
 | **Download** | สร้างไฟล์ ZIP และให้ browser ดาวน์โหลดผ่าน Dashboard | เก็บเป็น private GitHub Actions artifact 7 วัน; ขนาด media ต่อไฟล์ไม่เกิน 2,000 MB และ ZIP ต่อ job รวมไม่เกิน 8 GiB |
 
@@ -42,7 +42,7 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 
 ใส่ค่าเฉพาะใน GitHub Secrets; **อย่าวาง credential ใน Dashboard, source code, issue หรือข้อความแชต**. MEGAcmd จะถูกติดตั้งเฉพาะเมื่อเลือก MEGA; หาก secret ไม่มี/การติดตั้งหรือ login ล้มเหลว จะรายงานความล้มเหลวของ MEGA แยกจาก Telegram/Download และไม่พิมพ์ output ของคำสั่ง login ลง report
 
-หากต้องการเปลี่ยนโฟลเดอร์ราก ให้ตั้ง **Repository variable** `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`). ถ้าไม่ตั้ง ระบบใช้ `X2Telegram`; ทุก job จะสร้างโฟลเดอร์วันที่ `YYYY-MM-DD` ใต้โฟลเดอร์นั้น. ระบบปฏิเสธ path ที่มี `.`/`..` หรืออักขระที่ไม่อนุญาต
+หากต้องการเปลี่ยนโฟลเดอร์ราก ให้ตั้ง **Repository variable** `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`). ถ้าไม่ตั้ง ระบบใช้ `X2Telegram`; ทุก job จะเก็บไฟล์ใต้โฟลเดอร์วันที่ `YYYY-MM-DD`. ชื่อไฟล์สำหรับ MEGA/Dropbox มี SHA-256 เต็มของ media ต่อท้าย basename; media ที่เนื้อหาต่างกันจึงได้ชื่อคนละชื่อ แม้ username/post ID/index เดิม และ dedupe จะข้ามไฟล์เนื้อหาเดิมเมื่อมี checkpoint สำเร็จ. ระบบปฏิเสธ root path ที่มี `.`/`..` หรืออักขระที่ไม่อนุญาต
 
 เอกสารคำสั่ง login/MFA ของผู้พัฒนา MEGAcmd: [MEGAcmd login](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). ระบบใช้ `mega-login --auth-code=... email password` เมื่อกำหนด TOTP secret และเรียก `mega-logout` หลังประมวลผล
 
@@ -81,6 +81,7 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 - ไฟล์ใหญ่เกินขีดจำกัดเฉพาะปลายทางจะทำให้ target นั้นล้มเหลวโดยไม่หยุด target อื่น
 - Browser ZIP หมดอายุหลัง 7 วัน; ถ้าขึ้น `download_expired` ให้เริ่ม job ใหม่
 - หาก MEGA ขึ้น `mega_credentials_missing` ให้ตรวจชื่อ GitHub Actions secrets ให้ตรงตาราง; `mega_authentication_failed` ให้ตรวจบัญชี/รหัสผ่าน/TOTP โดยไม่ใส่ credential ใน report
+- หากไฟล์เดิมถูกแทนที่ก่อนเปิดใช้ content-versioned names ให้ตรวจเมนูไฟล์ **Previous versions** หากบัญชีเปิด file versioning ไว้; ดู [คู่มือ MEGA](https://help.mega.io/files-folders/data-restoration/file-version-history)
 - หาก X post เข้าถึงไม่ได้, ถูกลบ/private หรือไม่มี media ที่รองรับ จะมีผลลัพธ์รายโพสต์และ target ที่เกี่ยวข้องอาจไม่เกิดไฟล์
 - ใช้เฉพาะ media ที่มีสิทธิ์ดาวน์โหลดและเผยแพร่ และปฏิบัติตามกฎหมาย/เงื่อนไขแพลตฟอร์ม
 
