@@ -78,7 +78,7 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 
 ## ขอบเขตการทดสอบ
 
-ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend, Download-only 2 URLs และ MEGA-only upload; run [#37843359593](https://github.com/aodxx/X2Telegram/actions/runs/37843359593) สร้าง ZIP 2 ไฟล์และทดสอบดาวน์โหลดผ่าน Access/Worker สำเร็จ ส่วน run [#37848879753](https://github.com/aodxx/X2Telegram/actions/runs/37848879753) ยืนยัน MEGA upload สำเร็จ. **ยังไม่ได้ทดสอบการส่ง Telegram+MEGA พร้อมกันแบบ live**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
+ชุดทดสอบอัตโนมัติครอบคลุมปลายทางเดี่ยว/ผสม, การ retry เฉพาะ target ที่ยังไม่สำเร็จ, artifact ZIP streaming, missing-artifact handling, Access และ batch. Live E2E ยืนยัน Telegram normal path, 2-URL batch no-resend, Download-only 2 URLs, MEGA-only upload และ combined Telegram+MEGA/Dropbox/Download สำหรับ media ที่ดึงได้หนึ่งรายการใน run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973). **Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox refresh-token-only/large-file session และ mobile browser ยังไม่มี live evidence**. อ่าน [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md), [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md) และ [`DEPLOYMENT.md`](DEPLOYMENT.md) เพิ่มเติม
 
 ### ตั้งค่า Dropbox
 

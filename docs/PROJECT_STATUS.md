@@ -3,6 +3,8 @@
 **อัปเดต:** 2026-10-12
 **สถานะ:** Production Worker deploy แล้วผ่าน GitHub Actions พร้อม edge rate limiting; Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ขอบเขต large-file ของ Telegram/Dropbox และความสำเร็จในการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
 
+สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
+
 ## ภาพรวม
 
 ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA, Dropbox และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path

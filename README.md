@@ -1,5 +1,7 @@
 # X2Telegram
 
+> **สำหรับ agent ที่เข้ามาพัฒนาต่อ:** อ่าน [`AGENTS.md`](AGENTS.md) และ [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) ก่อนเริ่มงาน เพื่อดูสถานะ production, กติกา deploy และ backlog ปัจจุบัน
+
 ระบบรับ X post URL แล้วดึง media **หนึ่งครั้ง** เพื่อส่งไฟล์เดียวกันไปยังปลายทางที่ผู้ใช้เลือก โดยใช้ Dashboard ส่วนตัว, Cloudflare Access/Worker และ GitHub Actions
 
 ## เลือกปลายทางได้
@@ -49,6 +51,8 @@ Tests ครอบ Telegram-only, MEGA-only, Download-only, การเลื�
 
 ## ไฟล์เอกสารหลัก
 
+- [`AGENTS.md`](AGENTS.md) — กติกาบังคับสำหรับ agent ทุกตัว
+- [`docs/AGENT_HANDOFF.md`](docs/AGENT_HANDOFF.md) — สถานะจริงและลำดับงานถัดไป
 - [`docs/MULTI_DESTINATION.md`](docs/MULTI_DESTINATION.md) — ปลายทาง, MEGA secrets, browser ZIP และ retry
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — การติดตั้ง/ตั้งค่า
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — ภาพรวมระบบ
