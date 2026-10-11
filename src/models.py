@@ -25,6 +25,7 @@ class MediaItem:
     width: int | None = None
     height: int | None = None
     mime_type: str | None = None
+    size_bytes: int | None = None
 
 
 @dataclass

@@ -255,6 +255,23 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Rebase before committing so regular main-branch changes do not
+          # unnecessarily reject this state update.
+          git fetch origin main
+          git rebase origin/main
           git add state/dedupe.json
           git commit -m "chore: persist X2Telegram delivery state [skip ci]"
-          git push
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "State push attempt ${attempt} failed; refreshing main before retry."
+            git fetch origin main
+            if ! git rebase origin/main; then
+              echo "::error::State persistence conflict requires manual reconciliation; refusing to overwrite remote state."
+              git rebase --abort || true
+              exit 1
+            fi
+          done
+          echo "::error::State persistence failed after 3 push attempts."
+          exit 1

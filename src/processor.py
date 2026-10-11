@@ -87,6 +87,28 @@ class PostProcessor:
             result.destinations[destination] = {"status": "no_media", "items": []}
         return result
 
+    def _select_video(self, videos: list) -> object | None:
+        """Select the highest-quality variant that is safe for Telegram."""
+        if not videos:
+            return None
+        candidates = videos
+        if "telegram" in self.config.destinations:
+            local_api = (
+                self.config.large_file_mode
+                and self.config.telegram_api_base_url.rstrip("/") != "https://api.telegram.org"
+            )
+            limit = (2000 if local_api else 50) * 1024 * 1024
+            sized = [item for item in videos if isinstance(item.size_bytes, int) and item.size_bytes > 0]
+            safe = [item for item in sized if item.size_bytes <= limit]
+            if safe:
+                candidates = safe
+            elif sized:
+                candidates = [min(sized, key=lambda item: item.size_bytes)]
+        return max(
+            candidates,
+            key=lambda item: (item.bitrate or -1, (item.width or 0) * (item.height or 0)),
+        )
+
     def _fail_all(self, result: PostResult, error_code: str, message: str) -> PostResult:
         result.error = message
         result.error_code = error_code
@@ -133,7 +155,7 @@ class PostProcessor:
 
         videos = [item for item in metadata.media if item.kind == "video"]
         selected = []
-        best_video = max(videos, key=lambda item: (item.bitrate or -1, (item.width or 0) * (item.height or 0))) if videos else None
+        best_video = self._select_video(videos)
         video_added = False
         for item in metadata.media:
             if item.kind == "video":

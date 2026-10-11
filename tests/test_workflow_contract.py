@@ -62,6 +62,10 @@ def test_dedupe_state_is_transferred_to_a_separate_write_job():
     assert "actions/download-artifact" in persist_state
     assert "state/dedupe.json" in persist_state
     assert "git push" in persist_state
+    assert "git fetch origin main" in persist_state
+    assert "git rebase origin/main" in persist_state
+    assert "for attempt in 1 2 3" in persist_state
+    assert "refusing to overwrite remote state" in persist_state
 
 
 def test_production_workflow_pins_external_actions_and_runtime_artifacts():

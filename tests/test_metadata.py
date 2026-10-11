@@ -39,7 +39,7 @@ def test_fxtwitter_extracts_high_quality_mp4_variants():
                     "formats": [
                         {"container": "m3u8", "url": "https://video.twimg.com/stream.m3u8"},
                         {"container": "mp4", "bitrate": 256000, "url": "https://video.twimg.com/low.mp4?tag=12"},
-                        {"container": "mp4", "bitrate": 2176000, "url": "https://video.twimg.com/high.mp4?tag=12"},
+                        {"container": "mp4", "bitrate": 2176000, "filesize": 80_000_000, "url": "https://video.twimg.com/high.mp4?tag=12"},
                     ],
                 }]
             },
@@ -52,6 +52,7 @@ def test_fxtwitter_extracts_high_quality_mp4_variants():
     with patch("src.metadata.requests.get", return_value=response):
         result = provider._from_fxtwitter(post)
     assert [item.bitrate for item in result.media] == [256000, 2176000]
+    assert result.media[-1].size_bytes == 80_000_000
     assert result.media[-1].url.endswith("?tag=12")
 
 

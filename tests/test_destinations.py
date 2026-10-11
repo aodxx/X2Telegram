@@ -28,6 +28,14 @@ class MixedMediaMetadata:
         ])
 
 
+class TelegramQualityMetadata:
+    def get(self, post):
+        return Metadata(post, [
+            MediaItem("video", "https://media.invalid/low.mp4", 0, bitrate=100, size_bytes=10 * 1024 * 1024),
+            MediaItem("video", "https://media.invalid/high.mp4", 0, bitrate=200, size_bytes=80 * 1024 * 1024),
+        ])
+
+
 class FakeTelegram:
     def __init__(self):
         self.calls = 0
@@ -130,6 +138,17 @@ def test_mixed_photo_video_post_keeps_photo_and_downloads_best_video_once(tmp_pa
     assert telegram.calls == 2 and mega.calls == 2
     assert result.media_count == 2
     assert sorted(item.name for item in (tmp_path / "exports").iterdir()) == ["126_01.jpg", "126_02.mp4"]
+
+
+def test_telegram_selects_highest_variant_within_50mb_limit(tmp_path):
+    telegram = FakeTelegram()
+    config = Config("bot-token", "-1003906817580", max_file_size_mb=50, destinations=("telegram",))
+    processor = PostProcessor(config, TelegramQualityMetadata(), telegram)
+    path = tmp_path / "source.mp4"
+    path.write_bytes(b"safe")
+    with patch.object(processor.downloader, "download", return_value=path) as download:
+        processor.process(parse_x_url("https://x.com/user/status/127"))
+    assert download.call_args.args[0] == "https://media.invalid/low.mp4"
 
 
 @pytest.mark.parametrize("destinations", [("mega",), ("download",), ("telegram", "download")])

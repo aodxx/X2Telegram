@@ -24,7 +24,7 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
 | **Dropbox** | อัปโหลดผ่าน Dropbox API v2 ไปยัง `/X2Telegram/` (หรือ folder ที่ตั้งไว้) | ใช้ OAuth refresh token; ไฟล์เกิน 150 MB ใช้ upload session; ชื่อไฟล์เติม content fingerprint และใช้ `add`/ห้าม overwrite |
 | **Download** | สร้างไฟล์ ZIP และให้ browser ดาวน์โหลดผ่าน Dashboard | เก็บเป็น private GitHub Actions artifact 7 วัน; ขนาด media ต่อไฟล์ไม่เกิน 2,000 MB และ ZIP ต่อ job รวมไม่เกิน 8 GiB |
 
-วิดีโอ/ภาพหลายรายการจากโพสต์เดียวกันจะถูกส่งออกเป็นหลายไฟล์ใน ZIP เดียว และใช้ชื่อไฟล์ที่สร้างจาก username/post ID/index/นามสกุล โดยตัด path และอักขระที่ไม่รองรับออก
+วิดีโอ/ภาพหลายรายการจากโพสต์เดียวกันจะถูกส่งออกเป็นหลายไฟล์ใน ZIP เดียว และใช้ชื่อไฟล์ที่สร้างจาก post ID/index/นามสกุล โดยไม่เก็บ username หรือข้อมูลโปรไฟล์ไว้ในชื่อไฟล์
 
 ### การดาวน์โหลดผ่านมือถือ
 

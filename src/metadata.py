@@ -70,7 +70,8 @@ class YtDlpMetadataProvider(MetadataProvider):
             seen.add(url)
             media.append(MediaItem("video", url, index,
                                    int(item["tbr"] * 1000) if item.get("tbr") else None,
-                                   item.get("width"), item.get("height"), item.get("ext")))
+                                   item.get("width"), item.get("height"), item.get("ext"),
+                                   item.get("filesize") or item.get("filesize_approx")))
         return Metadata(post, media, info.get("title") or "")
 
     def _from_syndication(self, post: XPost) -> Metadata:
@@ -102,7 +103,8 @@ class YtDlpMetadataProvider(MetadataProvider):
                     seen.add(url)
                     width, height = (item.get("video_info") or {}).get("aspect_ratio") or (None, None)
                     media.append(MediaItem("video", url, index, bitrate=variant.get("bitrate"),
-                                           width=width, height=height, mime_type="mp4"))
+                                           width=width, height=height, mime_type="mp4",
+                                           size_bytes=variant.get("filesize") or variant.get("size")))
         return Metadata(post, media, payload.get("text") or "")
 
     def _from_fxtwitter(self, post: XPost) -> Metadata:
@@ -140,6 +142,7 @@ class YtDlpMetadataProvider(MetadataProvider):
                         width=variant.get("width") or item.get("width"),
                         height=variant.get("height") or item.get("height"),
                         mime_type="mp4",
+                        size_bytes=variant.get("filesize") or variant.get("size"),
                     ))
             elif kind == "photo" and item.get("url"):
                 url = item["url"]
