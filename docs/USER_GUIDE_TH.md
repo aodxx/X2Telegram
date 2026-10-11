@@ -45,7 +45,7 @@ Dashboard แสดงสถานะแยกตามโพสต์, media �
 4. หากบัญชีใช้ MFA/TOTP ให้เพิ่ม `MEGA_TOTP_SECRET` เป็น seed สำหรับ authenticator; หากไม่ได้ใช้ MFA ให้ไม่ต้องสร้าง secret นี้
 5. กลับ Dashboard แล้วเลือก MEGA
 
-**อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`; หากต้องการเปลี่ยน root ให้เพิ่ม repository variable `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`)
+**อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`; ชื่อไฟล์ MEGA ต่อท้ายด้วย SHA-256 ของเนื้อหาเพื่อเก็บ media คนละเวอร์ชันเป็นคนละไฟล์ ไม่ทับชื่อเดิม. หากต้องการเปลี่ยน root ให้เพิ่ม repository variable `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`)
 
 ## 5. ขนาดและพฤติกรรม
 
@@ -65,6 +65,7 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 - **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ URL ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 50 และเลือกอย่างน้อยหนึ่งปลายทาง
 - **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
 - **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
+- **ไฟล์เก่าถูกเขียนทับก่อนแก้ไข**: ใน MEGA ตรวจเมนูสามจุด → **Previous versions** (ไอคอนรูปนาฬิกา) หากเปิด File versioning ไว้; [คู่มือ MEGA เรื่อง file version history](https://help.mega.io/files-folders/data-restoration/file-version-history). การกู้คืนขึ้นกับการตั้งค่าและข้อมูลที่บัญชียังเก็บอยู่
 - **Download `download_expired`**: artifact หมดอายุหลัง 7 วัน ให้เริ่ม job ใหม่
 - **Download `download_artifact_size_limit`**: รวมไฟล์เกิน 8 GiB ต่อ job; แบ่ง URL เป็นหลายชุด
 - **Telegram `telegram_file_too_large`**: เปิด Large-file mode เฉพาะเมื่อ Local Bot API credentials ถูกตั้งแล้ว

@@ -21,7 +21,7 @@ GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร�
 `PostProcessor` ค้น metadata และดาวน์โหลด/ตรวจ media ลงไฟล์ชั่วคราวครั้งเดียว จากนั้น `DestinationDispatcher` ส่งไฟล์เดียวกันไปยังทุกปลายทางที่เลือก. ผลลัพธ์เก็บ status ต่อ post, destination และ media item; failure ของ target หนึ่งไม่หยุด target อื่น
 
 - Telegram ยังคงล็อก group destination; Telegram error/size limit อยู่เฉพาะ target นั้น
-- MEGA ใช้ official MEGAcmd scriptable CLI ใน runner ชั่วคราว; secret อยู่ใน GitHub Actions Secrets และ path เริ่มต้นคือ `/X2Telegram/YYYY-MM-DD`
+- MEGA ใช้ official MEGAcmd scriptable CLI ใน runner ชั่วคราว; secret อยู่ใน GitHub Actions Secrets และ path เริ่มต้นคือ `/X2Telegram/YYYY-MM-DD`. ชื่อไฟล์ต่อท้าย SHA-256 ของ media เพื่อให้เนื้อหาคนละเวอร์ชันไม่เขียนทับไฟล์เดิม; ผล upload ถูกตรวจยืนยันจากรายการ remote
 - Download คัดลอกไฟล์ไปยังโฟลเดอร์ export, upload เป็น private GitHub Actions artifact 7 วัน แล้ว Worker stream ZIP ผ่าน Access-protected endpoint; จำกัดรวม 8 GiB ต่อ job เพื่อไม่ชนพื้นที่ runner/artifact โดยไม่จำเป็น
 
 ## Retry และ state
