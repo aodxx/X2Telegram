@@ -53,7 +53,7 @@ Dashboard static assets และ API ใช้ Worker origin เดียวก
 
 Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
-Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. Deployment ล่าสุดผ่าน run [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) และ Worker version `c44298fb-47f9-4798-a3db-9cd6946018fb`.
+Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. สถานะ production ปัจจุบันอ้างอิง `docs/AGENT_HANDOFF.md` และ `docs/PROJECT_STATUS.md` ซึ่งระบุ deploy commit `6e673c47842343dee9845ceb4d2a4489fced5d39`, run [#38174506806](https://github.com/aodxx/X2Telegram/actions/runs/38174506806) และ Worker version `25c4517d-56fc-402b-bc62-c65a525d2618`. ค่า run/version รุ่นก่อนที่ปรากฏในเอกสารเก่าไม่ควรถูกใช้เป็น production snapshot ปัจจุบันโดยไม่ตรวจสอบ run ล่าสุดก่อน deploy.
 
 หากเผยแพร่ source ใหม่จาก `control-worker/` แบบ local/manual:
 
