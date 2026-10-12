@@ -57,3 +57,11 @@ Each track is independently marked PASS, FAIL, or BLOCKED. Do not mark a track P
 ## Required handoff
 
 For each track report test environment (without secrets), file size, selected upload path, destination verification, run URL, retry result, and PASS/FAIL/BLOCKED status.
+
+## Completeness audit additions — boundary, interruption, and integrity checks
+
+- Test size boundaries around Telegram's standard 50 MB threshold and verify mode selection, including the case where Telegram is not selected. Use small boundary fixtures for routing logic and only one approved synthetic file above 50 MB for live validation.
+- For Dropbox, exercise upload-session chunk boundaries, interruption/resume or restart behavior supported by the adapter, access-token expiry/refresh failure, and a retry after an ambiguous final response. Confirm incomplete sessions do not appear as successful final files.
+- Verify the configured Local Bot API endpoint is the intended local service, readiness checks fail safely, and tokens/API credentials never appear in diagnostics. Do not expose a Local Bot API endpoint publicly as a workaround.
+- Record exact byte size, expected checksum, remote size/checksum where available, chosen upload mode, and whether verification is mock or live. A successful HTTP response alone is not sufficient evidence of file integrity.
+- Make cleanup narrowly scoped to artifacts created by the test run. If the environment cannot safely verify a scenario, mark only that scenario BLOCKED and continue independent work.
