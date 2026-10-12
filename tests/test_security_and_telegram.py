@@ -6,6 +6,7 @@ import requests
 
 from src.config import Config
 from src.downloader import MediaDownloader
+from src.errors import SourceRetrievalError
 from src.security import validate_download, validate_media_url
 from src.telegram_api import TelegramApiError, TelegramClient
 
@@ -16,6 +17,26 @@ def telegram_response(payload, status=200):
     response.status_code = status
     response.text = str(payload)
     response.json.return_value = payload
+    return response
+
+
+def media_response(status=200, headers=None, chunks=()):
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=None)
+    response.status_code = status
+    response.headers = headers or {}
+    response.iter_content.return_value = list(chunks)
+    return response
+
+
+def media_response(status=200, headers=None, chunks=()):
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=None)
+    response.status_code = status
+    response.headers = headers or {}
+    response.iter_content.return_value = list(chunks)
     return response
 
 
@@ -108,6 +129,7 @@ def test_downloader_writes_atomic_mp4(tmp_path: Path):
     response = Mock()
     response.__enter__ = Mock(return_value=response)
     response.__exit__ = Mock(return_value=None)
+    response.status_code = 200
     response.headers = {"content-type": "video/mp4", "content-length": "12"}
     response.iter_content.return_value = [b"xxxxftypxxxx"]
     response.raise_for_status.return_value = None
@@ -127,8 +149,9 @@ def test_downloader_rejects_redirect_to_unapproved_host():
     redirect.__exit__ = Mock(return_value=None)
     downloader = MediaDownloader(max_retries=1)
     with patch("src.downloader.requests.get", return_value=redirect) as get:
-        with pytest.raises(ValueError, match="approved X media host"):
+        with pytest.raises(SourceRetrievalError, match="unapproved host") as raised:
             downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert raised.value.code == "unsupported_media_url"
     assert get.call_count == 1
     assert get.call_args.kwargs["allow_redirects"] is False
 
@@ -150,3 +173,82 @@ def test_downloader_follows_validated_media_redirect(tmp_path: Path):
     assert get.call_args_list[1].args[0] == "https://pbs.twimg.com/a.mp4"
     assert result.read_bytes() == b"xxxxftypxxxx"
     result.unlink()
+
+
+def test_downloader_honors_retry_after_for_http_429(tmp_path: Path):
+    limited = media_response(429, {"Retry-After": "7"})
+    recovered = media_response(200, {"content-type": "video/mp4", "content-length": "12"}, [b"xxxxftypxxxx"])
+    downloader = MediaDownloader(max_file_size_mb=1, max_retries=2)
+    with patch("src.downloader.requests.get", side_effect=[limited, recovered]) as get, \
+         patch("src.downloader.time.sleep") as sleep:
+        result = downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert get.call_count == 2
+    sleep.assert_called_once_with(7.0)
+    assert result.read_bytes() == b"xxxxftypxxxx"
+    result.unlink()
+
+
+def test_downloader_retries_timeout_with_bounded_backoff(tmp_path: Path):
+    recovered = media_response(200, {"content-type": "video/mp4", "content-length": "12"}, [b"xxxxftypxxxx"])
+    downloader = MediaDownloader(max_file_size_mb=1, max_retries=2)
+    with patch("src.downloader.requests.get", side_effect=[requests.Timeout("timed out"), recovered]) as get, \
+         patch("src.downloader.time.sleep") as sleep:
+        result = downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert get.call_count == 2
+    sleep.assert_called_once_with(1)
+    assert result.read_bytes() == b"xxxxftypxxxx"
+    result.unlink()
+
+
+def test_downloader_does_not_retry_permanent_404_or_leak_source_url():
+    response = media_response(404)
+    downloader = MediaDownloader(max_retries=3)
+    with patch("src.downloader.requests.get", return_value=response) as get:
+        with pytest.raises(SourceRetrievalError) as raised:
+            downloader.download("https://video.twimg.com/private.mp4?token=secret", "video")
+    assert get.call_count == 1
+    assert raised.value.code == "source_media_unavailable"
+    assert "token=secret" not in str(raised.value)
+    assert "video.twimg.com" not in str(raised.value)
+
+
+def test_downloader_reports_rate_limit_after_retry_budget_is_exhausted():
+    limited = media_response(429, {"Retry-After": "1"})
+    downloader = MediaDownloader(max_retries=2)
+    with patch("src.downloader.requests.get", return_value=limited) as get, \
+         patch("src.downloader.time.sleep") as sleep:
+        with pytest.raises(SourceRetrievalError) as raised:
+            downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert raised.value.code == "source_rate_limited"
+    assert raised.value.attempts == 2
+    assert get.call_count == 2
+    sleep.assert_called_once_with(1.0)
+
+
+def test_downloader_rejects_hls_playlist_with_specific_error():
+    playlist = media_response(200, {"content-type": "application/x-mpegurl"})
+    downloader = MediaDownloader(max_retries=1)
+    with patch("src.downloader.requests.get", return_value=playlist):
+        with pytest.raises(SourceRetrievalError) as raised:
+            downloader.download("https://video.twimg.com/playlist.m3u8", "video")
+    assert raised.value.code == "unsupported_media_format"
+    assert "HLS" in str(raised.value)
+
+
+def test_downloader_rejects_declared_file_above_limit_before_streaming():
+    oversized = media_response(200, {"content-type": "video/mp4", "content-length": str(1024 * 1024 + 1)})
+    downloader = MediaDownloader(max_file_size_mb=1, max_retries=1)
+    with patch("src.downloader.requests.get", return_value=oversized):
+        with pytest.raises(SourceRetrievalError) as raised:
+            downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert raised.value.code == "media_too_large"
+
+
+def test_downloader_bounds_redirect_loops():
+    loop = media_response(302, {"location": "https://video.twimg.com/a.mp4"})
+    downloader = MediaDownloader(max_retries=1)
+    with patch("src.downloader.requests.get", return_value=loop) as get:
+        with pytest.raises(SourceRetrievalError) as raised:
+            downloader.download("https://video.twimg.com/a.mp4", "video")
+    assert raised.value.code == "source_redirect_error"
+    assert get.call_count == 6

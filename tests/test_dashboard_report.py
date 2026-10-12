@@ -61,6 +61,37 @@ def test_invalid_request_id_is_not_forwarded():
     assert clean["job_id"] is None
 
 
+def test_sanitizer_keeps_reconciled_input_outcomes_without_raw_urls_or_invalid_text():
+    clean = sanitize_report({
+        "input_count": 3,
+        "blank_line_count": 2,
+        "input_summary": {
+            "submitted": 3, "accepted": 1, "duplicate": 1,
+            "normalized_duplicate": 0, "rejected": 1, "blank_lines_ignored": 2,
+        },
+        "input_outcomes": [
+            {"index": 1, "line_number": 1, "disposition": "accepted", "status": "download_error",
+             "post_id": "9", "username": "u", "source_url": "https://x.com/u/status/9",
+             "stage": "download", "error_code": "media_too_large", "attempts": 1, "variant_attempts": 3,
+             "error": "file too large https://video.twimg.com/x.mp4?token=secret"},
+            {"index": 2, "line_number": 2, "disposition": "duplicate", "status": "duplicate", "post_id": "9", "source_url": "https://x.com/u/status/9", "duplicate_of": 1},
+            {"index": 3, "line_number": 3, "disposition": "rejected", "status": "rejected", "error_code": "invalid_x_url", "raw_value": "private text should never be copied"},
+        ],
+    })
+    assert clean["input_summary"] == {
+        "submitted": 3, "accepted": 1, "duplicate": 1,
+        "normalized_duplicate": 0, "rejected": 1, "blank_lines_ignored": 2,
+    }
+    assert clean["blank_line_count"] == 2
+    assert clean["input_outcomes"][0]["source_url"] == "https://x.com/u/status/9"
+    assert clean["input_outcomes"][0]["attempts"] == 1
+    assert clean["input_outcomes"][0]["variant_attempts"] == 3
+    assert "[url]" in clean["input_outcomes"][0]["error"]
+    assert "secret" not in str(clean["input_outcomes"])
+    assert "raw_value" not in str(clean["input_outcomes"])
+    assert clean["input_outcomes"][1]["duplicate_of"] == 1
+
+
 def test_summary_and_result_values_are_normalized():
     clean = sanitize_report({
         "summary": {"total": -2, "sent": "2"},

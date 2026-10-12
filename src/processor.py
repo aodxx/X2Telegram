@@ -5,7 +5,7 @@ import logging
 from .config import Config
 from .dedupe import DedupeStore
 from .destinations import DestinationDispatcher, safe_filename
-from .errors import DestinationError
+from .errors import DestinationError, SourceRetrievalError
 from .downloader import MediaDownloader
 from .metadata import MetadataProvider
 from .models import PostResult, ResultStatus
@@ -21,6 +21,9 @@ def _media_fingerprint(path: str | Path, kind: str) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+MAX_VIDEO_VARIANT_ATTEMPTS = 3
 
 
 class PostProcessor:
@@ -87,36 +90,106 @@ class PostProcessor:
             result.destinations[destination] = {"status": "no_media", "items": []}
         return result
 
-    def _select_video(self, videos: list) -> object | None:
-        """Select the highest-quality variant that is safe for Telegram."""
+    def _video_candidates(self, videos: list) -> list:
+        """Rank direct variants and keep a bounded fallback when sizes are unknown."""
         if not videos:
-            return None
-        candidates = videos
+            return []
+        limit = self.downloader.max_bytes
         if "telegram" in self.config.destinations:
             local_api = (
                 self.config.large_file_mode
                 and self.config.telegram_api_base_url.rstrip("/") != "https://api.telegram.org"
             )
-            limit = (2000 if local_api else 50) * 1024 * 1024
-            sized = [item for item in videos if isinstance(item.size_bytes, int) and item.size_bytes > 0]
-            safe = [item for item in sized if item.size_bytes <= limit]
-            if safe:
-                candidates = safe
-            elif sized:
-                candidates = [min(sized, key=lambda item: item.size_bytes)]
-        return max(
-            candidates,
-            key=lambda item: (item.bitrate or -1, (item.width or 0) * (item.height or 0)),
-        )
+            limit = min(limit, (2000 if local_api else 50) * 1024 * 1024)
 
-    def _fail_all(self, result: PostResult, error_code: str, message: str) -> PostResult:
+        def numeric(value, default=0.0):
+            try:
+                return float(value)
+            except (TypeError, ValueError, OverflowError):
+                return default
+
+        def size_bytes(item):
+            try:
+                size = int(item.size_bytes)
+            except (TypeError, ValueError, OverflowError):
+                return None
+            return size if size > 0 else None
+
+        quality = lambda item: (
+            numeric(item.bitrate, -1.0), numeric(item.width) * numeric(item.height),
+        )
+        sized = [(item, size_bytes(item)) for item in videos]
+        safe = [item for item, size in sized if size is not None and size <= limit]
+        unknown = [item for item, size in sized if size is None]
+        oversized = [(item, size) for item, size in sized if size is not None and size > limit]
+        if safe:
+            ranked = sorted(safe, key=quality, reverse=True)
+            ranked.extend(sorted(unknown, key=quality, reverse=True))
+            ranked.extend(item for item, _ in sorted(oversized, key=lambda pair: pair[1]))
+            return ranked
+        if unknown:
+            ranked = sorted(unknown, key=quality, reverse=True)
+            ranked.extend(item for item, _ in sorted(oversized, key=lambda pair: pair[1]))
+            return ranked
+        return [item for item, _ in sorted(oversized, key=lambda pair: pair[1])]
+
+    def _select_video(self, videos: list) -> object | None:
+        """Compatibility helper for callers needing only the preferred variant."""
+        candidates = self._video_candidates(videos)
+        return candidates[0] if candidates else None
+
+    def _download_media(self, candidates: list, post: XPost, media_index: int) -> Path:
+        attempts = candidates[:MAX_VIDEO_VARIANT_ATTEMPTS]
+        last_error: SourceRetrievalError | None = None
+        for variant_index, candidate in enumerate(attempts, start=1):
+            try:
+                path = self.downloader.download(candidate.url, candidate.kind)
+            except SourceRetrievalError as exc:
+                last_error = exc
+                exc.variant_attempts = variant_index
+                can_fallback = exc.code in {"media_too_large", "unsupported_media_format"}
+                if not can_fallback or variant_index >= len(attempts):
+                    raise
+                self.logger.warning(
+                    "media_variant_fallback",
+                    extra={"event": "media_variant_fallback", "context": {
+                        "post_id": post.post_id, "media_index": media_index,
+                        "variant_index": variant_index, "error_code": exc.code,
+                    }},
+                )
+                continue
+            if variant_index > 1:
+                self.logger.info(
+                    "media_variant_fallback_succeeded",
+                    extra={"event": "media_variant_fallback_succeeded", "context": {
+                        "post_id": post.post_id, "media_index": media_index, "variant_index": variant_index,
+                    }},
+                )
+            self.logger.info(
+                "media_download_succeeded",
+                extra={"event": "media_download_succeeded", "context": {
+                    "post_id": post.post_id, "media_index": media_index,
+                    "attempts": self.downloader.last_attempt_count,
+                    "variant_attempts": variant_index,
+                }},
+            )
+            return path
+        if last_error:
+            raise last_error
+        raise SourceRetrievalError("source_download_failed", "Could not retrieve media from X.", "download")
+
+    def _fail_all(self, result: PostResult, error_code: str, message: str, attempts: int | None = None) -> PostResult:
         result.error = message
         result.error_code = error_code
         for destination in self.config.destinations:
-            self._entry(result, destination)["status"] = "failed"
-            self._entry(result, destination)["error_code"] = error_code
-            self._entry(result, destination)["error"] = message
-        result.status = ResultStatus.METADATA_ERROR if error_code == "metadata_error" else ResultStatus.ERROR
+            entry = self._entry(result, destination)
+            entry["status"] = "failed"
+            entry["error_code"] = error_code
+            entry["error"] = message
+            entry["stage"] = result.stage
+            if attempts is not None:
+                entry["attempts"] = attempts
+        result.status = ResultStatus.METADATA_ERROR if result.stage == "metadata" else ResultStatus.ERROR
         return result
 
     def process(self, post: XPost) -> PostResult:
@@ -145,35 +218,45 @@ class PostProcessor:
         self.logger.info("post_started", extra={"event": "post_started", "context": {"post_id": post.post_id, "username": post.username}})
         try:
             metadata = self.metadata.get(post)
+        except SourceRetrievalError as exc:
+            self.logger.error("metadata_failed", extra={"event": "metadata_failed", "context": {
+                "post_id": post.post_id, "stage": exc.stage, "error_code": exc.code,
+                "attempts": exc.attempts,
+            }})
+            result.stage = exc.stage
+            return self._fail_all(result, exc.code, str(exc), exc.attempts)
         except Exception:
             self.logger.error("metadata_failed", extra={"event": "metadata_failed", "context": {"post_id": post.post_id}})
             result.stage = "metadata"
-            return self._fail_all(result, "metadata_error", "Could not read public media metadata for this post.")
+            return self._fail_all(result, "source_metadata_unavailable", "Could not retrieve public media metadata from X or its fallback providers.")
 
         if not metadata.media:
+            result.error_code = "no_supported_media"
+            result.error = "No supported public photo or direct MP4 video was found for this X post."
             return self._finish_no_media(result)
 
         videos = [item for item in metadata.media if item.kind == "video"]
         selected = []
-        best_video = self._select_video(videos)
+        video_candidates = self._video_candidates(videos)
         video_added = False
         for item in metadata.media:
             if item.kind == "video":
-                if not video_added:
-                    selected.append(best_video)
+                if not video_added and video_candidates:
+                    selected.append((video_candidates[0], video_candidates))
                     video_added = True
             else:
-                selected.append(item)
+                selected.append((item, [item]))
         result.media_count = len(selected)
         caption = f"@{post.username}\n{post.normalized_url}"
         any_delivery = False
         any_failure = False
         legacy_ids = list((existing_post or {}).get("message_ids") or []) if legacy_complete else []
 
-        for media_index, item in enumerate(selected, start=1):
+        for media_index, (item, candidates) in enumerate(selected, start=1):
             self.logger.info("media_download_started", extra={"event": "media_download_started", "context": {"post_id": post.post_id, "media_index": media_index}})
+            path = None
             try:
-                path = self.downloader.download(item.url, item.kind)
+                path = self._download_media(candidates, post, media_index)
                 filename = safe_filename(post.username, post.post_id, media_index, Path(path).suffix)
                 safe_path = Path(path).with_name(filename)
                 if safe_path != Path(path):
@@ -185,15 +268,41 @@ class PostProcessor:
                 # filename, avoiding overwrite/collision of older MEGA versions.
                 filename_path = Path(filename)
                 mega_filename = f"{filename_path.stem}_{fingerprint}{filename_path.suffix}"
-            except Exception:
+            except SourceRetrievalError as exc:
                 any_failure = True
-                message = "Media download failed for this item."
+                message = str(exc)
+                result.stage = result.stage or exc.stage
                 for destination in self.config.destinations:
                     filename = safe_filename(post.username, post.post_id, media_index, ".mp4" if item.kind == "video" else ".jpg")
-                    self._item(result, destination, filename, "failed", error_code="download_error", error=message)
+                    self._item(result, destination, filename, "failed", error_code=exc.code, error=message,
+                               stage=exc.stage, media_index=media_index, attempts=exc.attempts,
+                               variant_attempts=getattr(exc, "variant_attempts", None))
                 result.error = result.error or message
-                result.error_code = result.error_code or "download_error"
-                self.logger.error("media_download_failed", extra={"event": "media_download_failed", "context": {"post_id": post.post_id, "media_index": media_index}})
+                result.error_code = result.error_code or exc.code
+                self.logger.error("media_download_failed", extra={"event": "media_download_failed", "context": {
+                    "post_id": post.post_id, "media_index": media_index,
+                    "stage": exc.stage, "error_code": exc.code, "attempts": exc.attempts,
+                    "variant_attempts": getattr(exc, "variant_attempts", None),
+                }})
+                continue
+            except Exception:
+                any_failure = True
+                code = "media_processing_error" if path else "source_download_failed"
+                stage = "processing" if path else "download"
+                message = "Downloaded media could not be prepared on the runner." if path else "The source media could not be retrieved after bounded attempts."
+                if path:
+                    Path(path).unlink(missing_ok=True)
+                result.stage = result.stage or stage
+                for destination in self.config.destinations:
+                    filename = safe_filename(post.username, post.post_id, media_index, ".mp4" if item.kind == "video" else ".jpg")
+                    self._item(result, destination, filename, "failed", error_code=code, error=message,
+                               stage=stage, media_index=media_index)
+                result.error = result.error or message
+                result.error_code = result.error_code or code
+                self.logger.error("media_download_failed", extra={"event": "media_download_failed", "context": {
+                    "post_id": post.post_id, "media_index": media_index,
+                    "stage": stage, "error_code": code,
+                }})
                 continue
 
             try:
@@ -292,13 +401,18 @@ class PostProcessor:
         if any_failure and any_delivery:
             result.status = ResultStatus.PARTIAL_SUCCESS
             result.error_code = result.error_code or "partial_destination_failure"
-            result.stage = "completed"
+            result.stage = result.stage or "completed"
         elif any_failure:
             if self.config.destinations == ("telegram",):
-                result.status = ResultStatus.TELEGRAM_ERROR if result.error_code and result.error_code.startswith("telegram") else ResultStatus.DOWNLOAD_ERROR if result.error_code == "download_error" else ResultStatus.ERROR
+                result.status = (
+                    ResultStatus.METADATA_ERROR if result.stage == "metadata"
+                    else ResultStatus.DOWNLOAD_ERROR if result.stage == "download"
+                    else ResultStatus.TELEGRAM_ERROR if result.error_code and result.error_code.startswith("telegram")
+                    else ResultStatus.ERROR
+                )
             else:
                 result.status = ResultStatus.FAILED
-            result.stage = "completed_with_errors"
+            result.stage = result.stage or "completed_with_errors"
         elif self.config.destinations == ("telegram",):
             result.status = ResultStatus.SKIPPED_DUPLICATE if result.destinations["telegram"]["status"] == "duplicate" else ResultStatus.SENT
             result.stage = "completed"

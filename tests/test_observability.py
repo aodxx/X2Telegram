@@ -55,6 +55,23 @@ def test_build_summary_contains_counts_without_media_urls():
     assert "media_url" not in json.dumps(summary)
 
 
+def test_summary_counts_input_dispositions_without_forwarding_urls():
+    report = {
+        "input_count": 3,
+        "valid_unique_posts": 1,
+        "input_summary": {
+            "submitted": 3, "accepted": 1, "duplicate": 1,
+            "normalized_duplicate": 0, "rejected": 1, "blank_lines_ignored": 2,
+        },
+        "input_outcomes": [{"source_url": "https://x.com/user/status/1?token=secret"}],
+    }
+    summary = build_summary(report)
+    assert summary["input_summary"]["submitted"] == 3
+    assert summary["input_summary"]["duplicate"] == 1
+    assert "x.com" not in json.dumps(summary)
+    assert "secret" not in json.dumps(summary)
+
+
 def test_webhook_requires_https():
     with pytest.raises(NotificationError, match="HTTPS"):
         send_webhook({}, "http://example.invalid/hook")
@@ -79,6 +96,20 @@ def test_github_summary_is_written(tmp_path: Path):
     text = path.read_text(encoding="utf-8")
     assert "X2Telegram run summary" in text
     assert "`sent`" in text
+
+
+def test_github_summary_lists_duplicate_and_invalid_inputs(tmp_path: Path):
+    path = tmp_path / "summary.md"
+    write_github_summary({
+        "status": "partial_success", "input_count": 3, "valid_unique_posts": 1,
+        "duration_seconds": 0.5, "results": [{"status": "success"}],
+        "input_summary": {"submitted": 3, "accepted": 1, "duplicate": 1,
+                          "normalized_duplicate": 0, "rejected": 1, "blank_lines_ignored": 2},
+    }, str(path))
+    text = path.read_text(encoding="utf-8")
+    assert "Exact duplicates" in text
+    assert "Rejected inputs" in text
+    assert "Blank lines ignored" in text
 
 
 def test_json_logger_writes_one_json_line(tmp_path: Path):

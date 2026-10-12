@@ -8,6 +8,7 @@ import pytest
 from src.config import Config
 from src.dedupe import DedupeStore
 from src.destinations import DestinationError, DestinationDispatcher, DownloadExporter, MegaUploader, safe_filename, totp_code
+from src.errors import SourceRetrievalError
 from src.metadata import Metadata
 from src.models import MediaItem, ResultStatus
 from src.processor import PostProcessor
@@ -149,6 +150,70 @@ def test_telegram_selects_highest_variant_within_50mb_limit(tmp_path):
     with patch.object(processor.downloader, "download", return_value=path) as download:
         processor.process(parse_x_url("https://x.com/user/status/127"))
     assert download.call_args.args[0] == "https://media.invalid/low.mp4"
+
+
+def test_telegram_falls_back_to_lower_video_variant_when_size_is_unknown(tmp_path):
+    class VariantMetadata:
+        def get(self, post):
+            return Metadata(post, [
+                MediaItem("video", "https://media.invalid/high.mp4", 0, bitrate=2_176_000),
+                MediaItem("video", "https://media.invalid/mid.mp4", 1, bitrate=950_000),
+                MediaItem("video", "https://media.invalid/low.mp4", 2, bitrate=632_000),
+            ])
+
+    telegram = FakeTelegram()
+    config = Config("bot-token", "-1003906817580", max_file_size_mb=50, destinations=("telegram",))
+    processor = PostProcessor(config, VariantMetadata(), telegram)
+    attempts = []
+
+    def download(url, _kind):
+        attempts.append(url)
+        if not url.endswith("/low.mp4"):
+            raise SourceRetrievalError("media_too_large", "The variant exceeds the limit.", "download")
+        path = tmp_path / "low.mp4"
+        path.write_bytes(b"valid-enough-test-fixture")
+        return path
+
+    with patch.object(processor.downloader, "download", side_effect=download):
+        result = processor.process(parse_x_url("https://x.com/user/status/127"))
+
+    assert attempts == [
+        "https://media.invalid/high.mp4",
+        "https://media.invalid/mid.mp4",
+        "https://media.invalid/low.mp4",
+    ]
+    assert result.status == ResultStatus.SENT
+    assert result.error_code is None
+    assert telegram.calls == 1
+
+
+def test_variant_ranking_handles_numeric_strings_and_missing_metadata():
+    processor = PostProcessor(Config(destinations=("download",)), None)
+    variants = [
+        MediaItem("video", "https://media.invalid/high.mp4", 0, bitrate="2000", size_bytes="4000000"),
+        MediaItem("video", "https://media.invalid/mid.mp4", 1, bitrate=1000, size_bytes=3_000_000),
+        MediaItem("video", "https://media.invalid/unknown.mp4", 2),
+    ]
+    try:
+        ranked = processor._video_candidates(variants)
+    finally:
+        processor.close()
+    assert [item.index for item in ranked] == [0, 1, 2]
+
+
+def test_source_download_failure_keeps_actionable_stage_and_media_index(tmp_path):
+    telegram = FakeTelegram()
+    processor, _ = make_processor(tmp_path, ["telegram"], telegram=telegram)
+    failure = SourceRetrievalError("source_rate_limited", "X returned HTTP 429.", "download")
+    with patch.object(processor.downloader, "download", side_effect=failure):
+        result = processor.process(parse_x_url("https://x.com/user/status/124"))
+    assert result.status == ResultStatus.DOWNLOAD_ERROR
+    assert result.stage == "download"
+    assert result.error_code == "source_rate_limited"
+    item = result.destinations["telegram"]["items"][0]
+    assert item["stage"] == "download"
+    assert item["media_index"] == 1
+    assert "429" in item["error"]
 
 
 @pytest.mark.parametrize("destinations", [("mega",), ("download",), ("telegram", "download")])

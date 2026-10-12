@@ -52,6 +52,15 @@
 - Run [#38102024465](https://github.com/aodxx/X2Telegram/actions/runs/38102024465): MEGA success แต่ Telegram item fail ด้วย `telegram_file_too_large`; standard Telegram Bot API policy คือ 50 MB เมื่อไม่ได้เปิด Large-file mode
 - Run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635): `download_error` ก่อนถึง Telegram send; จัดเป็น X/media source retrieval issue ไม่ใช่ Telegram API error
 
+### Priority 1 — X/source reliability (candidate; not deployed)
+
+- Run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635) source-only probes found three direct MP4 variants without sizes; the preferred 2,176,000-bitrate and 950,000-bitrate candidates exceeded the 50 MB cap, while the 632,000-bitrate candidate fetched and validated at **29,799,397 bytes**. No destination adapter was called.
+- In combined run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973), yt-dlp variants were marked MP4 despite HLS protocol/playlist URLs; the source returned `application/x-mpegurl`. Public syndication/FxTwitter fallbacks exposed direct MP4 variants. The first historical URL's other post reached all four destinations; the failed post did not reach any.
+- Candidate code filters HLS/DASH, bounds lower-variant fallback, classifies and redacts source errors, and reports accepted/duplicate/normalized-duplicate/rejected outcomes while accounting for blank lines separately.
+- Independent review also identified three reliability gaps, now covered by regressions: an empty metadata provider no longer masks another provider's timeout/server error as `no_media`; configured `MAX_RETRIES` is passed to the provider; metadata HTTP redirects are followed only after same-host HTTPS validation and are bounded.
+- Candidate validation: Python **129 passed**, Worker **27 passed**. Synthetic batch input=5 nonblank tokens + 1 blank line → 3 accepted unique + 1 normalized duplicate + 1 rejected; 3 ordered post results (2 success, 1 failure) remain visible. The batch fixture injects a failure carrying 2 attempts; downloader tests independently verify two mocked HTTP calls and `Retry-After` handling.
+- **Not live-verified after the code change:** no post-fix X request or real destination send. The failure-surrounded-by-success regression is download-only mocked. See [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md) for the evidence matrix.
+
 ## Scenario status
 
 | Scenario | ผล | หลักฐาน/ขอบเขต |
@@ -72,12 +81,13 @@
 | Telegram+MEGA live combined send | PASS (one live media item) | Run #38037210973; ทั้ง Telegram และ MEGA สำเร็จ; Telegram >50 MB ยังต้องใช้ Large-file mode |
 | Telegram Local Bot API large file | NOT RUN (live) | Run #38102024465 เจอ `telegram_file_too_large` ใน standard mode; ไม่ได้ยืนยัน large-file mode จริง |
 | X/media shared download | PARTIAL (live failures observed) | `download_error` ใน runs #38037210973 และ #38102121635; เมื่อ source media ดึงไม่ได้ ทุก target ของ URL นั้น fail ก่อน dispatch |
+| X/source reliability P1 candidate | PASS (local automated; no post-change live source) | 120 Python tests; fallback, stage/error classification, per-input reconciliation and sanitized retry evidence; production rollout pending |
 | Mobile browser | NOT RUN | ยังไม่มีการทดสอบบนอุปกรณ์มือถือจริง |
 | Invalid URL, body cap, unauthorized | PASS (Worker tests/live safe checks เดิม) | 400/413/401/403 paths ปฏิเสธก่อน dispatch ตาม report/contract เดิม |
 
-## Automated validation หลัง merge
+## Automated validation baseline and candidate
 
-- Python: `python3 -m pytest -q` — **95 passed**
+- Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local P1 candidate: **120 passed** (GitHub CI pending)
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - Deploy workflow: Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน

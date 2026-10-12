@@ -18,7 +18,7 @@ from .models import ResultStatus
 from .notifications import NotificationError, send_webhook, write_github_summary
 from .processor import PostProcessor
 from .telegram_api import REQUIRED_CHAT_ID, TelegramClient
-from .urls import parse_batch
+from .urls import parse_batch_inputs
 
 
 class _UnavailableTelegram:
@@ -81,6 +81,62 @@ def build_summary(results: list[dict]) -> dict:
     return summary
 
 
+def build_input_outcomes(inputs: list, results: list[dict]) -> list[dict]:
+    result_by_post = {str(item.get("post_id")): item for item in results if item.get("post_id") is not None}
+    outcomes = []
+    for entry in inputs:
+        item = {
+            "index": entry.index,
+            "line_number": entry.line_number,
+            "disposition": entry.disposition,
+        }
+        if entry.post:
+            item.update({"username": entry.post.username, "post_id": entry.post.post_id,
+                         "source_url": entry.post.normalized_url})
+        if entry.duplicate_of is not None:
+            item["duplicate_of"] = entry.duplicate_of
+        if entry.disposition == "accepted":
+            processed = result_by_post.get(entry.post.post_id) if entry.post else None
+            item["status"] = processed.get("status", "accepted") if processed else "accepted"
+            if processed:
+                for key in ("stage", "error_code", "error", "attempts", "variant_attempts"):
+                    if processed.get(key) is not None:
+                        item[key] = processed[key]
+                for details in (processed.get("destinations") or {}).values():
+                    if not isinstance(details, dict):
+                        continue
+                    for key in ("attempts", "variant_attempts"):
+                        if details.get(key) is not None and key not in item:
+                            item[key] = details[key]
+                    for media in details.get("items") or []:
+                        if media.get("status") != "failed":
+                            continue
+                        for key in ("attempts", "variant_attempts"):
+                            if media.get(key) is not None and key not in item:
+                                item[key] = media[key]
+        else:
+            item["status"] = entry.disposition
+            if entry.error_code:
+                item["error_code"] = entry.error_code
+            if entry.disposition == "rejected":
+                item["error"] = "This entry is not a valid X post URL."
+        outcomes.append(item)
+    return outcomes
+
+
+def build_input_summary(outcomes: list[dict], blank_line_count: int) -> dict:
+    counts = {name: 0 for name in ("accepted", "duplicate", "normalized_duplicate", "rejected")}
+    for item in outcomes:
+        disposition = item.get("disposition")
+        if disposition in counts:
+            counts[disposition] += 1
+    return {
+        "submitted": len(outcomes),
+        **counts,
+        "blank_lines_ignored": max(0, int(blank_line_count)),
+    }
+
+
 def _create_telegram(config: Config, payload: dict):
     if "telegram" not in config.destinations:
         return None
@@ -126,7 +182,8 @@ def main() -> int:
     started = time.monotonic()
     started_at = datetime.now(timezone.utc).isoformat()
     raw = sys.stdin.read()
-    posts = parse_batch(raw)
+    batch_inputs, blank_line_count = parse_batch_inputs(raw)
+    posts = [entry.post for entry in batch_inputs if entry.disposition == "accepted" and entry.post is not None]
     payload = {
         "schema_version": 2,
         "run_id": os.getenv("GITHUB_RUN_ID"),
@@ -135,19 +192,32 @@ def main() -> int:
         "large_file_mode": os.getenv("LARGE_FILE_MODE", "").lower() == "true",
         "started_at": started_at,
         "status": "completed",
-        "input_count": len(raw.splitlines()),
+        "input_count": len(batch_inputs),
+        "blank_line_count": blank_line_count,
         "valid_unique_posts": len(posts),
         "dedupe_enabled": bool(args.dedupe_state),
         "results": [],
+        "input_outcomes": [],
     }
     exit_code = 0
-    log_event(logger, logging.INFO, "run_started", "run_started", input_count=payload["input_count"], valid_unique_posts=len(posts))
+    log_event(logger, logging.INFO, "run_started", "run_started", input_count=payload["input_count"],
+              blank_line_count=blank_line_count, valid_unique_posts=len(posts))
     if args.parse_only:
         payload["selected_destinations"] = ["telegram"]
         payload["results"] = [
             {"username": post.username, "post_id": post.post_id, "source_url": post.normalized_url, "status": "ready"}
             for post in posts
         ]
+        if not posts:
+            payload["status"] = "completed_with_errors"
+            payload["error_code"] = "invalid_x_url" if batch_inputs else "no_input_urls"
+            payload["error"] = "No valid X post URL was provided. Check the input and try again."
+            exit_code = 1
+    elif not posts:
+        payload["status"] = "completed_with_errors"
+        payload["error_code"] = "invalid_x_url" if batch_inputs else "no_input_urls"
+        payload["error"] = "No valid X post URL was provided. Check the input and try again."
+        exit_code = 1
     else:
         worker = None
         try:
@@ -157,7 +227,7 @@ def main() -> int:
             dedupe = DedupeStore(args.dedupe_state) if args.dedupe_state else None
             worker = PostProcessor(
                 config,
-                YtDlpMetadataProvider(config.timeout_seconds),
+                YtDlpMetadataProvider(config.timeout_seconds, max_retries=config.max_retries),
                 telegram,
                 logger,
                 dedupe,
@@ -192,6 +262,18 @@ def main() -> int:
         finally:
             if worker:
                 worker.close()
+
+    payload["input_outcomes"] = build_input_outcomes(batch_inputs, payload["results"])
+    payload["input_summary"] = build_input_summary(payload["input_outcomes"], blank_line_count)
+    has_rejected_input = any(item.disposition == "rejected" for item in batch_inputs)
+    if has_rejected_input and posts and payload["status"] != "configuration_error":
+        any_delivery = any(
+            value.get("status") in {"success", "ready", "duplicate", "partial_success"}
+            for item in payload["results"]
+            for value in (item.get("destinations") or {}).values()
+        )
+        payload["status"] = "partial_success" if any_delivery else "completed_with_errors"
+        exit_code = 1
 
     payload["summary"] = build_summary(payload["results"])
     payload["duration_seconds"] = round(time.monotonic() - started, 3)

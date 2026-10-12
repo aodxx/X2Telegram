@@ -407,14 +407,42 @@
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
         const good = ['sent', 'success', 'skipped_duplicate'].includes(item.status);
-        const labels = { accepted: 'อยู่ในคิว', queued: 'อยู่ในคิว', processing: 'กำลังทำงาน', success: 'สำเร็จ', sent: 'ส่งแล้ว', ready: 'พร้อมดาวน์โหลด', duplicate: 'รายการซ้ำ', skipped_duplicate: 'ส่งแล้ว · ข้ามรายการซ้ำ', partial_success: 'สำเร็จบางส่วน', failed: 'ไม่สำเร็จ', no_media: 'ไม่พบสื่อ', unavailable: 'เปิดโพสต์ไม่ได้', download_error: 'ดาวน์โหลดสื่อไม่ได้', metadata_error: 'อ่านข้อมูลโพสต์ไม่ได้', telegram_error: 'ส่ง Telegram ไม่ได้', invalid_url: 'ลิงก์ไม่ถูกต้อง' };
+        const labels = {
+          accepted: 'อยู่ในคิว', queued: 'อยู่ในคิว', processing: 'กำลังทำงาน', success: 'สำเร็จ', sent: 'ส่งแล้ว', ready: 'พร้อมดาวน์โหลด',
+          duplicate: 'รายการซ้ำ', skipped_duplicate: 'ส่งแล้ว · ข้ามรายการซ้ำ', partial_success: 'สำเร็จบางส่วน', failed: 'ไม่สำเร็จ',
+          no_media: 'ไม่พบสื่อ', unavailable: 'เปิดโพสต์ไม่ได้', download_error: 'ดาวน์โหลดสื่อไม่ได้', metadata_error: 'อ่านข้อมูลโพสต์ไม่ได้',
+          telegram_error: 'ส่ง Telegram ไม่ได้', invalid_url: 'ลิงก์ไม่ถูกต้อง', source_rate_limited: 'แหล่งต้นทางจำกัดคำขอ',
+          source_access_denied: 'แหล่งต้นทางปฏิเสธการเข้าถึง', source_media_unavailable: 'ไม่พบไฟล์ต้นทาง',
+          source_timeout: 'หมดเวลารอแหล่งต้นทาง', source_network_error: 'เชื่อมต่อแหล่งต้นทางไม่ได้',
+          source_server_error: 'เซิร์ฟเวอร์ต้นทางขัดข้อง', source_metadata_unavailable: 'อ่านข้อมูลโพสต์ไม่ได้',
+          source_metadata_invalid: 'ข้อมูลจากแหล่งต้นทางไม่ถูกต้อง', source_http_error: 'เซิร์ฟเวอร์ต้นทางตอบกลับผิดพลาด',
+          source_response_not_media: 'ได้รับหน้าเว็บแทนไฟล์สื่อ', source_redirect_error: 'ลิงก์ต้นทางเปลี่ยนเส้นทางผิดปกติ',
+          local_storage_error: 'บันทึกไฟล์บน runner ไม่ได้', media_processing_error: 'เตรียมไฟล์ไม่สำเร็จ',
+          source_download_failed: 'ดาวน์โหลดสื่อไม่สำเร็จ', unsupported_media_format: 'รูปแบบวิดีโอไม่รองรับ',
+          media_too_large: 'ไฟล์ใหญ่เกินกำหนด', invalid_media_response: 'ไฟล์ต้นทางไม่สมบูรณ์',
+          unsupported_media_url: 'ลิงก์ไฟล์ต้นทางไม่รองรับ', invalid_media_url: 'ลิงก์ไฟล์ต้นทางไม่ถูกต้อง',
+          no_supported_media: 'ไม่พบรูปหรือวิดีโอที่รองรับ'
+        };
         const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
-        const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}`);
-        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => part.status === 'failed').map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.error ? ` — ${part.error}` : ''}`));
-        const detail = targetStates.length ? targetStates.join(' · ') + (failures.length ? ` · ${failures.join(' · ')}` : '') : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} media · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ');
+        const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}${destination.attempts > 1 ? ` · ลอง ${destination.attempts} ครั้ง` : ''}`);
+        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => part.status === 'failed').map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.media_index ? ` · สื่อ #${part.media_index}` : ''}${part.attempts > 1 ? ` · ลอง ${part.attempts} ครั้ง` : ''}${part.variant_attempts > 1 ? ` · ลองวิดีโอ ${part.variant_attempts} แบบ` : ''}${part.error ? ` — ${part.error}` : ''}`));
+        const stageNames = { input: 'ตรวจลิงก์', metadata: 'อ่านข้อมูลโพสต์', download: 'ดาวน์โหลดสื่อ', processing: 'เตรียมไฟล์', completed: 'ส่งปลายทาง' };
+        const stageText = item.stage ? `${stageNames[item.stage] || item.stage} · ` : '';
+        const failureText = failures.length ? ` · ${failures.join(' · ')}` : item.error ? ` · ${item.error}` : '';
+        const detail = stageText + (targetStates.length ? targetStates.join(' · ') + failureText : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} รายการ · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ'));
         return `<div class="result-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
       }).join('');
-      $('resultList').innerHTML = rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>';
+      const inputs = report.input_outcomes || [];
+      const inputSummary = report.input_summary || {};
+      const inputOverview = inputs.length ? `<div class="result-row"><i class="status-dot good"></i><div><b>ตรวจ ${inputSummary.submitted || inputs.length} ลิงก์</b><span>ไม่ซ้ำ ${inputSummary.accepted || 0} · ซ้ำ ${((inputSummary.duplicate || 0) + (inputSummary.normalized_duplicate || 0))} · ไม่ถูกต้อง ${inputSummary.rejected || 0} · ข้ามบรรทัดว่าง ${inputSummary.blank_lines_ignored || 0}</span></div></div>` : '';
+      const inputIssues = inputs.filter((item) => item.disposition !== 'accepted').map((item) => {
+        const rejected = item.disposition === 'rejected';
+        const postHint = item.post_id ? ` · @${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id)}` : '';
+        const postLink = item.source_url ? ` · <a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener noreferrer">เปิดโพสต์</a>` : '';
+        const detail = rejected ? 'ลิงก์นี้ไม่ใช่ URL โพสต์ X ที่รองรับ กรุณาตรวจแล้วส่งใหม่' : `ซ้ำกับลิงก์ #${item.duplicate_of || 'ก่อนหน้า'}${postHint} · ประมวลผลโพสต์นี้ครั้งเดียว${postLink}`;
+        return `<div class="result-row"><i class="status-dot ${rejected ? 'bad' : 'good'}"></i><div><b>ลิงก์ #${escapeHtml(item.index || '')} · ${rejected ? 'ลิงก์ไม่ถูกต้อง' : 'รายการซ้ำ'}</b><span class="${rejected ? 'result-bad' : 'result-ok'}">${rejected ? escapeHtml(detail) : detail}</span></div></div>`;
+      }).join('');
+      $('resultList').innerHTML = `${rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>'}${inputOverview}${inputIssues}`;
       const summary = report.summary || {};
       showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0}`);
     }

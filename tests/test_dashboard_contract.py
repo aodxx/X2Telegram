@@ -59,3 +59,12 @@ def test_dashboard_hides_internal_implementation_explanations_from_main_page():
     assert "หลักการระบบ" not in HTML
     assert "กลุ่ม Telegram ที่กำหนดตายตัว" not in HTML
     assert 'href="https://github.com/aodxx/X2Telegram/actions/workflows/x2telegram.yml"' not in HTML
+
+
+def test_dashboard_explains_source_error_stage_and_input_duplicates_without_raw_values():
+    assert "media_too_large: 'ไฟล์ใหญ่เกินกำหนด'" in HTML
+    assert "source_rate_limited: 'แหล่งต้นทางจำกัดคำขอ'" in HTML
+    assert "stageNames" in HTML and "ดาวน์โหลดสื่อ" in HTML
+    assert "report.input_summary" in HTML
+    assert "normalized_duplicate" in HTML
+    assert "ประมวลผลโพสต์นี้ครั้งเดียว" in HTML

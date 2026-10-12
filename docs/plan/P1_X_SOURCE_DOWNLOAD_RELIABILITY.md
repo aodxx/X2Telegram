@@ -1,7 +1,7 @@
 # Priority 1 — X Source Download Reliability
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** NOT VERIFIED / IN PROGRESS  
+**Current status:** PARTIAL — code and local regression suite pass; GitHub CI and production rollout are pending.
 **Scope:** Source retrieval, media parsing, per-URL outcomes, and actionable download errors. Do not redesign destinations or the control plane unless evidence shows they are the root cause.
 
 ## Why this is first
@@ -49,3 +49,15 @@ Report: confirmed cause; code/tests changed; commands actually run; CI/run URL; 
 - Classify errors as transient, permanent, or unknown only when evidence supports the classification. For transient network/HTTP failures, use bounded attempts with backoff and respect source rate limits; do not repeatedly retry private, deleted, unsupported, or malformed content.
 - Add fixtures for CRLF/mixed newlines, blank lines, duplicate URLs, redirect loops/limits, timeout, rate-limit response (including Retry-After when present), malformed metadata, and one failing URL surrounded by successful URLs.
 - Acceptance evidence must include input count, per-input outcome count, retry attempt count, and a sanitized error example. Do not include full private/signed URLs in saved reports.
+
+## Verification record (2026-10-12; pre-release)
+
+| Scenario | Expected / input | Observed | Destinations | Evidence | Remaining limitation |
+|---|---:|---|---|---|---|
+| Historical source failure, run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635) | 1 URL, one video | Three direct MP4 variants had unknown sizes; chosen 2,176,000-bitrate candidate and the 950,000 candidate exceeded the 50 MB cap; the 632,000 candidate fetched and validated at 29,799,397 bytes | None; source-only | Sanitized fetch-only reproduction summarized above; no destination adapter called | The post-fix code has not been exercised against X again |
+| Historical HLS failure, run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) | 2 URLs, 2 post results | First post reached all four destinations; second provider returned HLS playlists marked as MP4 and the direct downloader rejected the playlist; public fallbacks exposed direct MP4 variants | Historical live run: Telegram/MEGA/Dropbox/ZIP for first post; none for failed post | Sanitized report/log artifacts and source-only probe | Historical run predates this fix; no new destination upload was made |
+| Bounded video-variant fallback | 1 URL, 3 candidates | Highest and middle candidates fail at the size cap; the lower candidate succeeds; exactly one Telegram send | Telegram mock | `tests/test_destinations.py::test_telegram_falls_back_to_lower_video_variant_when_size_is_unknown` | Synthetic downloader results; no live send |
+| Batch isolation and input reconciliation | 5 nonblank URL tokens, 1 blank line | 3 accepted unique posts, 1 normalized duplicate, 1 rejected; 3 post results in original order (2 success, 1 source failure); partial-success retained; injected failure carries 2 reported HTTP attempts and 1 video variant attempt | Download-only mock | `tests/test_cli_inputs.py::test_cli_keeps_successes_around_failed_url_and_reconciles_inputs` | No live workflow dispatch; retry count is injected in this batch fixture and separately asserted with two mocked HTTP calls in downloader retry tests |
+| HTTP/source/input edge cases | 429, timeout, 404, malformed JSON/authority, HLS, redirect loop, oversized response | Retries are bounded; numeric `Retry-After` is honored; 404 is not retried; malformed source data, IPv6 authority and media/redirect failures are safely classified/rejected; redirect loops stop after 6 requests; one empty provider cannot hide another provider's transient error; metadata redirects are same-host only; CLI passes `MAX_RETRIES` through | None; unit mocks | `tests/test_security_and_telegram.py`, `tests/test_metadata.py`, `tests/test_urls.py`, `tests/test_cli_inputs.py` | No post-change live source run |
+
+**Pre-release validation:** `pytest -q` — 129 passed; `npm test --prefix control-worker` — 27 passed; Python compile, Node/inline dashboard JS syntax, workflow YAML parse, and `git diff --check` passed. The generated sanitized error example is `source_rate_limited` / HTTP 429; reports retain stage and attempt count but remove source URLs and query tokens. Production deployment, CI run, and post-fix live source validation are not yet recorded.

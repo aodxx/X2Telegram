@@ -21,11 +21,15 @@ _SAFE_DESTINATIONS = {"telegram", "mega", "dropbox", "download"}
 _SAFE_DESTINATION_STATUSES = {"success", "failed", "partial_success", "duplicate", "ready", "no_media", "processing"}
 _SAFE_ITEM_STATUSES = {"success", "failed", "duplicate", "ready"}
 _SAFE_CODE_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,80}$")
+_SAFE_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{1,50}$")
+_SAFE_POST_ID_RE = re.compile(r"^\d{1,32}$")
+_SAFE_X_URL_RE = re.compile(r"^https://x\.com/[A-Za-z0-9_]{1,50}/status/\d{1,32}$")
+_SAFE_INPUT_DISPOSITIONS = {"accepted", "duplicate", "normalized_duplicate", "rejected"}
 
 _TOP_KEYS = (
     "schema_version", "run_id", "request_id", "job_id", "status", "started_at", "finished_at",
-    "duration_seconds", "large_file_mode", "input_count", "valid_unique_posts",
-    "dedupe_enabled", "summary", "error_code",
+    "duration_seconds", "large_file_mode", "input_count", "blank_line_count", "valid_unique_posts",
+    "dedupe_enabled", "summary", "input_summary", "error_code",
 )
 _RESULT_KEYS = (
     "post_id", "username", "source_url", "status", "stage", "error_code",
@@ -107,6 +111,14 @@ def _safe_destination_item(item: Any) -> dict[str, Any]:
     warning = _safe_code(item.get("warning"))
     if warning:
         clean["warning"] = warning
+    stage = _safe_code(item.get("stage"))
+    if stage:
+        clean["stage"] = stage
+    if item.get("media_index") is not None:
+        clean["media_index"] = max(1, _safe_count(item.get("media_index")))
+    for key in ("attempts", "variant_attempts"):
+        if item.get(key) is not None:
+            clean[key] = max(1, _safe_count(item.get(key)))
     return clean
 
 
@@ -124,6 +136,11 @@ def _safe_destinations(value: Any) -> dict[str, dict[str, Any]]:
             target["error_code"] = code
         if details.get("error"):
             target["error"] = redact(details["error"])
+        stage = _safe_code(details.get("stage"))
+        if stage:
+            target["stage"] = stage
+        if details.get("attempts") is not None:
+            target["attempts"] = max(1, _safe_count(details.get("attempts")))
         if isinstance(details.get("items"), list):
             target["items"] = [_safe_destination_item(item) for item in details["items"][:100]]
         clean[name] = target
@@ -136,6 +153,61 @@ def _safe_selected_destinations(value: Any) -> list[str]:
     return [name for name in ("telegram", "mega", "dropbox", "download") if name in value and value.count(name) == 1]
 
 
+def _safe_input_summary(value: Any, outcome_count: int) -> dict[str, int]:
+    source = value if isinstance(value, dict) else {}
+    counts = {
+        key: _safe_count(source.get(key, 0))
+        for key in ("accepted", "duplicate", "normalized_duplicate", "rejected")
+    }
+    submitted = sum(counts.values())
+    if submitted != outcome_count:
+        submitted = outcome_count
+        counts["rejected"] = max(0, submitted - counts["accepted"] - counts["duplicate"] - counts["normalized_duplicate"])
+    return {
+        "submitted": submitted,
+        **counts,
+        "blank_lines_ignored": _safe_count(source.get("blank_lines_ignored", 0)),
+    }
+
+
+def _safe_input_outcome(item: Any) -> dict[str, Any]:
+    if not isinstance(item, dict):
+        return {"disposition": "rejected", "status": "rejected", "error_code": "invalid_result"}
+    disposition = str(item.get("disposition", ""))
+    if disposition not in _SAFE_INPUT_DISPOSITIONS:
+        disposition = "rejected"
+    clean: dict[str, Any] = {
+        "index": max(1, _safe_count(item.get("index"))),
+        "line_number": max(1, _safe_count(item.get("line_number"))),
+        "disposition": disposition,
+        "status": _safe_code(item.get("status")) or disposition,
+    }
+    post_id = str(item.get("post_id") or "")
+    if _SAFE_POST_ID_RE.fullmatch(post_id):
+        clean["post_id"] = post_id
+    username = str(item.get("username") or "")
+    if _SAFE_USERNAME_RE.fullmatch(username):
+        clean["username"] = username
+    source_url = str(item.get("source_url") or "")
+    if _SAFE_X_URL_RE.fullmatch(source_url):
+        clean["source_url"] = source_url
+    duplicate_of = _safe_count(item.get("duplicate_of"))
+    if duplicate_of:
+        clean["duplicate_of"] = duplicate_of
+    stage = _safe_code(item.get("stage"))
+    if stage:
+        clean["stage"] = stage
+    code = _safe_code(item.get("error_code"))
+    if code:
+        clean["error_code"] = code
+    for key in ("attempts", "variant_attempts"):
+        if item.get(key) is not None:
+            clean[key] = max(1, _safe_count(item.get(key)))
+    if item.get("error"):
+        clean["error"] = redact(item["error"])
+    return clean
+
+
 def _safe_result(item: Any) -> dict[str, Any]:
     if not isinstance(item, dict):
         return {"status": "error", "error_code": "invalid_result"}
@@ -144,8 +216,19 @@ def _safe_result(item: Any) -> dict[str, Any]:
         if key not in item:
             continue
         value = item[key]
-        if key in {"source_url", "username", "post_id", "status", "stage", "error_code"}:
-            clean[key] = _bounded_text(value)
+        if key == "source_url":
+            source_url = str(value or "")
+            if _SAFE_X_URL_RE.fullmatch(source_url):
+                clean[key] = source_url
+        elif key == "username":
+            username = str(value or "")
+            clean[key] = username if _SAFE_USERNAME_RE.fullmatch(username) else "unknown"
+        elif key == "post_id":
+            post_id = str(value or "")
+            if _SAFE_POST_ID_RE.fullmatch(post_id):
+                clean[key] = post_id
+        elif key in {"status", "stage", "error_code"}:
+            clean[key] = _safe_code(value) or "error"
         elif key == "media_count":
             clean[key] = _safe_count(value)
         elif key == "message_ids":
@@ -165,6 +248,10 @@ def sanitize_report(payload: dict[str, Any]) -> dict[str, Any]:
     out["request_id"] = _safe_request_id(payload.get("request_id"))
     out["job_id"] = _safe_request_id(payload.get("job_id"))
     out["summary"] = _safe_summary(payload.get("summary"))
+    raw_outcomes = payload.get("input_outcomes") if isinstance(payload.get("input_outcomes"), list) else []
+    out["input_outcomes"] = [_safe_input_outcome(item) for item in raw_outcomes]
+    out["input_summary"] = _safe_input_summary(payload.get("input_summary"), len(out["input_outcomes"]))
+    out["blank_line_count"] = _safe_count(payload.get("blank_line_count", out["input_summary"]["blank_lines_ignored"]))
     selected_destinations = _safe_selected_destinations(payload.get("selected_destinations"))
     if selected_destinations:
         out["selected_destinations"] = selected_destinations

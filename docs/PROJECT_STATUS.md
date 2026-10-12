@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-12
-**สถานะ:** Production Worker deploy ผ่าน GitHub Actions แล้ว พร้อม edge rate limiting; Dashboard UX รุ่นล่าสุด deploy ด้วย commit `6e673c4`. Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ขอบเขต large-file ของ Telegram/Dropbox และการดึง media จาก X ยังต้องทดสอบ/ติดตามเพิ่ม
+**สถานะ:** Production Worker deploy ผ่าน GitHub Actions แล้ว พร้อม edge rate limiting; Dashboard UX รุ่นล่าสุด deploy ด้วย commit `6e673c4`. Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. P1 source-reliability candidate ผ่าน local regression tests แต่ยังไม่ deploy; production ปัจจุบันยังมีข้อจำกัดตาม source failures ที่บันทึกไว้ด้านล่าง
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -63,6 +63,13 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - ยังไม่ได้ทดสอบ browser มือถือจริง
 - GitHub artifact หมดอายุ 7 วัน; สร้าง job ใหม่เพื่อได้ ZIP ใหม่
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย
+
+## Priority 1 — X/source reliability candidate (ยังไม่ release)
+
+- Historical failure #38102121635: fetch-only reproduction พบว่าวิดีโอมี direct MP4 variants ที่ไม่ระบุขนาด; ตัวเลือกที่ bitrate สูงสุดและตัวเลือกระดับกลางเกิน 50 MB แต่ variant bitrate ต่ำกว่าดาวน์โหลด/validate ได้ที่ 29,799,397 bytes. ใน run #38037210973, yt-dlp รายงาน HLS/DASH playlist เสมือน MP4; CDN ตอบ `application/x-mpegurl`; public metadata fallbacks มี direct MP4 ให้ใช้แทน
+- Candidate แก้โดยกรอง HLS/DASH ออกจาก direct MP4 metadata, ลอง bounded lower variants, classify HTTP/timeout/format/size/metadata errors พร้อม attempts/stage, ไม่ปล่อยให้ empty provider ซ่อน transient failure, ส่ง `MAX_RETRIES` เข้า metadata provider, ตรวจ same-host HTTPS redirects และเก็บผล accepted/duplicate/normalized duplicate/rejected แยกทุก URL โดยไม่นับ blank lines เป็น URL
+- Local validation: Python `pytest -q` **129 passed**, Worker `npm test --prefix control-worker` **27 passed**, compile/Node/inline dashboard JavaScript/workflow YAML/diff checks ผ่าน
+- ยังไม่มี post-fix live X fetch หรือ destination send; ไม่มีการส่ง Telegram/อัปโหลดปลายทางระหว่าง validation นี้. ดู evidence matrix และข้อจำกัดที่ [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md)
 
 ## เอกสาร
 

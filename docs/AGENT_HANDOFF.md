@@ -4,6 +4,8 @@
 **จุดอ้างอิง:** `main` / production deployment commit `6e673c4`
 **สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
 
+**Execution Plan Priority 1:** source reliability candidate ผ่าน local Python suite 129 tests และ Worker suite 27 tests; ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md). ขณะบันทึกนี้ยัง pending commit/CI/production Worker rollout; ไม่มี post-fix live X fetch หรือ destination send.
+
 ## 1. สรุปสำหรับ agent ที่เพิ่งเข้ามา
 
 ระบบปัจจุบันมี flow ดังนี้:
