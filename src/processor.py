@@ -235,15 +235,19 @@ class PostProcessor:
             result.error = "No supported public photo or direct MP4 video was found for this X post."
             return self._finish_no_media(result)
 
-        videos = [item for item in metadata.media if item.kind == "video"]
         selected = []
-        video_candidates = self._video_candidates(videos)
-        video_added = False
+        video_groups: dict[int, list] = {}
         for item in metadata.media:
             if item.kind == "video":
-                if not video_added and video_candidates:
-                    selected.append((video_candidates[0], video_candidates))
-                    video_added = True
+                video_groups.setdefault(item.index, []).append(item)
+        added_video_groups: set[int] = set()
+        for item in metadata.media:
+            if item.kind == "video":
+                if item.index not in added_video_groups:
+                    video_candidates = self._video_candidates(video_groups[item.index])
+                    if video_candidates:
+                        selected.append((video_candidates[0], video_candidates))
+                    added_video_groups.add(item.index)
             else:
                 selected.append((item, [item]))
         result.media_count = len(selected)
@@ -312,7 +316,7 @@ class PostProcessor:
                         message_id = legacy_ids[media_index - 1] if media_index <= len(legacy_ids) else None
                         if message_id is not None:
                             result.message_ids.append(message_id)
-                        self._item(result, destination, destination_filename, "duplicate", message_id=message_id)
+                        self._item(result, destination, destination_filename, "duplicate", message_id=message_id, media_index=media_index)
                         any_delivery = True
                         continue
 
@@ -331,7 +335,7 @@ class PostProcessor:
                             message_id = prior.get("message_id") if destination == "telegram" else None
                             if isinstance(message_id, int):
                                 result.message_ids.append(message_id)
-                            self._item(result, destination, prior_filename or destination_filename, "duplicate", message_id=message_id)
+                            self._item(result, destination, prior_filename or destination_filename, "duplicate", message_id=message_id, media_index=media_index)
                             if destination_filename not in result.filenames:
                                 result.filenames.append(destination_filename)
                             any_delivery = True
@@ -346,7 +350,7 @@ class PostProcessor:
                         details = self.dispatcher.deliver(destination, path, destination_filename, caption, item.kind)
                     except DestinationError as exc:
                         any_failure = True
-                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc))
+                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc), media_index=media_index)
                         result.error = result.error or str(exc)
                         result.error_code = result.error_code or exc.code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": exc.code, "media_index": media_index}})
@@ -355,14 +359,14 @@ class PostProcessor:
                         any_failure = True
                         code = f"{destination}_error"
                         message = f"{destination.capitalize()} delivery failed for this item."
-                        self._item(result, destination, destination_filename, "failed", error_code=code, error=message)
+                        self._item(result, destination, destination_filename, "failed", error_code=code, error=message, media_index=media_index)
                         result.error = result.error or message
                         result.error_code = result.error_code or code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": code, "media_index": media_index}})
                         continue
 
                     state = "ready" if destination == "download" else "success"
-                    self._item(result, destination, destination_filename, state, **details)
+                    self._item(result, destination, destination_filename, state, media_index=media_index, **details)
                     if destination_filename not in result.filenames:
                         result.filenames.append(destination_filename)
                     if destination == "telegram" and isinstance(details.get("message_id"), int):

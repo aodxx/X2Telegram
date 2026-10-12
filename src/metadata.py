@@ -268,7 +268,9 @@ class YtDlpMetadataProvider(MetadataProvider):
         seen: set[str] = set()
         formats = info.get("formats") or []
         video_formats = [item for item in formats if item.get("url") and item.get("vcodec") not in (None, "none")]
-        for index, item in enumerate(video_formats):
+        # yt-dlp returns formats as variants of the single post media item;
+        # the format's position is not a distinct media identity.
+        for item in video_formats:
             url = item["url"]
             protocol = str(item.get("protocol") or "").lower()
             extension = str(item.get("ext") or "").lower()
@@ -288,7 +290,7 @@ class YtDlpMetadataProvider(MetadataProvider):
                 continue
             seen.add(url)
             media.append(MediaItem(
-                "video", url, index,
+                "video", url, 0,
                 int(item["tbr"] * 1000) if item.get("tbr") else None,
                 item.get("width"), item.get("height"), extension,
                 item.get("filesize") or item.get("filesize_approx"),

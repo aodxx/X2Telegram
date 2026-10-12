@@ -4,6 +4,8 @@
 **จุดอ้างอิง:** `main` / production deployment commit `8fb4427`
 **สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
 
+**P2 progress (2026-10-12):** feature branch `fix/p2-multiple-video-media-items` groups video variants by media identity and reports `media_index` per destination item. Python full suite: 132 passed. The branch is not merged/deployed and does not replace live X/destination verification; see [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
+
 **Execution Plan Priority 1:** source reliability release ผ่าน local/CI Python suite 129 tests, Worker suite 27 tests, Pages deploy และ production Worker rollout (version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`). ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md). ยังไม่มี post-fix live X fetch หรือ destination send; คงสถานะ PARTIAL จนกว่าจะมีหลักฐาน source-only ที่ปลอดภัย.
 
 ## 1. สรุปสำหรับ agent ที่เพิ่งเข้ามา

@@ -57,6 +57,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## ขอบเขต/ข้อจำกัดที่ยังเหลือ
 
+- P2 media completeness: candidate บน `fix/p2-multiple-video-media-items` แก้การรวม video variants ข้าม media identity และเพิ่ม `media_index` ในผล destination ต่อชิ้น; Python suite **132 passed** ใน working tree (2026-10-12). ยังไม่มี live X multi-video หรือ remote destination verification และยังไม่ merge/deploy
 - X media fetch ยังมี `download_error` ในบาง run; เมื่อเกิดก่อน destination dispatch จะล้มพร้อมกันทุก target สำหรับ URL นั้น (เช่น run #38037210973)
 - Telegram >50 MB ต้องเปิด Large-file mode และ Local Bot API; run #38102024465 ยืนยันว่า standard mode ปฏิเสธไฟล์ใหญ่ตาม limit; Local Bot API path ยังไม่ live-tested
 - Dropbox live upload ผ่านหนึ่ง media แล้ว; OAuth refresh หลัง token expiry และ large-file upload session ยังมีเพียง automated coverage

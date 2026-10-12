@@ -67,6 +67,7 @@
 
 | Scenario | ผล | หลักฐาน/ขอบเขต |
 |---|---|---|
+| โพสต์หนึ่งรายการมีวิดีโอ media identity สองชิ้น | PASS (automated mock) | Working-tree regression: 2 media identities × 2 bitrate variants → เลือกและ export แยก 2 ไฟล์; report มี media index แยก; ไม่มี live X fetch หรือปลายทางจริง |
 | Dashboard Access/login same-origin | PASS (live) | Browser แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง` |
 | Telegram normal path | PASS (live) | Run #37807253687, MP4 1 ไฟล์, message ID 347 |
 | Batch URL dispatch 1–50 | PASS (live 2 URLs) | Run #37816856323; completed posts ถูก dedupe ไม่ส่งซ้ำ |
@@ -90,6 +91,7 @@
 ## Automated validation baseline and candidate
 
 - Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local/CI P1 release: **129 passed** (CI #38254729760)
+- P2 media-identity candidate on feature branch `fix/p2-multiple-video-media-items` (2026-10-12): targeted `tests/test_destinations.py tests/test_metadata.py` — **43 passed**; full Python suite — **132 passed**. This candidate is not merged/deployed and has no live X/destination evidence.
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - Deploy workflow [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272): Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน on commit `8fb4427`; Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน

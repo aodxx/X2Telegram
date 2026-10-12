@@ -4,6 +4,15 @@
 **Current status:** PARTIAL EVIDENCE / IN PROGRESS  
 **Scope:** URL batches, media enumeration, filenames, dedupe identity, destination writes, and output accounting.
 
+## Local implementation evidence (2026-10-12)
+
+| Scenario | Expected / input | Observed | Destination | Evidence | Remaining limitation |
+|---|---|---|---|---|---|
+| Two video media items in one post, each with two bitrate variants | 1 synthetic post, 2 media identities, 4 variants → 2 files | Best variant selected independently per media identity; report items carry `media_index` 1 and 2; exported bytes match the selected fixture URLs | Download-only mock | `tests/test_destinations.py::test_post_with_two_video_media_items_downloads_best_variant_for_each` | No live X multi-video source or remote destination verification |
+| Metadata identity normalization | 2 videos × 2 variants; yt-dlp single-video formats | Syndication keeps one index per media item; yt-dlp formats share the single item's index | Metadata unit tests | `tests/test_metadata.py::test_syndication_assigns_one_media_index_to_each_video_and_its_variants`, `test_ytdlp_assigns_same_media_index_to_all_video_formats` | Provider payloads are fixtures, not live X responses |
+
+Python validation on the working tree: targeted media/metadata tests **43 passed**; full suite **132 passed**. This is automated evidence only and does not complete the P2 live-source/destination acceptance criteria.
+
 ## Known context
 
 The repository documents a successful MEGA version-retention integration using two synthetic payloads and full SHA-256-based filenames ([PROJECT_STATUS.md](../PROJECT_STATUS.md), [E2E_TEST_REPORT.md](../E2E_TEST_REPORT.md)). That proves the tested storage scenario only; it does not prove every real X multi-URL or multi-media scenario is complete. The combined live run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) had one media item fail at source download before reaching destinations.

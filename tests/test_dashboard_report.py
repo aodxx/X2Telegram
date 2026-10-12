@@ -109,7 +109,7 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
         "selected_destinations": ["telegram", "mega", "download", "unknown"],
         "summary": {"total": 1, "destinations": {"telegram": {"success": 1}, "mega": {"failed": 1}, "unknown": {"success": 1}}},
         "results": [{"status": "partial_success", "destinations": {
-            "telegram": {"status": "success", "items": [{"status": "success", "filename": "u_1_01.mp4", "message_id": 42}]},
+            "telegram": {"status": "success", "items": [{"status": "success", "filename": "u_1_01.mp4", "message_id": 42, "media_index": 1}]},
             "mega": {"status": "failed", "error": "login password=not-a-secret", "items": [{"status": "failed", "filename": "u_1_01.mp4", "error_code": "mega_authentication_failed", "error": "failed https://mega.nz/private"}], "remote_folder": "/private/account"},
             "unknown": {"status": "success"},
         }}],
@@ -118,6 +118,7 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
     item = clean["results"][0]
     assert item["destinations"]["telegram"]["status"] == "success"
     assert item["destinations"]["telegram"]["items"][0]["message_id"] == 42
+    assert item["destinations"]["telegram"]["items"][0]["media_index"] == 1
     assert item["destinations"]["mega"]["status"] == "failed"
     assert "[secret]" in item["destinations"]["mega"]["error"]
     assert "[url]" in item["destinations"]["mega"]["items"][0]["error"]

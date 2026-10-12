@@ -62,8 +62,27 @@ def test_fxtwitter_extracts_high_quality_mp4_variants():
     with patch("src.metadata.requests.get", return_value=json_response(payload)):
         result = provider._from_fxtwitter(post)
     assert [item.bitrate for item in result.media] == [256000, 2176000]
+    assert [item.index for item in result.media] == [0, 0]
     assert result.media[-1].size_bytes == 80_000_000
     assert result.media[-1].url.endswith("?tag=12")
+
+
+def test_syndication_assigns_one_media_index_to_each_video_and_its_variants():
+    provider = YtDlpMetadataProvider(timeout_seconds=5)
+    post = parse_x_url("https://x.com/user/status/123")
+    payload = {"mediaDetails": [
+        {"type": "video", "video_info": {"variants": [
+            {"content_type": "video/mp4", "bitrate": 100, "url": "https://video.twimg.com/first-low.mp4"},
+            {"content_type": "video/mp4", "bitrate": 200, "url": "https://video.twimg.com/first-high.mp4"},
+        ]}},
+        {"type": "video", "video_info": {"variants": [
+            {"content_type": "video/mp4", "bitrate": 150, "url": "https://video.twimg.com/second-low.mp4"},
+            {"content_type": "video/mp4", "bitrate": 300, "url": "https://video.twimg.com/second-high.mp4"},
+        ]}},
+    ]}
+    with patch("src.metadata.requests.get", return_value=json_response(payload)):
+        result = provider._from_syndication(post)
+    assert [item.index for item in result.media] == [0, 0, 1, 1]
 
 
 def test_ytdlp_filters_hls_and_keeps_progressive_mp4():
@@ -89,6 +108,29 @@ def test_ytdlp_filters_hls_and_keeps_progressive_mp4():
     assert len(result.media) == 1
     assert result.media[0].bitrate == 900_000
     assert result.media[0].url.endswith("direct.mp4?sig=secret")
+
+
+def test_ytdlp_assigns_same_media_index_to_all_video_formats():
+    provider = YtDlpMetadataProvider(timeout_seconds=5)
+    post = parse_x_url("https://x.com/user/status/123")
+
+    class FakeYoutubeDL:
+        def __init__(self, _options):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return None
+        def extract_info(self, _url, download=False):
+            return {"formats": [
+                {"url": "https://video.twimg.com/low.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 100},
+                {"url": "https://video.twimg.com/high.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 200},
+            ]}
+
+    with patch.dict(sys.modules, {"yt_dlp": SimpleNamespace(YoutubeDL=FakeYoutubeDL)}):
+        result = provider._from_ytdlp(post)
+    assert len(result.media) == 2
+    assert [item.index for item in result.media] == [0, 0]
 
 
 def test_ytdlp_metadata_uses_configured_bounded_retry_budget():
