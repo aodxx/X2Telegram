@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -25,7 +26,7 @@ class MixedMediaMetadata:
         return Metadata(post, [
             MediaItem("photo", "https://media.invalid/photo.jpg", 0),
             MediaItem("video", "https://media.invalid/low.mp4", 1, bitrate=100),
-            MediaItem("video", "https://media.invalid/high.mp4", 2, bitrate=200),
+            MediaItem("video", "https://media.invalid/high.mp4", 1, bitrate=200),
         ])
 
 
@@ -141,6 +142,59 @@ def test_mixed_photo_video_post_keeps_photo_and_downloads_best_video_once(tmp_pa
     assert sorted(item.name for item in (tmp_path / "exports").iterdir()) == ["126_01.jpg", "126_02.mp4"]
 
 
+def test_post_with_two_video_media_items_downloads_best_variant_for_each(tmp_path):
+    class TwoVideoMetadata:
+        def get(self, post):
+            return Metadata(post, [
+                MediaItem("video", "https://media.invalid/first-low.mp4", 0, bitrate=100),
+                MediaItem("video", "https://media.invalid/second-high.mp4", 1, bitrate=300),
+                MediaItem("video", "https://media.invalid/first-high.mp4", 0, bitrate=200),
+                MediaItem("video", "https://media.invalid/second-low.mp4", 1, bitrate=150),
+            ])
+
+    exporter = DownloadExporter(tmp_path / "exports")
+    processor = PostProcessor(
+        Config(max_file_size_mb=2000, destinations=("download",)),
+        TwoVideoMetadata(), download_exporter=exporter,
+    )
+    selected_urls = []
+    payloads = {
+        "https://media.invalid/first-high.mp4": b"first-distinct-video-bytes",
+        "https://media.invalid/second-high.mp4": b"second-distinct-video-content",
+    }
+
+    def fake_download(url, _kind):
+        selected_urls.append(url)
+        path = tmp_path / f"source-{len(selected_urls)}.mp4"
+        path.write_bytes(payloads[url])
+        return path
+
+    with patch.object(processor.downloader, "download", side_effect=fake_download) as download:
+        result = processor.process(parse_x_url("https://x.com/user/status/126"))
+
+    output = tmp_path / "exports"
+    assert download.call_count == 2
+    assert selected_urls == [
+        "https://media.invalid/first-high.mp4",
+        "https://media.invalid/second-high.mp4",
+    ]
+    assert result.media_count == 2
+    assert [item["media_index"] for item in result.destinations["download"]["items"]] == [1, 2]
+    assert sorted(path.name for path in output.iterdir()) == ["126_01.mp4", "126_02.mp4"]
+    exported = [(output / "126_01.mp4").read_bytes(), (output / "126_02.mp4").read_bytes()]
+    assert exported == [payloads[selected_urls[0]], payloads[selected_urls[1]]]
+    assert [len(data) for data in exported] == [len(payloads[url]) for url in selected_urls]
+    assert [sha256(data).hexdigest() for data in exported] == [sha256(payloads[url]).hexdigest() for url in selected_urls]
+    assert [entry["sha256"] for entry in result.media_manifest] == [sha256(data).hexdigest() for data in exported]
+    assert [entry["size_bytes"] for entry in result.media_manifest] == [len(data) for data in exported]
+    assert result.media_reconciliation["expected_items"] == 2
+    assert result.media_reconciliation["downloaded_items"] == 2
+    assert result.media_reconciliation["destinations"]["download"] == {
+        "expected_items": 2, "accounted_items": 2, "delivered_items": 2,
+        "duplicate_items": 0, "failed_items": 0, "unaccounted_items": 0,
+    }
+
+
 def test_telegram_selects_highest_variant_within_50mb_limit(tmp_path):
     telegram = FakeTelegram()
     config = Config("bot-token", "-1003906817580", max_file_size_mb=50, destinations=("telegram",))
@@ -157,8 +211,8 @@ def test_telegram_falls_back_to_lower_video_variant_when_size_is_unknown(tmp_pat
         def get(self, post):
             return Metadata(post, [
                 MediaItem("video", "https://media.invalid/high.mp4", 0, bitrate=2_176_000),
-                MediaItem("video", "https://media.invalid/mid.mp4", 1, bitrate=950_000),
-                MediaItem("video", "https://media.invalid/low.mp4", 2, bitrate=632_000),
+                MediaItem("video", "https://media.invalid/mid.mp4", 0, bitrate=950_000),
+                MediaItem("video", "https://media.invalid/low.mp4", 0, bitrate=632_000),
             ])
 
     telegram = FakeTelegram()
@@ -214,6 +268,11 @@ def test_source_download_failure_keeps_actionable_stage_and_media_index(tmp_path
     assert item["stage"] == "download"
     assert item["media_index"] == 1
     assert "429" in item["error"]
+    assert result.media_manifest[0]["download_status"] == "failed"
+    assert result.media_manifest[0]["destinations"]["telegram"] == "failed"
+    assert result.media_reconciliation["expected_items"] == 1
+    assert result.media_reconciliation["download_failed_items"] == 1
+    assert result.media_reconciliation["destinations"]["telegram"]["unaccounted_items"] == 0
 
 
 @pytest.mark.parametrize("destinations", [("mega",), ("download",), ("telegram", "download")])

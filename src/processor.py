@@ -14,13 +14,19 @@ from .urls import XPost
 
 
 def _media_fingerprint(path: str | Path, kind: str) -> str:
-    digest = sha256()
-    digest.update(kind.encode("utf-8"))
-    digest.update(b"\0")
+    return _media_hashes(path, kind)[0]
+
+
+def _media_hashes(path: str | Path, kind: str) -> tuple[str, str]:
+    fingerprint = sha256()
+    content_hash = sha256()
+    fingerprint.update(kind.encode("utf-8"))
+    fingerprint.update(b"\0")
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+            fingerprint.update(chunk)
+            content_hash.update(chunk)
+    return fingerprint.hexdigest(), content_hash.hexdigest()
 
 
 MAX_VIDEO_VARIANT_ATTEMPTS = 3
@@ -88,7 +94,39 @@ class PostProcessor:
         result.stage = "metadata"
         for destination in self.config.destinations:
             result.destinations[destination] = {"status": "no_media", "items": []}
+        self._finalize_media_reconciliation(result)
         return result
+
+    def _finalize_media_reconciliation(self, result: PostResult, status: str = "complete") -> None:
+        for manifest_item in result.media_manifest:
+            media_index = manifest_item["media_index"]
+            for destination in self.config.destinations:
+                destination_items = (result.destinations.get(destination) or {}).get("items") or []
+                matching = [item for item in destination_items if item.get("media_index") == media_index]
+                manifest_item["destinations"][destination] = matching[-1].get("status", "not_attempted") if matching else "not_attempted"
+
+        destination_summary = {}
+        for destination in self.config.destinations:
+            statuses = [item["destinations"].get(destination, "not_attempted") for item in result.media_manifest]
+            expected = len(result.media_manifest) if status == "complete" else None
+            accounted = sum(value != "not_attempted" for value in statuses)
+            destination_summary[destination] = {
+                "expected_items": expected,
+                "accounted_items": accounted,
+                "delivered_items": sum(value in {"success", "ready"} for value in statuses),
+                "duplicate_items": statuses.count("duplicate"),
+                "failed_items": statuses.count("failed"),
+                "unaccounted_items": max(0, len(result.media_manifest) - accounted) if status == "complete" else None,
+            }
+
+        result.media_reconciliation = {
+            "status": status,
+            "expected_items": len(result.media_manifest) if status == "complete" else None,
+            "downloaded_items": sum(item.get("download_status") == "validated" for item in result.media_manifest),
+            "download_failed_items": sum(item.get("download_status") == "failed" for item in result.media_manifest),
+            "processing_failed_items": sum(item.get("download_status") == "processing_failed" for item in result.media_manifest),
+            "destinations": destination_summary,
+        }
 
     def _video_candidates(self, videos: list) -> list:
         """Rank direct variants and keep a bounded fallback when sizes are unknown."""
@@ -212,6 +250,7 @@ class PostProcessor:
                 "status": "duplicate",
                 "items": [{"status": "duplicate", "message_id": value} for value in result.message_ids],
             }
+            self._finalize_media_reconciliation(result, "not_enumerated")
             self.logger.info("post_skipped_duplicate", extra={"event": "post_skipped_duplicate", "context": {"post_id": post.post_id}})
             return result
 
@@ -224,29 +263,49 @@ class PostProcessor:
                 "attempts": exc.attempts,
             }})
             result.stage = exc.stage
-            return self._fail_all(result, exc.code, str(exc), exc.attempts)
+            failed = self._fail_all(result, exc.code, str(exc), exc.attempts)
+            self._finalize_media_reconciliation(failed, "metadata_failed")
+            return failed
         except Exception:
             self.logger.error("metadata_failed", extra={"event": "metadata_failed", "context": {"post_id": post.post_id}})
             result.stage = "metadata"
-            return self._fail_all(result, "source_metadata_unavailable", "Could not retrieve public media metadata from X or its fallback providers.")
+            failed = self._fail_all(result, "source_metadata_unavailable", "Could not retrieve public media metadata from X or its fallback providers.")
+            self._finalize_media_reconciliation(failed, "metadata_failed")
+            return failed
 
         if not metadata.media:
             result.error_code = "no_supported_media"
             result.error = "No supported public photo or direct MP4 video was found for this X post."
             return self._finish_no_media(result)
 
-        videos = [item for item in metadata.media if item.kind == "video"]
         selected = []
-        video_candidates = self._video_candidates(videos)
-        video_added = False
+        video_groups: dict[int, list] = {}
         for item in metadata.media:
             if item.kind == "video":
-                if not video_added and video_candidates:
-                    selected.append((video_candidates[0], video_candidates))
-                    video_added = True
+                video_groups.setdefault(item.index, []).append(item)
+        added_video_groups: set[int] = set()
+        for item in metadata.media:
+            if item.kind == "video":
+                if item.index not in added_video_groups:
+                    video_candidates = self._video_candidates(video_groups[item.index])
+                    if video_candidates:
+                        selected.append((video_candidates[0], video_candidates))
+                    added_video_groups.add(item.index)
             else:
                 selected.append((item, [item]))
         result.media_count = len(selected)
+        result.media_manifest = [
+            {
+                "media_index": media_index,
+                "source_index": item.index,
+                "kind": item.kind,
+                "download_status": "pending",
+                "size_bytes": None,
+                "sha256": None,
+                "destinations": {destination: "not_attempted" for destination in self.config.destinations},
+            }
+            for media_index, (item, _candidates) in enumerate(selected, start=1)
+        ]
         caption = f"@{post.username}\n{post.normalized_url}"
         any_delivery = False
         any_failure = False
@@ -262,7 +321,13 @@ class PostProcessor:
                 if safe_path != Path(path):
                     Path(path).replace(safe_path)
                     path = safe_path
-                fingerprint = _media_fingerprint(path, item.kind)
+                fingerprint, content_sha256 = _media_hashes(path, item.kind)
+                manifest_item = result.media_manifest[media_index - 1]
+                manifest_item.update({
+                    "download_status": "validated",
+                    "size_bytes": Path(path).stat().st_size,
+                    "sha256": content_sha256,
+                })
                 # MEGA must preserve older versions if the same X post later exposes
                 # changed media. The full SHA-256 fingerprint makes each distinct payload a distinct remote
                 # filename, avoiding overwrite/collision of older MEGA versions.
@@ -270,6 +335,9 @@ class PostProcessor:
                 mega_filename = f"{filename_path.stem}_{fingerprint}{filename_path.suffix}"
             except SourceRetrievalError as exc:
                 any_failure = True
+                manifest_item = result.media_manifest[media_index - 1]
+                manifest_item["download_status"] = "failed"
+                manifest_item["error_code"] = exc.code
                 message = str(exc)
                 result.stage = result.stage or exc.stage
                 for destination in self.config.destinations:
@@ -289,6 +357,9 @@ class PostProcessor:
                 any_failure = True
                 code = "media_processing_error" if path else "source_download_failed"
                 stage = "processing" if path else "download"
+                manifest_item = result.media_manifest[media_index - 1]
+                manifest_item["download_status"] = "processing_failed" if path else "failed"
+                manifest_item["error_code"] = code
                 message = "Downloaded media could not be prepared on the runner." if path else "The source media could not be retrieved after bounded attempts."
                 if path:
                     Path(path).unlink(missing_ok=True)
@@ -312,7 +383,7 @@ class PostProcessor:
                         message_id = legacy_ids[media_index - 1] if media_index <= len(legacy_ids) else None
                         if message_id is not None:
                             result.message_ids.append(message_id)
-                        self._item(result, destination, destination_filename, "duplicate", message_id=message_id)
+                        self._item(result, destination, destination_filename, "duplicate", message_id=message_id, media_index=media_index)
                         any_delivery = True
                         continue
 
@@ -331,7 +402,7 @@ class PostProcessor:
                             message_id = prior.get("message_id") if destination == "telegram" else None
                             if isinstance(message_id, int):
                                 result.message_ids.append(message_id)
-                            self._item(result, destination, prior_filename or destination_filename, "duplicate", message_id=message_id)
+                            self._item(result, destination, prior_filename or destination_filename, "duplicate", message_id=message_id, media_index=media_index)
                             if destination_filename not in result.filenames:
                                 result.filenames.append(destination_filename)
                             any_delivery = True
@@ -346,7 +417,7 @@ class PostProcessor:
                         details = self.dispatcher.deliver(destination, path, destination_filename, caption, item.kind)
                     except DestinationError as exc:
                         any_failure = True
-                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc))
+                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc), media_index=media_index)
                         result.error = result.error or str(exc)
                         result.error_code = result.error_code or exc.code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": exc.code, "media_index": media_index}})
@@ -355,14 +426,14 @@ class PostProcessor:
                         any_failure = True
                         code = f"{destination}_error"
                         message = f"{destination.capitalize()} delivery failed for this item."
-                        self._item(result, destination, destination_filename, "failed", error_code=code, error=message)
+                        self._item(result, destination, destination_filename, "failed", error_code=code, error=message, media_index=media_index)
                         result.error = result.error or message
                         result.error_code = result.error_code or code
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": code, "media_index": media_index}})
                         continue
 
                     state = "ready" if destination == "download" else "success"
-                    self._item(result, destination, destination_filename, state, **details)
+                    self._item(result, destination, destination_filename, state, media_index=media_index, **details)
                     if destination_filename not in result.filenames:
                         result.filenames.append(destination_filename)
                     if destination == "telegram" and isinstance(details.get("message_id"), int):
@@ -391,6 +462,7 @@ class PostProcessor:
         for destination in self.config.destinations:
             entry = self._entry(result, destination)
             entry["status"] = self._destination_status(entry["items"])
+        self._finalize_media_reconciliation(result)
 
         if not any_failure and self.dedupe and any(target in {"telegram", "mega", "dropbox"} for target in self.config.destinations):
             try:

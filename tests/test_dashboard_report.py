@@ -109,7 +109,7 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
         "selected_destinations": ["telegram", "mega", "download", "unknown"],
         "summary": {"total": 1, "destinations": {"telegram": {"success": 1}, "mega": {"failed": 1}, "unknown": {"success": 1}}},
         "results": [{"status": "partial_success", "destinations": {
-            "telegram": {"status": "success", "items": [{"status": "success", "filename": "u_1_01.mp4", "message_id": 42}]},
+            "telegram": {"status": "success", "items": [{"status": "success", "filename": "u_1_01.mp4", "message_id": 42, "media_index": 1}]},
             "mega": {"status": "failed", "error": "login password=not-a-secret", "items": [{"status": "failed", "filename": "u_1_01.mp4", "error_code": "mega_authentication_failed", "error": "failed https://mega.nz/private"}], "remote_folder": "/private/account"},
             "unknown": {"status": "success"},
         }}],
@@ -118,11 +118,53 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
     item = clean["results"][0]
     assert item["destinations"]["telegram"]["status"] == "success"
     assert item["destinations"]["telegram"]["items"][0]["message_id"] == 42
+    assert item["destinations"]["telegram"]["items"][0]["media_index"] == 1
     assert item["destinations"]["mega"]["status"] == "failed"
     assert "[secret]" in item["destinations"]["mega"]["error"]
     assert "[url]" in item["destinations"]["mega"]["items"][0]["error"]
     assert "remote_folder" not in item["destinations"]["mega"]
     assert "unknown" not in item["destinations"]
+
+
+def test_sanitizer_keeps_reconciled_media_manifest_without_urls_or_remote_paths():
+    digest = "a" * 64
+    clean = sanitize_report({"results": [{
+        "media_count": 2,
+        "media_manifest": [
+            {"media_index": 1, "source_index": 4, "kind": "video", "download_status": "validated",
+             "size_bytes": 1024, "sha256": digest,
+             "destinations": {"mega": "success", "download": "ready", "unknown": "success"},
+             "url": "https://video.twimg.com/private.mp4?token=secret", "remote_path": "/private/account"},
+            {"media_index": 2, "source_index": 5, "kind": "photo", "download_status": "failed",
+             "size_bytes": -1, "sha256": "not-a-hash", "destinations": {"mega": ["success"]}},
+            {"media_index": 3, "kind": "audio", "download_status": "validated", "url": "https://private.invalid"},
+        ],
+        "media_reconciliation": {
+            "status": "complete", "expected_items": 2, "downloaded_items": 1,
+            "download_failed_items": 1, "processing_failed_items": 0,
+            "destinations": {"mega": {
+                "expected_items": 2, "accounted_items": 2, "delivered_items": 1,
+                "duplicate_items": 0, "failed_items": 1, "unaccounted_items": 0,
+                "remote_folder": "/private/account",
+            }, "unknown": {"expected_items": 99}},
+        },
+    }]})
+
+    item = clean["results"][0]
+    assert item["media_count"] == 2
+    assert item["media_manifest"] == [
+        {"media_index": 1, "source_index": 4, "kind": "video", "download_status": "validated",
+         "size_bytes": 1024, "sha256": digest, "destinations": {"mega": "success", "download": "ready"}},
+        {"media_index": 2, "source_index": 5, "kind": "photo", "download_status": "failed",
+         "size_bytes": 0, "destinations": {}},
+    ]
+    assert item["media_reconciliation"]["destinations"]["mega"] == {
+        "expected_items": 2, "accounted_items": 2, "delivered_items": 1,
+        "duplicate_items": 0, "failed_items": 1, "unaccounted_items": 0,
+    }
+    assert "unknown" not in item["media_reconciliation"]["destinations"]
+    assert "video.twimg.com" not in str(item)
+    assert "/private/account" not in str(item)
 
 
 def test_cli_report_includes_job_id(tmp_path, monkeypatch):

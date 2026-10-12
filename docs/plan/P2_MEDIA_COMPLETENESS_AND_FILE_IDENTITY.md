@@ -1,8 +1,19 @@
 # Priority 2 — Media Completeness and File Identity
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL EVIDENCE / IN PROGRESS  
+**Current status:** ACCEPTANCE PASS on PR #23 / commit `da3432b`; PR CI and isolated live MEGA multi-item verification passed. Main-branch merge is still pending.
 **Scope:** URL batches, media enumeration, filenames, dedupe identity, destination writes, and output accounting.
+
+## Implementation and verification evidence (2026-10-13)
+
+| Scenario | Expected / input | Observed | Destination | Evidence | Remaining limitation |
+|---|---:|---|---|---|---|
+| Two video media items in one post, each with two bitrate variants | 1 synthetic post, 2 media identities, 4 variants → 2 files | Best variant selected independently; two local files match expected bytes, sizes, and SHA-256; manifest/reconciliation report 2 expected, 2 validated, 2 ready, 0 unaccounted | Download-only mock | `tests/test_destinations.py::test_post_with_two_video_media_items_downloads_best_variant_for_each` | Fixture source; remote confirmation is separate |
+| yt-dlp playlist entries | 2 entries × 2 variants → 2 identities | Parser no longer discards all but the first entry; each entry's formats share one identity | Metadata unit test | `tests/test_metadata.py::test_ytdlp_preserves_distinct_media_entries_and_groups_each_entries_variants` | Fixture payload; live test below covers a mixed photo/video post |
+| Real public multi-media source | 1 owner-used URL; 4 metadata entries (1 photo + 3 video variants) → 2 distinct media items | Download-only process exported exactly 2 files: 79,517 bytes / SHA-256 `e309f9c18a4b55322afd56312b7ac6a66f5c5769cd3d3de476105f835422a84a` and 2,797,748 bytes / SHA-256 `551ceed75acef2aadccf7f7c2f98d62eece4e304e8c0fa1f55f81adeeba3b8f5`; report expected 2, validated 2, ready 2 | Live X source → local temporary Download-only; temp files removed | Source-only run 2026-10-13 against owner-used post ID `2108081184366604583`; prior workflow report run [#38160545553](https://github.com/aodxx/X2Telegram/actions/runs/38160545553) enumerated 2 Dropbox items | The live probe did not write to any remote destination; historical run conclusion was failure, so it is not treated as successful remote proof |
+| Remote output integrity and idempotency | 2 synthetic video identities × 2 variants; change content for item 1 and repeat item 2 | **3 remote files verified** by listing and download-back bytes/SHA-256: 48 bytes / `28bb4d1ed69295fe0420a9dceeddbde67dd3a1e6c8c20ae934f3875cfc480e5`; 55 bytes / `bf01bc3d3c7955fb6ecce615318203455cb195056d2a342cf59fe86af15987fd`; changed item 64 bytes / `2f6737d7eceba40bc742996a8b049e4ab883652be42decaf1971f2d6406a68bf`. Pass asserted initial 2 uploads, changed content new filename, unchanged item duplicate, 0 unaccounted. Run-folder cleanup confirmed by workflow success. | MEGA synthetic integration; no X-sourced file uploaded | Runs [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709), branch commit `da3432be0b328b990d15d39da5d1c6bcdcb48a4e` | Synthetic payloads validate the integration path; only one real X mixed-media source was source-tested |
+
+Python validation on the working tree: targeted destination/metadata/report tests **54 passed**; full suite **134 passed**; Worker **27 passed**; Python compile, workflow YAML and embedded bash/Python syntax, internal links, and `git diff --check` passed. PR Automated Tests [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939) passed on commit `da3432b`. The media manifest tracks each enumerated item, local size/SHA-256, and per-selected-destination outcome; metadata failures and legacy pre-enumeration duplicates are explicitly marked as not enumerated rather than claiming zero expected items. The API sanitizer allowlists the new fields and drops URLs/paths. P2 acceptance evidence is complete on the PR branch; main merge remains pending.
 
 ## Known context
 
@@ -29,13 +40,13 @@ The repository documents a successful MEGA version-retention integration using t
 
 ## Acceptance checklist
 
-- [ ] A batch with at least two distinct URLs processes and reports each URL.
-- [ ] A multi-media post accounts for every supported media item.
-- [ ] Distinct media versions remain distinct at the destination; older files remain available.
-- [ ] Duplicate submissions do not create unintended duplicate side effects.
-- [ ] Report counts match actual outputs; file sizes/hashes are checked for the chosen integration scenario.
-- [ ] Live evidence is clearly labeled by destination and by synthetic-vs-real source.
-- [ ] Existing MEGA retention/dedupe behavior has not regressed.
+- [x] A batch with at least two distinct URLs processes and reports each URL.
+- [x] A multi-media post accounts for every supported media item.
+- [x] Distinct media versions remain distinct at the destination; older files remain available.
+- [x] Duplicate submissions do not create unintended duplicate side effects.
+- [x] Report counts match actual outputs; file sizes/hashes are checked for the chosen integration scenario.
+- [x] Live evidence is clearly labeled by destination and by synthetic-vs-real source.
+- [x] Existing MEGA retention/dedupe behavior has not regressed.
 
 ## Safe validation
 
