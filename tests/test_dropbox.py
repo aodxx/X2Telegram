@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import requests
 
 from src.config import Config
 from src.dedupe import DedupeStore
@@ -139,6 +140,23 @@ def test_rate_limit_honors_retry_after():
         assert waits == [3.0]
     finally:
         source.unlink(missing_ok=True)
+
+
+def test_upload_timeout_is_unconfirmed_and_not_replayed(tmp_path):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append(url)
+        raise requests.Timeout("response lost")
+
+    source = tmp_path / "ambiguous.mp4"
+    source.write_bytes(b"video")
+    uploader = DropboxUploader(access_token="token", max_retries=3, request=request, sleep=lambda _seconds: None)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(source, "ambiguous.mp4")
+    assert raised.value.code == "dropbox_outcome_unconfirmed"
+    assert raised.value.outcome_unknown is True
+    assert len(calls) == 1
 
 
 def test_large_upload_uses_session_start_append_finish(tmp_path):

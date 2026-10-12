@@ -22,7 +22,7 @@ def test_dashboard_accepts_batches_with_a_50_url_ceiling():
     assert "function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations())" in HTML
     assert "if (urlList.length === 1) payload.url = urlList[0]" in HTML
     assert "else payload.urls = urlList" in HTML
-    assert "makeJobPayload(r.validLines, $('largeMode').checked, requestId, selectedDestinations())" in HTML
+    assert "makeJobPayload(r.validLines, $('largeMode').checked, makeId('dashboard'), selectedDestinations())" in HTML
     assert "lastReview.validLines.length === lastReview.lines.length" in HTML
     assert "lastReview.overLimit" in HTML
 

@@ -7,7 +7,7 @@
 **Branch:** `main`  
 **Status:** Active plan — execute in order; do not treat this document as evidence that a priority is already complete.
 
-**Progress snapshot (2026-10-13):** Priority 1 and Priority 2 acceptance are complete. P1 source reliability is deployed and its historical failure URL passed source-only live verification; P2 was merged as main commit `a5711e1` (PR #23), with main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and synthetic MEGA multi-item integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passing. The Cloudflare Worker remains on deployment commit `8fb4427` because P2 did not change Worker code. Continue with Priority 3; consult the detailed guides for scope and remaining evidence.
+**Progress snapshot (2026-10-13):** Priority 1 and Priority 2 acceptance are complete. P1 source reliability is deployed and its historical failure URL passed source-only live verification; P2 was merged as main commit `a5711e1` (PR #23), with main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and synthetic MEGA multi-item integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passing. P3 is **PARTIAL** on Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), head `329cbd4`; local Python 143/143, Worker/Dashboard 40/40 and GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) pass. It is not merged/deployed and no live destination was invoked. Remaining limits include ephemeral cross-isolate dispatch coordination and success-checkpoint storage failure. See [`plan/P3_RETRY_AND_JOB_RECOVERY.md`](plan/P3_RETRY_AND_JOB_RECOVERY.md) for details.
 
 This is the overview and acceptance contract for the five agreed development priorities. Detailed implementation guides are stored in `docs/plan/`; Manus must read the matching guide before working on a priority. This lets work continue from repository documents without asking the user to paste long prompts.
 
@@ -94,6 +94,8 @@ When one destination fails after another succeeds, the user can recover the job 
 - Verify dashboard reload/reopen restores the recent job from the existing persistence mechanism, continues polling, and retrieves the status/report where available.
 - Handle expired/missing reports with a clear message and safe recovery behavior. Do not create a duplicate job merely because the browser reloaded.
 - Add focused regression coverage for partial success, retry selection, idempotency, and reload/recovery.
+
+**Implementation snapshot (2026-10-13):** Implemented on Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), branch `fix/p3-safe-retry-recovery`; local automated suites passed (Python 143, Worker/Dashboard 40), and GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed. Includes outcome-unconfirmed checkpoints, failed-target-only retry selection, lookup-only reload recovery, report availability states, and isolate-local concurrent request single-flight. Not merged/deployed; no live destination retry was performed. Cross-isolate/global exactly-once dispatch remains unsupported without durable coordination.
 
 ### Acceptance criteria
 - Target-level success/failure is visible and accurate.

@@ -8,6 +8,7 @@ from src.dedupe import DedupeStore
 from src.metadata import Metadata
 from src.models import MediaItem, ResultStatus
 from src.processor import PostProcessor
+from src.errors import DestinationError
 from src.urls import parse_x_url
 
 
@@ -33,6 +34,16 @@ class FailingTelegram(FakeTelegram):
     def send_video(self, path, caption):
         self.calls += 1
         raise RuntimeError("send failed")
+
+
+class UnknownTelegram(FakeTelegram):
+    def send_video(self, path, caption):
+        self.calls += 1
+        raise DestinationError(
+            "telegram_outcome_unconfirmed",
+            "Telegram may have accepted the media; inspect before retrying.",
+            outcome_unknown=True,
+        )
 
 
 class MultiPhotoMetadata:
@@ -156,6 +167,34 @@ def test_processor_does_not_mark_failed_send(tmp_path: Path):
         result = processor.process(parse_x_url("https://x.com/user/status/123"))
     assert result.status == ResultStatus.TELEGRAM_ERROR
     assert store.get("123") is None
+
+
+def test_unconfirmed_destination_is_persisted_and_never_retried_blindly(tmp_path: Path):
+    store = DedupeStore(tmp_path / "dedupe.json")
+    post = parse_x_url("https://x.com/user/status/321")
+    media_path = tmp_path / "clip.mp4"
+    def download_again(url, kind):
+        media_path.write_bytes(b"same-media")
+        return media_path
+
+    uncertain = UnknownTelegram()
+    first = PostProcessor(Config("token", "-1003906817580"), FakeMetadata(), uncertain, dedupe=store)
+    with patch.object(first.downloader, "download", side_effect=download_again):
+        result = first.process(post)
+    assert result.status == ResultStatus.OUTCOME_UNCONFIRMED
+    assert result.destinations["telegram"]["status"] == "outcome_unconfirmed"
+    assert result.media_reconciliation["destinations"]["telegram"]["unconfirmed_items"] == 1
+    saved = json.loads((tmp_path / "dedupe.json").read_text(encoding="utf-8"))
+    assert saved["version"] == 4
+    assert "outcome_unconfirmed" in json.dumps(saved)
+
+    retry_telegram = FakeTelegram()
+    retry = PostProcessor(Config("token", "-1003906817580"), FakeMetadata(), retry_telegram, dedupe=store)
+    with patch.object(retry.downloader, "download", side_effect=download_again):
+        retried = retry.process(post)
+    assert retried.status == ResultStatus.OUTCOME_UNCONFIRMED
+    assert retried.destinations["telegram"]["items"][0]["status"] == "outcome_unconfirmed"
+    assert retry_telegram.calls == 0
 
 
 def test_v1_completed_state_remains_a_whole_post_duplicate(tmp_path: Path):

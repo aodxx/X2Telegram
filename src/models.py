@@ -7,6 +7,7 @@ class ResultStatus(str, Enum):
     SUCCESS = "success"
     PARTIAL_SUCCESS = "partial_success"
     FAILED = "failed"
+    OUTCOME_UNCONFIRMED = "outcome_unconfirmed"
     NO_MEDIA = "no_media"
     METADATA_ERROR = "metadata_error"
     DOWNLOAD_ERROR = "download_error"

@@ -1,7 +1,8 @@
 class DestinationError(RuntimeError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, *, outcome_unknown: bool = False):
         super().__init__(message)
         self.code = code
+        self.outcome_unknown = bool(outcome_unknown)
 
 
 class SourceRetrievalError(RuntimeError):

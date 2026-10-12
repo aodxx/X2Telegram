@@ -18,8 +18,8 @@ _SECRET_RE = re.compile(
 )
 _SAFE_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SAFE_DESTINATIONS = {"telegram", "mega", "dropbox", "download"}
-_SAFE_DESTINATION_STATUSES = {"success", "failed", "partial_success", "duplicate", "ready", "no_media", "processing"}
-_SAFE_ITEM_STATUSES = {"success", "failed", "duplicate", "ready"}
+_SAFE_DESTINATION_STATUSES = {"success", "failed", "partial_success", "duplicate", "ready", "no_media", "processing", "outcome_unconfirmed"}
+_SAFE_ITEM_STATUSES = {"success", "failed", "duplicate", "ready", "outcome_unconfirmed"}
 _SAFE_MEDIA_DOWNLOAD_STATUSES = {"pending", "validated", "failed", "processing_failed"}
 _SAFE_MEDIA_DESTINATION_STATUSES = _SAFE_ITEM_STATUSES | {"not_attempted"}
 _SAFE_RECONCILIATION_STATUSES = {"complete", "metadata_failed", "not_enumerated"}
@@ -80,6 +80,8 @@ def _safe_summary(value: Any) -> dict[str, Any]:
     source = value if isinstance(value, dict) else {}
     keys = ("total", "sent", "skipped_duplicate", "no_media", "failed")
     summary: dict[str, Any] = {key: _safe_count(source.get(key, 0)) for key in keys}
+    if "outcome_unconfirmed" in source:
+        summary["outcome_unconfirmed"] = _safe_count(source.get("outcome_unconfirmed"))
     raw_destinations = source.get("destinations") if isinstance(source.get("destinations"), dict) else {}
     destinations = {}
     for name in _SAFE_DESTINATIONS:
@@ -204,6 +206,8 @@ def _safe_media_reconciliation(value: Any) -> dict[str, Any]:
             key: None if raw.get(key) is None else _safe_count(raw.get(key))
             for key in count_keys
         }
+        if "unconfirmed_items" in raw:
+            clean_destinations[name]["unconfirmed_items"] = _safe_count(raw.get("unconfirmed_items"))
     clean["destinations"] = clean_destinations
     return clean
 

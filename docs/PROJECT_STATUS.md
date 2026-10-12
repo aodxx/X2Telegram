@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-13
-**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. Cloudflare Worker deployment ยังคงเป็น commit `8fb4427` (P2 ไม่เปลี่ยน Worker code; ไม่ต้อง deploy Worker); GitHub Actions processor ใช้ main code ล่าสุด.
+**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. P3 implementation อยู่บน feature branch `fix/p3-safe-retry-recovery`; local Python 143/143, Worker/Dashboard 40/40 และ Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24) CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) ผ่าน. ยังไม่ merge/deploy และไม่มี live destination invocation. P3 คงสถานะ partial เนื่องจาก cross-isolate races และ success-checkpoint storage failure ยังไม่สามารถให้ exactly-once guarantee ได้. Production ยังคงเป็น main เดิม โดย Cloudflare Worker deployment เป็น commit `8fb4427`.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -51,6 +51,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
 - P2 merge commit `a5711e1`: main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and MEGA multi-item/version-retention integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) both succeeded. The integration verified 3 remote objects by listing/download-back bytes/SHA-256 and cleaned the run-isolated folder.
+- P3 feature branch local validation (2026-10-13): Python **143 passed**; `npm test --prefix control-worker` **40 passed**, including browserless reload/recovery, failed-only retry selection, missing/expired reports, and concurrent same/conflicting request ID cases. A Python failure-injection test documents that later manual full-target replay may resend if success-checkpoint persistence fails. Python compile, Worker/dashboard test syntax, and `git diff --check` passed. This is branch-only evidence; GitHub CI, merge, and deployment have not occurred.
 
 ## การตั้งค่า MEGA
 
@@ -65,6 +66,8 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - ยังไม่ได้ทดสอบ browser มือถือจริง
 - GitHub artifact หมดอายุ 7 วัน; สร้าง job ใหม่เพื่อได้ ZIP ใหม่
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย
+- P3 branch limits: Worker single-flight reservation protects requests only within one isolate and for 30 seconds; no durable/global coordination exists across isolates or restarts. A narrow pre-visibility race remains; no exactly-once dispatch guarantee is claimed. Destination live retry was not tested because no new test target was explicitly approved.
+- P3 storage limit: if the destination confirms success but the durable dedupe checkpoint cannot be written, the report warns `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes that target, but a later new full-target job may resend it because the prior success was not persisted.
 
 ## Priority 1 — X/source reliability release (deployed; post-fix live source check pending)
 

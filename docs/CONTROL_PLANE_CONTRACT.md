@@ -62,9 +62,13 @@ Request body จำกัด 16 KiB; ไม่รับ arbitrary workflow input
 
 Dispatch ใหม่คืน HTTP `202`; job ที่ match กับ request เดิมคืน HTTP `200` และ `duplicate: true` พร้อม state เดิม. Retry หลัง dispatch timeout ต้องใช้ `request_id` เดิม
 
+### `POST /jobs/recover`
+
+ใช้ request fields และ normalization เดียวกับ `POST /jobs` แต่เป็น **lookup-only**: ค้น run เดิมด้วย `request_id` และ payload fingerprint, คืน HTTP `200` เมื่อพบ run/คำขอที่กำลัง dispatch ใน isolate เดียวกัน, `409 idempotency_conflict` เมื่อ payload ขัดแย้งกับ run/reservation ที่พบ, หรือ `404 job_not_found` เมื่อยังไม่พบ. Endpoint นี้ไม่เรียก GitHub Actions dispatch และไม่ใช้ dispatch rate-limit quota. การ `404` แปลว่าไม่พบในข้อมูลที่มองเห็น ณ เวลาตรวจ ไม่ใช่หลักฐานว่าไม่มี request ที่กำลังเดินทางหรือ run ที่ยังไม่ปรากฏ; Dashboard จึงไม่ส่งงานใหม่ให้อัตโนมัติ.
+
 ### `GET /jobs/<job_id>`
 
-ต้องผ่าน Access; อ่าน run title และ private sanitized report artifact แล้วคืน state, summary และผลราย post/destination/media. หากมีทั้ง success และ failure งานยังเป็น `completed` และ result แสดง `partial_success` ราย target/post; หากทุก target ล้มเหลว state เป็น `failed`. Media ZIP readiness มี object `download` เช่น `available`, `status`, `file_count`, `expires_at`; artifact ที่หาย/หมดอายุจะถูกปรับ result target ให้ failed แทน false-ready
+ต้องผ่าน Access; อ่าน run title และ private sanitized report artifact แล้วคืน state, summary และผลราย post/destination/media. หากมีทั้ง success และ failure งานยังเป็น `completed` และ result แสดง `partial_success` ราย target/post; หากทุก target ล้มเหลว state เป็น `failed`; หากไม่มี target ที่ยืนยันสำเร็จแต่มีผลกำกวม state เป็น `outcome_unconfirmed`. `report_availability.status` แยก `pending`, `ready`, `missing`, `expired`, และ `unavailable`; expiry metadata/error code ถูกส่งแบบ sanitized. Media ZIP readiness มี object `download` เช่น `available`, `status`, `file_count`, `expires_at`; artifact ที่หาย/หมดอายุจะไม่ถูกแสดงว่า ready.
 
 Response ไม่คืน raw logs, signed GitHub artifact URL, media CDN URL, credential, Authorization header หรือ traceback
 
@@ -80,7 +84,7 @@ Response ไม่คืน raw logs, signed GitHub artifact URL, media CDN URL,
 
 ## Destination statuses และ error behavior
 
-Report แยก `destinations[telegram|mega|dropbox|download]` และผล `items[]`. สถานะสำคัญ ได้แก่ `success`, `failed`, `partial_success`, `duplicate`, `ready`, `processing`. Failure ของ target หนึ่งไม่หยุด dispatcher; job-level success ยังมีได้เมื่อมี target อื่นสำเร็จ. Download ZIP lookup/expiry failure จะสะท้อนใน result และ Dashboard status
+Report แยก `destinations[telegram|mega|dropbox|download]` และผล `items[]`. สถานะสำคัญ ได้แก่ `success`, `failed`, `partial_success`, `duplicate`, `ready`, `processing`, และ `outcome_unconfirmed`. Failure ของ target หนึ่งไม่หยุด dispatcher; job-level success ยังมีได้เมื่อมี target อื่นสำเร็จ. Target ที่มีผลกำกวมไม่ถูกเสนอเป็น retry เป้าหมายอัตโนมัติ; ผู้ใช้ควรตรวจปลายทางก่อนตัดสินใจ. Download ZIP lookup/expiry failure และ report availability จะสะท้อนใน result และ Dashboard status.
 
 แต่ละ post อาจมี `media_manifest[]` และ `media_reconciliation`. Manifest บันทึก `media_index` ภายใน post, `source_index`, `kind`, สถานะดาวน์โหลด/validation, `size_bytes`, content `sha256` (hash ของ bytes ไม่รวม post identity) และสถานะต่อ destination ที่เลือก. Reconciliation สรุปจำนวน expected, validated, accounted, delivered, duplicate, failed และ unaccounted items ต่อ destination; หาก metadata ล้มเหลวหรือ legacy duplicate ถูกข้ามก่อน enumerate จะรายงาน expected เป็น `null` และสถานะ `metadata_failed`/`not_enumerated` แทนการอ้างว่า expected เป็นศูนย์. Fields เหล่านี้เป็น optional เพื่อคง compatibility กับ report เก่า
 
@@ -99,9 +103,9 @@ Destination status ใน manifest หมายถึง adapter outcome (`succe
 
 ## Idempotency และ retry
 
-Worker คำนวณ `job_id` จาก payload ที่ normalize แล้ว (รวม destinations) และค้น run เดิมก่อน dispatch. Request ID เดิมแต่ payload เปลี่ยน—including destination choice—ได้ `409 idempotency_conflict`. ไม่มี durable reservation/database จึงอาจมี concurrent dispatch ก่อน GitHub แสดง run; Actions concurrency, Python per-media/destination dedupe state v3 และ retry ด้วย ID เดิมลดความเสี่ยงส่งซ้ำ. ระบบไม่รับประกัน exactly-once หาก target รับไฟล์แต่ response/checkpoint หาย
+Worker คำนวณ `job_id` จาก payload ที่ normalize แล้ว (รวม destinations) และค้น run เดิมก่อน dispatch. Request ID เดิมแต่ payload เปลี่ยน—including destination choice—ได้ `409 idempotency_conflict`. ภายใน Worker isolate เดียว มี in-memory single-flight reservation keyed by Access identity + `request_id`; identical concurrent submissions share one dispatch, conflicting in-flight payload gets 409, and an accepted outcome remains cached for 30 seconds to cover run-list visibility delay. Reservation นี้ไม่ durable/global และไม่ coordinate ข้าม isolate หรือ isolate restart; จึงยังมี narrow concurrent dispatch race ก่อน GitHub แสดง run. GitHub run lookup กับ Python per-media/destination checkpoint ช่วยลดความเสี่ยงหลัง run ปรากฏ แต่ระบบไม่รับประกัน exactly-once dispatch/delivery หาก request/response/checkpoint สูญหาย.
 
-Python state v3 จดผลสำเร็จแยก Telegram/MEGA/Dropbox ตาม media fingerprint; retry จะข้าม target/item ที่สำเร็จแล้วและลองเฉพาะส่วนที่ยังไม่สำเร็จ. Download artifact เป็นผลลัพธ์เฉพาะ workflow run จึงสร้างใหม่ด้วย job ใหม่ได้
+Python dedupe state v4 จดผลสำเร็จและ outcome-unconfirmed แยก Telegram/MEGA/Dropbox ตาม media fingerprint; retry จะข้าม target/item ที่สำเร็จแล้ว, ลองเฉพาะ confirmed failures และไม่ replay ผลกำกวมโดยอัตโนมัติ. หากปลายทางยืนยัน success แต่การเขียน success checkpoint ล้มเหลว report จะติด `dedupe_checkpoint_failed`; Dashboard failed-only retry จะไม่เลือก target ที่รายงาน success แต่ job เต็มรายการที่ผู้ใช้สร้างใหม่ภายหลังอาจส่งซ้ำได้เพราะไม่มี durable record. Download artifact เป็นผลลัพธ์เฉพาะ workflow run จึงสร้างใหม่ด้วย job ใหม่ได้. Dashboard reload/reopen ใช้ lookup-only recovery แล้ว resume status/report polling; มันไม่สร้าง request ID ใหม่หรือ dispatch อัตโนมัติ.
 
 ## Compatibility
 

@@ -79,6 +79,9 @@ class PostProcessor:
         successes = {"success", "ready", "duplicate"}
         has_success = any(status in successes for status in statuses)
         has_failure = any(status == "failed" for status in statuses)
+        has_unknown = any(status == "outcome_unconfirmed" for status in statuses)
+        if has_unknown:
+            return "partial_success" if has_success else "outcome_unconfirmed"
         if has_failure and has_success:
             return "partial_success"
         if has_failure:
@@ -118,6 +121,8 @@ class PostProcessor:
                 "failed_items": statuses.count("failed"),
                 "unaccounted_items": max(0, len(result.media_manifest) - accounted) if status == "complete" else None,
             }
+            if "outcome_unconfirmed" in statuses:
+                destination_summary[destination]["unconfirmed_items"] = statuses.count("outcome_unconfirmed")
 
         result.media_reconciliation = {
             "status": status,
@@ -309,6 +314,7 @@ class PostProcessor:
         caption = f"@{post.username}\n{post.normalized_url}"
         any_delivery = False
         any_failure = False
+        any_unconfirmed = False
         legacy_ids = list((existing_post or {}).get("message_ids") or []) if legacy_complete else []
 
         for media_index, (item, candidates) in enumerate(selected, start=1):
@@ -389,6 +395,15 @@ class PostProcessor:
 
                     prior = self.dedupe.get_destination(dedupe_key, fingerprint, destination) if self.dedupe and destination in {"telegram", "mega", "dropbox"} else None
                     if prior:
+                        if prior.get("status") == "outcome_unconfirmed":
+                            any_unconfirmed = True
+                            code = str(prior.get("error_code") or f"{destination}_outcome_unconfirmed")
+                            message = str(prior.get("error") or f"{destination.capitalize()} outcome is unconfirmed; inspect the destination before retrying.")
+                            self._item(result, destination, str(prior.get("filename") or destination_filename),
+                                       "outcome_unconfirmed", error_code=code, error=message, media_index=media_index)
+                            result.error = result.error or message
+                            result.error_code = result.error_code or code
+                            continue
                         prior_filename = str(prior.get("filename") or "")
                         # MEGA/Dropbox filenames are content-versioned. After upgrading the
                         # naming scheme, an old checkpoint must not suppress the migration
@@ -416,11 +431,24 @@ class PostProcessor:
                     try:
                         details = self.dispatcher.deliver(destination, path, destination_filename, caption, item.kind)
                     except DestinationError as exc:
-                        any_failure = True
-                        self._item(result, destination, destination_filename, "failed", error_code=exc.code, error=str(exc), media_index=media_index)
+                        status = "outcome_unconfirmed" if exc.outcome_unknown else "failed"
+                        any_unconfirmed = any_unconfirmed or exc.outcome_unknown
+                        any_failure = any_failure or not exc.outcome_unknown
+                        self._item(result, destination, destination_filename, status, error_code=exc.code, error=str(exc), media_index=media_index)
+                        if exc.outcome_unknown and self.dedupe:
+                            try:
+                                self.dedupe.mark_destination_outcome_unconfirmed(
+                                    dedupe_key, fingerprint, destination=destination,
+                                    post_id=post.post_id, username=post.username, source_url=post.normalized_url,
+                                    kind=item.kind, filename=destination_filename, error_code=exc.code, error=str(exc),
+                                )
+                            except Exception:
+                                self._entry(result, destination)["items"][-1]["warning"] = "outcome_checkpoint_failed"
+                                self.logger.error("outcome_checkpoint_failed", extra={"event": "outcome_checkpoint_failed", "context": {"post_id": post.post_id, "destination": destination}})
                         result.error = result.error or str(exc)
                         result.error_code = result.error_code or exc.code
-                        self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": exc.code, "media_index": media_index}})
+                        event = "destination_outcome_unconfirmed" if exc.outcome_unknown else "destination_failed"
+                        self.logger.warning(event, extra={"event": event, "context": {"post_id": post.post_id, "destination": destination, "error_code": exc.code, "media_index": media_index}})
                         continue
                     except Exception:
                         any_failure = True
@@ -464,16 +492,19 @@ class PostProcessor:
             entry["status"] = self._destination_status(entry["items"])
         self._finalize_media_reconciliation(result)
 
-        if not any_failure and self.dedupe and any(target in {"telegram", "mega", "dropbox"} for target in self.config.destinations):
+        if not any_failure and not any_unconfirmed and self.dedupe and any(target in {"telegram", "mega", "dropbox"} for target in self.config.destinations):
             try:
                 self.dedupe.mark_complete(dedupe_key)
             except Exception:
                 self.logger.error("dedupe_finalize_failed", extra={"event": "dedupe_finalize_failed", "context": {"post_id": post.post_id}})
 
-        if any_failure and any_delivery:
+        if (any_failure or any_unconfirmed) and any_delivery:
             result.status = ResultStatus.PARTIAL_SUCCESS
             result.error_code = result.error_code or "partial_destination_failure"
             result.stage = result.stage or "completed"
+        elif any_unconfirmed:
+            result.status = ResultStatus.OUTCOME_UNCONFIRMED
+            result.stage = result.stage or "completed_with_unconfirmed_outcome"
         elif any_failure:
             if self.config.destinations == ("telegram",):
                 result.status = (

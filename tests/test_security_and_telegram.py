@@ -112,6 +112,41 @@ def test_telegram_error_response_does_not_expose_raw_description():
     assert str(raised.value) == "Telegram getMe failed (HTTP 401)"
 
 
+def test_telegram_send_timeout_is_unconfirmed_and_is_not_retried(tmp_path):
+    media = tmp_path / "clip.mp4"
+    media.write_bytes(b"media")
+    client = TelegramClient("token", "-1003906817580", max_retries=3)
+    with patch("src.telegram_api.requests.post", side_effect=requests.Timeout("response lost")) as post:
+        with pytest.raises(TelegramApiError) as raised:
+            client.send_video(str(media), "caption")
+    assert raised.value.outcome_unknown is True
+    assert post.call_count == 1
+
+
+def test_telegram_send_server_error_is_unconfirmed_and_is_not_retried(tmp_path):
+    media = tmp_path / "clip.mp4"
+    media.write_bytes(b"media")
+    response = telegram_response({"ok": False, "error_code": 500}, status=500)
+    client = TelegramClient("token", "-1003906817580", max_retries=3)
+    with patch("src.telegram_api.requests.post", return_value=response) as post:
+        with pytest.raises(TelegramApiError) as raised:
+            client.send_video(str(media), "caption")
+    assert raised.value.outcome_unknown is True
+    assert post.call_count == 1
+
+
+def test_telegram_send_retries_confirmed_rate_limit_and_returns_message_id(tmp_path):
+    media = tmp_path / "clip.mp4"
+    media.write_bytes(b"media")
+    limited = telegram_response({"ok": False, "error_code": 429, "parameters": {"retry_after": 2}}, status=429)
+    sent = telegram_response({"ok": True, "result": {"message_id": 42}})
+    client = TelegramClient("token", "-1003906817580", max_retries=2)
+    with patch("src.telegram_api.requests.post", side_effect=[limited, sent]) as post, patch("src.telegram_api.time.sleep") as sleep:
+        assert client.send_video(str(media), "caption") == 42
+    assert post.call_count == 2
+    sleep.assert_called_once_with(2)
+
+
 def test_media_url_must_be_https_x_media_host():
     validate_media_url("https://video.twimg.com/ext_tw_video/1/vid/1280x720/video.mp4")
     with pytest.raises(ValueError):

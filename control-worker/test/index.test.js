@@ -30,6 +30,10 @@ let artifactReport = null;
 let artifactRunId = "123";
 let requestSerial = 0;
 let omitMediaArtifact = false;
+let omitReportArtifact = false;
+let expireReportArtifact = false;
+let failReportZip = false;
+let runListGate = null;
 
 function b64url(value) {
   return Buffer.from(value).toString("base64url");
@@ -73,18 +77,23 @@ before(() => {
     if (url.endsWith("/cdn-cgi/access/certs")) return Response.json({ keys: [publicJwk] });
     if (url.startsWith("https://api.github.com")) {
       const path = new URL(url).pathname;
-      if (path.endsWith("/actions/workflows/x2telegram.yml/runs")) return Response.json({ workflow_runs: githubRuns });
+      if (path.endsWith("/actions/workflows/x2telegram.yml/runs")) {
+        if (runListGate) return runListGate();
+        return Response.json({ workflow_runs: githubRuns });
+      }
       if (path.endsWith("/actions/workflows/x2telegram.yml/dispatches")) {
         if (failDispatch) return Response.json({ message: "private details must not leak" }, { status: 500 });
         dispatches.push(JSON.parse(init.body));
         return new Response(null, { status: 204 });
       }
       if (path.endsWith(`/actions/runs/${artifactRunId}/artifacts`)) {
-        const artifacts = [{ id: "artifact-1", name: `x2telegram-dashboard-report-${artifactRunId}`, expired: false }];
+        const artifacts = [];
+        if (!omitReportArtifact) artifacts.push({ id: "artifact-1", name: `x2telegram-dashboard-report-${artifactRunId}`, expired: expireReportArtifact, expires_at: expireReportArtifact ? "2026-10-01T00:00:00Z" : "2026-11-01T00:00:00Z" });
         if (!omitMediaArtifact && artifactReport?.selected_destinations?.includes("download")) artifacts.push({ id: "artifact-media", name: `x2telegram-media-${artifactRunId}`, expired: false, size_in_bytes: 4 });
         return Response.json({ artifacts });
       }
       if (path.endsWith("/actions/artifacts/artifact-1/zip")) {
+        if (failReportZip) return Response.json({ message: "private details must not leak" }, { status: 503 });
         return new Response(null, { status: 302, headers: { Location: "https://blob.test/report.zip" } });
       }
       if (path.endsWith("/actions/artifacts/artifact-media/zip")) {
@@ -100,7 +109,7 @@ before(() => {
 });
 
 after(() => { globalThis.fetch = originalFetch; });
-beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; omitMediaArtifact = false; delete ENV.JOB_DISPATCH_RATE_LIMITER; });
+beforeEach(() => { githubRuns = []; failDispatch = false; dispatches = []; artifactReport = null; artifactRunId = "123"; omitMediaArtifact = false; omitReportArtifact = false; expireReportArtifact = false; failReportZip = false; runListGate = null; delete ENV.JOB_DISPATCH_RATE_LIMITER; });
 
 test("health is public and does not expose credentials", async () => {
   const response = await worker.fetch(new Request("https://worker.test/health"), ENV);
@@ -180,7 +189,7 @@ test("oversized streamed body without Content-Length is cancelled before dispatc
   assert.equal(dispatches.length, 0);
 });
 
-test("per-isolate POST rate limit blocks the 21st request without dispatch", async () => {
+test("per-isolate dispatch rate limit blocks the 21st valid request", async () => {
   const originalEmail = ENV.ACCESS_ALLOWED_EMAIL;
   ENV.ACCESS_ALLOWED_EMAIL = "rate-test@example.com";
   try {
@@ -193,13 +202,13 @@ test("per-isolate POST rate limit blocks the 21st request without dispatch", asy
           "Content-Type": "application/json",
           "Cf-Access-Jwt-Assertion": accessJwt("rate-test@example.com"),
         },
-        body: "{}",
+        body: JSON.stringify({ url: `https://x.com/rate/status/${index + 1}`, request_id: `rate-${index + 1}` }),
       });
       statuses.push((await worker.fetch(req, ENV)).status);
     }
-    assert.deepEqual(statuses.slice(0, 20), Array(20).fill(400));
+    assert.deepEqual(statuses.slice(0, 20), Array(20).fill(202));
     assert.equal(statuses[20], 429);
-    assert.equal(dispatches.length, 0);
+    assert.equal(dispatches.length, 20);
   } finally {
     ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
   }
@@ -339,6 +348,20 @@ test("same URL and request ID with changed destinations is an idempotency confli
   assert.equal(dispatches.length, 1);
 });
 
+test("request ID conflict is not hidden when both matching and conflicting runs are visible", async () => {
+  const body = { url: "https://x.com/u/status/21", request_id: "visible-run-conflict" };
+  const first = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const jobId = (await first.json()).job_id;
+  githubRuns = [
+    run("21", `X2Telegram visible-run-conflict ${jobId}`, "in_progress"),
+    run("22", "X2Telegram visible-run-conflict job-ffffffffffffffffffffffffffffffff", "in_progress"),
+  ];
+  const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error.code, "idempotency_conflict");
+  assert.equal(dispatches.length, 1);
+});
+
 test("retry with the same request returns the existing workflow instead of dispatching", async () => {
   const body = { url: "https://x.com/u/status/1", large_file_mode: false, request_id: "retry-key" };
   const first = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
@@ -351,6 +374,112 @@ test("retry with the same request returns the existing workflow instead of dispa
   assert.equal(data.job_id, jobId);
   assert.equal(data.run_id, "77");
   assert.equal(dispatches.length, 1);
+});
+
+test("recovery-only lookup returns not found without dispatching or consuming the dispatch limiter", async () => {
+  let limiterCalls = 0;
+  ENV.JOB_DISPATCH_RATE_LIMITER = { async limit() { limiterCalls += 1; return { success: false }; } };
+  const response = await worker.fetch(request("/jobs/recover", {
+    method: "POST", body: { url: "https://x.com/u/status/88", request_id: "recover-missing" },
+  }), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 404);
+  assert.equal(data.error.code, "job_not_found");
+  assert.match(data.error.message, /recovery did not dispatch/i);
+  assert.equal(dispatches.length, 0);
+  assert.equal(limiterCalls, 0);
+});
+
+test("recovery-only lookup returns the existing run and changed payload conflicts without dispatch", async () => {
+  const body = { url: "https://x.com/u/status/89", request_id: "recover-existing" };
+  const first = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const jobId = (await first.json()).job_id;
+  githubRuns = [run("89", `X2Telegram recover-existing ${jobId}`, "in_progress")];
+  const recovered = await worker.fetch(request("/jobs/recover", { method: "POST", body }), ENV);
+  const recoveredData = await recovered.json();
+  assert.equal(recovered.status, 200);
+  assert.equal(recoveredData.job_id, jobId);
+  assert.equal(recoveredData.duplicate, true);
+  const conflict = await worker.fetch(request("/jobs/recover", {
+    method: "POST", body: { ...body, url: "https://x.com/u/status/90" },
+  }), ENV);
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json()).error.code, "idempotency_conflict");
+  assert.equal(dispatches.length, 1);
+});
+
+test("idempotent POST returns its existing run before applying a saturated dispatch limiter", async () => {
+  const body = { url: "https://x.com/u/status/91", request_id: "retry-before-limit" };
+  const first = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  const jobId = (await first.json()).job_id;
+  githubRuns = [run("91", `X2Telegram retry-before-limit ${jobId}`, "in_progress")];
+  let limiterCalls = 0;
+  ENV.JOB_DISPATCH_RATE_LIMITER = { async limit() { limiterCalls += 1; return { success: false }; } };
+  const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).job_id, jobId);
+  assert.equal(limiterCalls, 0);
+  assert.equal(dispatches.length, 1);
+});
+
+test("concurrent same-payload POSTs in one isolate share a single dispatch", async () => {
+  const originalEmail = ENV.ACCESS_ALLOWED_EMAIL;
+  ENV.ACCESS_ALLOWED_EMAIL = "concurrency-test@example.com";
+  let arrivals = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  runListGate = async () => {
+    arrivals += 1;
+    if (arrivals === 2) release();
+    await gate;
+    return Response.json({ workflow_runs: [] });
+  };
+  const body = { url: "https://x.com/u/status/92", request_id: "concurrent-same-payload" };
+  const makeRequest = (path = "/jobs") => new Request(`https://worker.test${path}`, {
+    method: "POST",
+    headers: { Origin: ENV.DASHBOARD_ORIGIN, "Content-Type": "application/json", "Cf-Access-Jwt-Assertion": accessJwt("concurrency-test@example.com") },
+    body: JSON.stringify(body),
+  });
+  try {
+    const responses = await Promise.all([worker.fetch(makeRequest(), ENV), worker.fetch(makeRequest(), ENV)]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 202]);
+    assert.equal(dispatches.length, 1);
+    const recovered = await worker.fetch(makeRequest("/jobs/recover"), ENV);
+    assert.equal(recovered.status, 200);
+    assert.equal((await recovered.json()).job_id.length > 0, true);
+    assert.equal(dispatches.length, 1);
+  } finally {
+    ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
+  }
+});
+
+test("concurrent conflicting payloads with one request ID are rejected within one isolate", async () => {
+  const originalEmail = ENV.ACCESS_ALLOWED_EMAIL;
+  ENV.ACCESS_ALLOWED_EMAIL = "concurrency-conflict@example.com";
+  let arrivals = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  runListGate = async () => {
+    arrivals += 1;
+    if (arrivals === 2) release();
+    await gate;
+    return Response.json({ workflow_runs: [] });
+  };
+  const makeRequest = (url) => new Request("https://worker.test/jobs", {
+    method: "POST",
+    headers: { Origin: ENV.DASHBOARD_ORIGIN, "Content-Type": "application/json", "Cf-Access-Jwt-Assertion": accessJwt("concurrency-conflict@example.com") },
+    body: JSON.stringify({ url, request_id: "concurrent-conflicting-payload" }),
+  });
+  try {
+    const responses = await Promise.all([
+      worker.fetch(makeRequest("https://x.com/u/status/93"), ENV),
+      worker.fetch(makeRequest("https://x.com/u/status/94"), ENV),
+    ]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [202, 409]);
+    assert.equal(dispatches.length, 1);
+  } finally {
+    ENV.ACCESS_ALLOWED_EMAIL = originalEmail;
+  }
 });
 
 test("GitHub dispatch errors are sanitized", async () => {
@@ -372,6 +501,60 @@ test("status endpoint reads workflow state and a sanitized report artifact", asy
   assert.equal(data.state, "completed");
   assert.equal(data.result.summary.sent, 1);
   assert.deepEqual(data.telegram, { message_ids: [42], count: 1 });
+});
+
+test("completed job identifies a missing report artifact without changing workflow completion", async () => {
+  const jobId = "job-1123456789abcdef0123456789abcdef";
+  artifactRunId = "124";
+  omitReportArtifact = true;
+  githubRuns = [run("124", `X2Telegram missing-report ${jobId}`, "completed", "success")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.state, "completed");
+  assert.equal(data.result, null);
+  assert.deepEqual(data.report_availability, { status: "missing", expires_at: null, error_code: "report_artifact_missing" });
+  assert.equal(dispatches.length, 0);
+});
+
+test("completed job identifies an expired report artifact and preserves expiry metadata", async () => {
+  const jobId = "job-1223456789abcdef0123456789abcdef";
+  artifactRunId = "125";
+  expireReportArtifact = true;
+  githubRuns = [run("125", `X2Telegram expired-report ${jobId}`, "completed", "success")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.result, null);
+  assert.deepEqual(data.report_availability, { status: "expired", expires_at: "2026-10-01T00:00:00Z", error_code: "report_expired" });
+  assert.equal(dispatches.length, 0);
+});
+
+test("report download failure is reported as unavailable, not silently omitted", async () => {
+  const jobId = "job-1323456789abcdef0123456789abcdef";
+  artifactRunId = "126";
+  failReportZip = true;
+  githubRuns = [run("126", `X2Telegram report-unavailable ${jobId}`, "completed", "success")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.report_availability.status, "unavailable");
+  assert.equal(data.report_availability.error_code, "report_unavailable");
+  assert.equal(data.result, null);
+  assert.equal(JSON.stringify(data).includes("private details"), false);
+});
+
+test("completed job surfaces an outcome-unconfirmed destination state", async () => {
+  const jobId = "job-1423456789abcdef0123456789abcdef";
+  artifactRunId = "127";
+  artifactReport = { status: "outcome_unconfirmed", results: [{
+    status: "outcome_unconfirmed", destinations: { telegram: { status: "outcome_unconfirmed", items: [{ status: "outcome_unconfirmed" }] } },
+  }] };
+  githubRuns = [run("127", `X2Telegram unknown-outcome ${jobId}`, "completed", "failure")];
+  const response = await worker.fetch(request(`/jobs/${jobId}`), ENV);
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.state, "outcome_unconfirmed");
 });
 
 test("partial destination delivery remains completed when another target failed", async () => {
