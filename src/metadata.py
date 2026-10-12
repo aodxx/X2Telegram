@@ -260,45 +260,51 @@ class YtDlpMetadataProvider(MetadataProvider):
         }
         with YoutubeDL(options) as ydl:
             info: dict[str, Any] = ydl.extract_info(post.normalized_url, download=False)
-        entries = info.get("entries") or []
-        if entries:
-            info = next((entry for entry in entries if entry), info)
-
+        entries = [entry for entry in (info.get("entries") or []) if entry]
+        media_entries = entries or [info]
         media: list[MediaItem] = []
         seen: set[str] = set()
-        formats = info.get("formats") or []
-        video_formats = [item for item in formats if item.get("url") and item.get("vcodec") not in (None, "none")]
-        # yt-dlp returns formats as variants of the single post media item;
-        # the format's position is not a distinct media identity.
-        for item in video_formats:
-            url = item["url"]
-            protocol = str(item.get("protocol") or "").lower()
-            extension = str(item.get("ext") or "").lower()
-            try:
-                path = urlsplit(url).path.lower()
-            except ValueError:
-                path = ""
-            hls_or_dash = (
-                protocol.startswith("m3u8")
-                or protocol in {"http_dash_segments", "dash", "f4m"}
-                or path.endswith((".m3u8", ".mpd", ".f4m"))
-                or extension in {"m3u8", "mpd", "f4m"}
-            )
-            if hls_or_dash or extension != "mp4":
-                continue
-            if url in seen:
-                continue
-            seen.add(url)
-            media.append(MediaItem(
-                "video", url, 0,
-                int(item["tbr"] * 1000) if item.get("tbr") else None,
-                item.get("width"), item.get("height"), extension,
-                item.get("filesize") or item.get("filesize_approx"),
-            ))
-        if video_formats and not media:
+        found_video_formats = False
+        unsupported_video_entry = False
+        # Formats within one entry are variants of that media item; separate
+        # entries represent distinct items in a multi-media post.
+        for media_index, media_info in enumerate(media_entries):
+            formats = media_info.get("formats") or []
+            video_formats = [item for item in formats if item.get("url") and item.get("vcodec") not in (None, "none")]
+            found_video_formats = found_video_formats or bool(video_formats)
+            supported_for_entry = 0
+            for item in video_formats:
+                url = item["url"]
+                protocol = str(item.get("protocol") or "").lower()
+                extension = str(item.get("ext") or "").lower()
+                try:
+                    path = urlsplit(url).path.lower()
+                except ValueError:
+                    path = ""
+                hls_or_dash = (
+                    protocol.startswith("m3u8")
+                    or protocol in {"http_dash_segments", "dash", "f4m"}
+                    or path.endswith((".m3u8", ".mpd", ".f4m"))
+                    or extension in {"m3u8", "mpd", "f4m"}
+                )
+                if hls_or_dash or extension != "mp4":
+                    continue
+                if url in seen:
+                    continue
+                seen.add(url)
+                supported_for_entry += 1
+                media.append(MediaItem(
+                    "video", url, media_index,
+                    int(item["tbr"] * 1000) if item.get("tbr") else None,
+                    item.get("width"), item.get("height"), extension,
+                    item.get("filesize") or item.get("filesize_approx"),
+                ))
+            if video_formats and not supported_for_entry:
+                unsupported_video_entry = True
+        if found_video_formats and (unsupported_video_entry or not media):
             raise SourceRetrievalError(
                 "unsupported_media_format",
-                "X exposed only HLS/DASH or non-MP4 video streams; no direct MP4 variant was available from this provider.",
+                "X exposed one or more media entries without a supported direct MP4 variant; a public fallback may provide supported media.",
                 "metadata",
             )
         return Metadata(post, media, info.get("title") or "")

@@ -1,4 +1,4 @@
-name: MEGA version-retention integration
+name: MEGA media-identity and version-retention integration
 
 on:
   push:
@@ -13,11 +13,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: x2telegram-mega-version-retention
+  group: x2telegram-mega-media-identity
   cancel-in-progress: false
 
 jobs:
-  verify-version-retention:
+  verify-media-identity-and-version-retention:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -48,7 +48,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y /tmp/megacmd.deb
 
-      - name: Upload two versions, verify both remotely, and compare downloaded bytes
+      - name: Upload multiple media identities and a changed version; verify remote objects and bytes
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
@@ -57,9 +57,11 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
         run: |
           python - <<'PY'
-          from pathlib import Path
+          from collections import Counter
           from hashlib import sha256
+          from pathlib import Path
           import os
+          import re
           import tempfile
 
           from src.config import Config
@@ -73,14 +75,26 @@ jobs:
           run_id = os.environ["GITHUB_RUN_ID"]
           root = Path(os.environ["RUNNER_TEMP"]) / f"x2telegram-mega-test-{run_id}"
           root.mkdir(parents=True, exist_ok=True)
-          payloads = [
-              b"X2Telegram same-post version A integration fixture\n",
-              b"X2Telegram same-post version B with changed content integration fixture\n",
-          ]
+          expected_remote_root = f"/X2Telegram-IntegrationTests/{run_id}"
+          payloads = {
+              "https://fixture.invalid/item-1-high.mp4": [
+                  b"X2Telegram item 1 version A integration fixture\n",
+                  b"X2Telegram item 1 version B changed-content integration fixture\n",
+              ],
+              "https://fixture.invalid/item-2-high.mp4": [
+                  b"X2Telegram item 2 distinct-content integration fixture\n",
+                  b"X2Telegram item 2 distinct-content integration fixture\n",
+              ],
+          }
 
           class FixtureMetadata(MetadataProvider):
               def get(self, post):
-                  return Metadata(post, [MediaItem("video", "https://fixture.invalid/media.mp4", 0, bitrate=100)])
+                  return Metadata(post, [
+                      MediaItem("video", "https://fixture.invalid/item-1-low.mp4", 0, bitrate=100),
+                      MediaItem("video", "https://fixture.invalid/item-1-high.mp4", 0, bitrate=200),
+                      MediaItem("video", "https://fixture.invalid/item-2-low.mp4", 1, bitrate=150),
+                      MediaItem("video", "https://fixture.invalid/item-2-high.mp4", 1, bitrate=300),
+                  ])
 
           post = parse_x_url("https://x.com/retentiontest/status/2100000000000000001")
           store = DedupeStore(root / "dedupe.json")
@@ -91,44 +105,65 @@ jobs:
               dedupe=store,
               mega_uploader=uploader,
           )
-          next_payload = 0
+          download_counts = Counter()
+          remote_folder = expected_remote_root
 
-          def fixture_download(_url, _kind):
-              global next_payload
-              if next_payload >= len(payloads):
+          def fixture_download(url, _kind):
+              variants = payloads.get(url)
+              if variants is None:
+                  raise RuntimeError("Integration fixture selected an unexpected media variant.")
+              attempt = download_counts[url]
+              if attempt >= len(variants):
                   raise RuntimeError("Integration fixture was requested more times than expected.")
-              path = root / f"fixture-source-{next_payload}.mp4"
-              path.write_bytes(payloads[next_payload])
-              next_payload += 1
+              path = root / f"fixture-source-{sum(download_counts.values())}.mp4"
+              path.write_bytes(variants[attempt])
+              download_counts[url] += 1
               return path
 
           processor.downloader.download = fixture_download
-          remote_folder = None
           try:
               first = processor.process(post)
               second = processor.process(post)
-              for label, result in (("version_a", first), ("version_b", second)):
-                  if result.destinations["mega"]["status"] != "success":
-                      raise SystemExit(f"MEGA integration failed: {label} status was {result.destinations['mega']['status']}.")
-                  item = result.destinations["mega"]["items"][0]
-                  print(f"PROCESSOR_UPLOAD_VERIFIED version={label} filename={item['filename']} remote_folder={item.get('remote_folder')}")
-                  remote_folder = item.get("remote_folder")
+              if first.media_count != 2 or second.media_count != 2:
+                  raise SystemExit("MEGA integration failed: expected two independent media identities per processing pass.")
+              if [item["status"] for item in first.destinations["mega"]["items"]] != ["success", "success"]:
+                  raise SystemExit("MEGA integration failed: first pass did not upload both distinct media items.")
+              if [item["status"] for item in second.destinations["mega"]["items"]] != ["success", "duplicate"]:
+                  raise SystemExit("MEGA integration failed: changed media or true duplicate policy was not preserved.")
+              if first.media_reconciliation["destinations"]["mega"]["unaccounted_items"] != 0:
+                  raise SystemExit("MEGA integration failed: first pass left an expected item unaccounted.")
+              if second.media_reconciliation["destinations"]["mega"]["unaccounted_items"] != 0:
+                  raise SystemExit("MEGA integration failed: second pass left an expected item unaccounted.")
 
-              first_name = first.destinations["mega"]["items"][0]["filename"]
-              second_name = second.destinations["mega"]["items"][0]["filename"]
-              if first_name == second_name:
-                  raise SystemExit("MEGA integration failed: changed media versions received the same remote filename.")
+              first_names = [item["filename"] for item in first.destinations["mega"]["items"]]
+              second_names = [item["filename"] for item in second.destinations["mega"]["items"]]
+              if first_names[0] == second_names[0]:
+                  raise SystemExit("MEGA integration failed: changed content reused the old media filename.")
+              if first_names[1] != second_names[1]:
+                  raise SystemExit("MEGA integration failed: unchanged duplicate content did not retain its idempotent identity.")
+              remote_folder = first.destinations["mega"]["items"][0].get("remote_folder")
+              if not isinstance(remote_folder, str) or not re.fullmatch(
+                  re.escape(expected_remote_root) + r"/\d{4}-\d{2}-\d{2}", remote_folder,
+              ):
+                  raise SystemExit("MEGA integration failed: upload escaped its run-isolated test folder.")
 
+              expected_objects = {
+                  first_names[0]: payloads["https://fixture.invalid/item-1-high.mp4"][0],
+                  first_names[1]: payloads["https://fixture.invalid/item-2-high.mp4"][0],
+                  second_names[0]: payloads["https://fixture.invalid/item-1-high.mp4"][1],
+              }
+              if len(expected_objects) != 3:
+                  raise SystemExit("MEGA integration failed: expected remote filenames collided.")
               uploader._run(["mega-reload"], timeout=120)
               listing = uploader._run(["mega-ls", f"{remote_folder}/"], timeout=120)
               if listing.returncode != 0:
                   raise SystemExit("MEGA integration failed: remote folder listing failed.")
-              missing = [name for name in (first_name, second_name) if name not in (listing.stdout or "")]
+              missing = [name for name in expected_objects if name not in (listing.stdout or "")]
               if missing:
-                  raise SystemExit("MEGA integration failed: one or more same-post versions are missing remotely: " + ", ".join(missing))
+                  raise SystemExit("MEGA integration failed: expected remote objects are missing: " + ", ".join(missing))
 
               with tempfile.TemporaryDirectory(prefix="x2telegram-mega-download-") as download_dir:
-                  for name, expected in ((first_name, payloads[0]), (second_name, payloads[1])):
+                  for name, expected in expected_objects.items():
                       result = uploader._run(["mega-get", f"{remote_folder}/{name}", download_dir], timeout=300)
                       downloaded = Path(download_dir) / name
                       if result.returncode != 0 or not downloaded.is_file():
@@ -138,11 +173,13 @@ jobs:
                           raise SystemExit(f"MEGA integration failed: downloaded bytes did not match {name}.")
                       print(f"CONTENT_VERIFIED filename={name} bytes={len(actual)} sha256={sha256(actual).hexdigest()}")
 
-              print("MEGA_SAME_POST_VERSION_RETENTION_TEST=PASS")
+              print("MEGA_MEDIA_IDENTITY_AND_VERSION_RETENTION_TEST=PASS expected_objects=3 initial_media_items=2 changed_media_items=1 duplicate_items=1")
           finally:
-              # Remove only this run's isolated test directory; never touch production folders.
-              if remote_folder:
-                  test_root = f"/X2Telegram-IntegrationTests/{run_id}"
-                  uploader._run(["mega-rm", "-r", "-f", test_root], timeout=120)
-              processor.close()
+              try:
+                  # This path is isolated by the workflow run ID; never touch user folders.
+                  cleanup = uploader._run(["mega-rm", "-r", "-f", expected_remote_root], timeout=120)
+                  if cleanup.returncode != 0:
+                      raise SystemExit("MEGA integration failed: cleanup of the run-isolated test folder was not confirmed.")
+              finally:
+                  processor.close()
           PY

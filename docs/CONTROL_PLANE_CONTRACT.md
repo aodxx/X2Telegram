@@ -82,6 +82,10 @@ Response ไม่คืน raw logs, signed GitHub artifact URL, media CDN URL,
 
 Report แยก `destinations[telegram|mega|dropbox|download]` และผล `items[]`. สถานะสำคัญ ได้แก่ `success`, `failed`, `partial_success`, `duplicate`, `ready`, `processing`. Failure ของ target หนึ่งไม่หยุด dispatcher; job-level success ยังมีได้เมื่อมี target อื่นสำเร็จ. Download ZIP lookup/expiry failure จะสะท้อนใน result และ Dashboard status
 
+แต่ละ post อาจมี `media_manifest[]` และ `media_reconciliation`. Manifest บันทึก `media_index` ภายใน post, `source_index`, `kind`, สถานะดาวน์โหลด/validation, `size_bytes`, content `sha256` (hash ของ bytes ไม่รวม post identity) และสถานะต่อ destination ที่เลือก. Reconciliation สรุปจำนวน expected, validated, accounted, delivered, duplicate, failed และ unaccounted items ต่อ destination; หาก metadata ล้มเหลวหรือ legacy duplicate ถูกข้ามก่อน enumerate จะรายงาน expected เป็น `null` และสถานะ `metadata_failed`/`not_enumerated` แทนการอ้างว่า expected เป็นศูนย์. Fields เหล่านี้เป็น optional เพื่อคง compatibility กับ report เก่า
+
+Destination status ใน manifest หมายถึง adapter outcome (`success`, `ready`, `duplicate`, `failed`, `not_attempted`) ไม่ใช่หลักฐาน remote read-back โดยตัวมันเอง. การอ้าง remote integrity ต้องมี integration evidence เช่น remote listing และ download-back bytes/hash แยกต่างหาก. Dashboard sanitizer allowlists เฉพาะ fields ข้างต้นและไม่ส่ง media URL, signed query, local path หรือ remote folder.
+
 `mega_credentials_missing`, `mega_authentication_failed`, `mega_client_unavailable`, `mega_upload_failed`, `download_artifact_size_limit`, `download_artifact_missing`, `download_expired` เป็น safe error codes; report ไม่รวม MEGA command output/password/TOTP seed หรือ media signed URL
 
 ## Authentication/security boundary

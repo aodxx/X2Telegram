@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -157,11 +158,15 @@ def test_post_with_two_video_media_items_downloads_best_variant_for_each(tmp_pat
         TwoVideoMetadata(), download_exporter=exporter,
     )
     selected_urls = []
+    payloads = {
+        "https://media.invalid/first-high.mp4": b"first-distinct-video-bytes",
+        "https://media.invalid/second-high.mp4": b"second-distinct-video-content",
+    }
 
     def fake_download(url, _kind):
         selected_urls.append(url)
         path = tmp_path / f"source-{len(selected_urls)}.mp4"
-        path.write_bytes(url.encode())
+        path.write_bytes(payloads[url])
         return path
 
     with patch.object(processor.downloader, "download", side_effect=fake_download) as download:
@@ -176,8 +181,18 @@ def test_post_with_two_video_media_items_downloads_best_variant_for_each(tmp_pat
     assert result.media_count == 2
     assert [item["media_index"] for item in result.destinations["download"]["items"]] == [1, 2]
     assert sorted(path.name for path in output.iterdir()) == ["126_01.mp4", "126_02.mp4"]
-    assert (output / "126_01.mp4").read_bytes() == b"https://media.invalid/first-high.mp4"
-    assert (output / "126_02.mp4").read_bytes() == b"https://media.invalid/second-high.mp4"
+    exported = [(output / "126_01.mp4").read_bytes(), (output / "126_02.mp4").read_bytes()]
+    assert exported == [payloads[selected_urls[0]], payloads[selected_urls[1]]]
+    assert [len(data) for data in exported] == [len(payloads[url]) for url in selected_urls]
+    assert [sha256(data).hexdigest() for data in exported] == [sha256(payloads[url]).hexdigest() for url in selected_urls]
+    assert [entry["sha256"] for entry in result.media_manifest] == [sha256(data).hexdigest() for data in exported]
+    assert [entry["size_bytes"] for entry in result.media_manifest] == [len(data) for data in exported]
+    assert result.media_reconciliation["expected_items"] == 2
+    assert result.media_reconciliation["downloaded_items"] == 2
+    assert result.media_reconciliation["destinations"]["download"] == {
+        "expected_items": 2, "accounted_items": 2, "delivered_items": 2,
+        "duplicate_items": 0, "failed_items": 0, "unaccounted_items": 0,
+    }
 
 
 def test_telegram_selects_highest_variant_within_50mb_limit(tmp_path):
@@ -253,6 +268,11 @@ def test_source_download_failure_keeps_actionable_stage_and_media_index(tmp_path
     assert item["stage"] == "download"
     assert item["media_index"] == 1
     assert "429" in item["error"]
+    assert result.media_manifest[0]["download_status"] == "failed"
+    assert result.media_manifest[0]["destinations"]["telegram"] == "failed"
+    assert result.media_reconciliation["expected_items"] == 1
+    assert result.media_reconciliation["download_failed_items"] == 1
+    assert result.media_reconciliation["destinations"]["telegram"]["unaccounted_items"] == 0
 
 
 @pytest.mark.parametrize("destinations", [("mega",), ("download",), ("telegram", "download")])

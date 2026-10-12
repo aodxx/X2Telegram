@@ -41,3 +41,5 @@ class PostResult:
     error_code: str | None = None
     filenames: list[str] = field(default_factory=list)
     destinations: dict[str, dict] = field(default_factory=dict)
+    media_manifest: list[dict] = field(default_factory=list)
+    media_reconciliation: dict = field(default_factory=dict)

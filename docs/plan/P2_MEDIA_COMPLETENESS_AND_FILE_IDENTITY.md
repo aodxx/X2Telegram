@@ -1,17 +1,19 @@
 # Priority 2 — Media Completeness and File Identity
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL EVIDENCE / IN PROGRESS  
+**Current status:** IMPLEMENTATION + LIVE SOURCE EVIDENCE PASS; isolated multi-media MEGA integration pending on PR #23. No merge/deploy yet.
 **Scope:** URL batches, media enumeration, filenames, dedupe identity, destination writes, and output accounting.
 
-## Local implementation evidence (2026-10-12)
+## Implementation and verification evidence (2026-10-13)
 
 | Scenario | Expected / input | Observed | Destination | Evidence | Remaining limitation |
-|---|---|---|---|---|---|
-| Two video media items in one post, each with two bitrate variants | 1 synthetic post, 2 media identities, 4 variants → 2 files | Best variant selected independently per media identity; report items carry `media_index` 1 and 2; exported bytes match the selected fixture URLs | Download-only mock | `tests/test_destinations.py::test_post_with_two_video_media_items_downloads_best_variant_for_each` | No live X multi-video source or remote destination verification |
-| Metadata identity normalization | 2 videos × 2 variants; yt-dlp single-video formats | Syndication keeps one index per media item; yt-dlp formats share the single item's index | Metadata unit tests | `tests/test_metadata.py::test_syndication_assigns_one_media_index_to_each_video_and_its_variants`, `test_ytdlp_assigns_same_media_index_to_all_video_formats` | Provider payloads are fixtures, not live X responses |
+|---|---:|---|---|---|---|
+| Two video media items in one post, each with two bitrate variants | 1 synthetic post, 2 media identities, 4 variants → 2 files | Best variant selected independently; two local files match expected bytes, sizes, and SHA-256; manifest/reconciliation report 2 expected, 2 validated, 2 ready, 0 unaccounted | Download-only mock | `tests/test_destinations.py::test_post_with_two_video_media_items_downloads_best_variant_for_each` | Fixture source; remote confirmation is separate |
+| yt-dlp playlist entries | 2 entries × 2 variants → 2 identities | Parser no longer discards all but the first entry; each entry's formats share one identity | Metadata unit test | `tests/test_metadata.py::test_ytdlp_preserves_distinct_media_entries_and_groups_each_entries_variants` | Fixture payload; live test below covers a mixed photo/video post |
+| Real public multi-media source | 1 owner-used URL; 4 metadata entries (1 photo + 3 video variants) → 2 distinct media items | Download-only process exported exactly 2 files: 79,517 bytes / SHA-256 `e309f9c18a4b55322afd56312b7ac6a66f5c5769cd3d3de476105f835422a84a` and 2,797,748 bytes / SHA-256 `551ceed75acef2aadccf7f7c2f98d62eece4e304e8c0fa1f55f81adeeba3b8f5`; report expected 2, validated 2, ready 2 | Live X source → local temporary Download-only; temp files removed | Source-only run 2026-10-13 against owner-used post ID `2108081184366604583`; prior workflow report run [#38160545553](https://github.com/aodxx/X2Telegram/actions/runs/38160545553) enumerated 2 Dropbox items | The live probe did not write to any remote destination; historical run conclusion was failure, so it is not treated as successful remote proof |
+| Remote output integrity and idempotency | 2 synthetic video identities × 2 variants; change content for item 1 and repeat item 2 | Pending: isolated run folder will verify 3 remote objects by listing and download-back bytes/SHA-256, while unchanged item is deduplicated | MEGA synthetic integration | `.github/workflows/mega-integration.yml` on branch `fix/p2-multiple-video-media-items` | Workflow run/remote evidence pending |
 
-Python validation on the working tree: targeted media/metadata tests **43 passed**; full suite **132 passed**. This is automated evidence only and does not complete the P2 live-source/destination acceptance criteria.
+Python validation on the working tree: targeted destination/metadata/report tests **54 passed**; full suite **134 passed**; Worker **27 passed**; Python compile, workflow YAML parse, and `git diff --check` passed. The media manifest tracks each enumerated item, local size/SHA-256, and per-selected-destination outcome; metadata failures and legacy pre-enumeration duplicates are explicitly marked as not enumerated rather than claiming zero expected items. The API sanitizer allowlists the new fields and drops URLs/paths. Isolated live MEGA verification remains pending before P2 is marked complete.
 
 ## Known context
 

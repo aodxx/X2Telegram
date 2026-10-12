@@ -20,7 +20,11 @@ _SAFE_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SAFE_DESTINATIONS = {"telegram", "mega", "dropbox", "download"}
 _SAFE_DESTINATION_STATUSES = {"success", "failed", "partial_success", "duplicate", "ready", "no_media", "processing"}
 _SAFE_ITEM_STATUSES = {"success", "failed", "duplicate", "ready"}
+_SAFE_MEDIA_DOWNLOAD_STATUSES = {"pending", "validated", "failed", "processing_failed"}
+_SAFE_MEDIA_DESTINATION_STATUSES = _SAFE_ITEM_STATUSES | {"not_attempted"}
+_SAFE_RECONCILIATION_STATUSES = {"complete", "metadata_failed", "not_enumerated"}
 _SAFE_CODE_RE = re.compile(r"^[a-zA-Z0-9_.-]{1,80}$")
+_SAFE_SHA256_RE = re.compile(r"^[a-fA-F0-9]{64}$")
 _SAFE_USERNAME_RE = re.compile(r"^[A-Za-z0-9_]{1,50}$")
 _SAFE_POST_ID_RE = re.compile(r"^\d{1,32}$")
 _SAFE_X_URL_RE = re.compile(r"^https://x\.com/[A-Za-z0-9_]{1,50}/status/\d{1,32}$")
@@ -33,7 +37,7 @@ _TOP_KEYS = (
 )
 _RESULT_KEYS = (
     "post_id", "username", "source_url", "status", "stage", "error_code",
-    "media_count", "message_ids", "filenames", "destinations",
+    "media_count", "message_ids", "filenames", "destinations", "media_manifest", "media_reconciliation",
 )
 _MAX_TEXT = 300
 
@@ -147,6 +151,63 @@ def _safe_destinations(value: Any) -> dict[str, dict[str, Any]]:
     return clean
 
 
+def _safe_media_manifest(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    clean = []
+    for item in value[:100]:
+        if not isinstance(item, dict):
+            continue
+        kind = item.get("kind")
+        if not isinstance(kind, str) or kind not in {"photo", "video"}:
+            continue
+        download_status = str(item.get("download_status", ""))
+        entry: dict[str, Any] = {
+            "media_index": max(1, _safe_count(item.get("media_index"))),
+            "source_index": _safe_count(item.get("source_index")),
+            "kind": kind,
+            "download_status": download_status if download_status in _SAFE_MEDIA_DOWNLOAD_STATUSES else "failed",
+        }
+        if item.get("size_bytes") is not None:
+            entry["size_bytes"] = _safe_count(item.get("size_bytes"))
+        digest = str(item.get("sha256") or "")
+        if _SAFE_SHA256_RE.fullmatch(digest):
+            entry["sha256"] = digest.lower()
+        code = _safe_code(item.get("error_code"))
+        if code:
+            entry["error_code"] = code
+        destinations = item.get("destinations") if isinstance(item.get("destinations"), dict) else {}
+        entry["destinations"] = {}
+        for name in ("telegram", "mega", "dropbox", "download"):
+            destination_status = destinations.get(name)
+            if isinstance(destination_status, str) and destination_status in _SAFE_MEDIA_DESTINATION_STATUSES:
+                entry["destinations"][name] = destination_status
+        clean.append(entry)
+    return clean
+
+
+def _safe_media_reconciliation(value: Any) -> dict[str, Any]:
+    source = value if isinstance(value, dict) else {}
+    status = str(source.get("status", ""))
+    clean: dict[str, Any] = {"status": status if status in _SAFE_RECONCILIATION_STATUSES else "metadata_failed"}
+    for key in ("expected_items", "downloaded_items", "download_failed_items", "processing_failed_items"):
+        raw = source.get(key)
+        clean[key] = None if raw is None else _safe_count(raw)
+    raw_destinations = source.get("destinations") if isinstance(source.get("destinations"), dict) else {}
+    clean_destinations = {}
+    count_keys = ("expected_items", "accounted_items", "delivered_items", "duplicate_items", "failed_items", "unaccounted_items")
+    for name in ("telegram", "mega", "dropbox", "download"):
+        raw = raw_destinations.get(name)
+        if not isinstance(raw, dict):
+            continue
+        clean_destinations[name] = {
+            key: None if raw.get(key) is None else _safe_count(raw.get(key))
+            for key in count_keys
+        }
+    clean["destinations"] = clean_destinations
+    return clean
+
+
 def _safe_selected_destinations(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
@@ -237,6 +298,10 @@ def _safe_result(item: Any) -> dict[str, Any]:
             clean[key] = [_bounded_text(filename, 160) for filename in (value or [])][:100]
         elif key == "destinations":
             clean[key] = _safe_destinations(value)
+        elif key == "media_manifest":
+            clean[key] = _safe_media_manifest(value)
+        elif key == "media_reconciliation":
+            clean[key] = _safe_media_reconciliation(value)
     if item.get("error"):
         clean["error"] = redact(item["error"])
     return clean

@@ -1,7 +1,7 @@
 # Priority 1 — X Source Download Reliability
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL — code, local/CI suites, Dashboard Pages and Worker deployment pass; no post-fix live X source fetch has been performed.
+**Current status:** COMPLETE for source reliability and per-URL reporting — the deployed P1 fix passes a post-fix source-only live fetch of the historical failing URL; no destination was called during that verification.
 **Scope:** Source retrieval, media parsing, per-URL outcomes, and actionable download errors. Do not redesign destinations or the control plane unless evidence shows they are the root cause.
 
 ## Why this is first
@@ -27,12 +27,12 @@ The current project status records real runs where one URL succeeds but another 
 
 ## Acceptance checklist
 
-- [ ] Root cause or reproducible source-level limitation is documented with evidence.
-- [ ] The relevant URL now succeeds in a reproducible case, or gives a precise failure reason if the source is genuinely unavailable/unsupported.
-- [ ] Multi-URL jobs preserve successful items when another URL fails.
-- [ ] Reports are safe and actionable; no credentials or signed URL leakage.
-- [ ] Targeted regression tests pass; relevant existing CI evidence is reused when code has not changed.
-- [ ] `docs/PROJECT_STATUS.md` and `docs/E2E_TEST_REPORT.md` reflect only verified new evidence.
+- [x] Root cause or reproducible source-level limitation is documented with evidence.
+- [x] The relevant URL now succeeds in a reproducible case, or gives a precise failure reason if the source is genuinely unavailable/unsupported.
+- [x] Multi-URL jobs preserve successful items when another URL fails.
+- [x] Reports are safe and actionable; no credentials or signed URL leakage.
+- [x] Targeted regression tests pass; relevant existing CI evidence is reused when code has not changed.
+- [x] `docs/PROJECT_STATUS.md` and `docs/E2E_TEST_REPORT.md` reflect only verified new evidence.
 
 ## Validation and live-test boundary
 
@@ -58,6 +58,8 @@ Report: confirmed cause; code/tests changed; commands actually run; CI/run URL; 
 | Historical HLS failure, run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973) | 2 URLs, 2 post results | First post reached all four destinations; second provider returned HLS playlists marked as MP4 and the direct downloader rejected the playlist; public fallbacks exposed direct MP4 variants | Historical live run: Telegram/MEGA/Dropbox/ZIP for first post; none for failed post | Sanitized report/log artifacts and source-only probe | Historical run predates this fix; no new destination upload was made |
 | Bounded video-variant fallback | 1 URL, 3 candidates | Highest and middle candidates fail at the size cap; the lower candidate succeeds; exactly one Telegram send | Telegram mock | `tests/test_destinations.py::test_telegram_falls_back_to_lower_video_variant_when_size_is_unknown` | Synthetic downloader results; no live send |
 | Batch isolation and input reconciliation | 5 nonblank URL tokens, 1 blank line | 3 accepted unique posts, 1 normalized duplicate, 1 rejected; 3 post results in original order (2 success, 1 source failure); partial-success retained; injected failure carries 2 reported HTTP attempts and 1 video variant attempt | Download-only mock | `tests/test_cli_inputs.py::test_cli_keeps_successes_around_failed_url_and_reconciles_inputs` | No live workflow dispatch; retry count is injected in this batch fixture and separately asserted with two mocked HTTP calls in downloader retry tests |
-| HTTP/source/input edge cases | 429, timeout, 404, malformed JSON/authority, HLS, redirect loop, oversized response | Retries are bounded; numeric `Retry-After` is honored; 404 is not retried; malformed source data, IPv6 authority and media/redirect failures are safely classified/rejected; redirect loops stop after 6 requests; one empty provider cannot hide another provider's transient error; metadata redirects are same-host only; CLI passes `MAX_RETRIES` through | None; unit mocks | `tests/test_security_and_telegram.py`, `tests/test_metadata.py`, `tests/test_urls.py`, `tests/test_cli_inputs.py` | No post-change live source run |
+| HTTP/source/input edge cases | 429, timeout, 404, malformed JSON/authority, HLS, redirect loop, oversized response | Retries are bounded; numeric `Retry-After` is honored; 404 is not retried; malformed source data, IPv6 authority and media/redirect failures are safely classified/rejected; redirect loops stop after 6 requests; one empty provider cannot hide another provider's transient error; metadata redirects are same-host only; CLI passes `MAX_RETRIES` through | None; unit mocks | `tests/test_security_and_telegram.py`, `tests/test_metadata.py`, `tests/test_urls.py`, `tests/test_cli_inputs.py` | These specific error-edge cases remain mock-only; the direct-MP4 fallback behavior has the separate live row below |
 
-**Release validation (commit `8fb44274738d0c0090958f4b880189b0b93d17c7`):** local `pytest -q` — 129 passed; CI run [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760) — Python 129 and Worker 27 passed; synthetic MEGA integration [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778) and Pages [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) passed; Worker deploy [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) succeeded as version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`. Python compile, Node/inline dashboard JS syntax, workflow YAML parse, and `git diff --check` passed. Sanitized error example is `source_rate_limited` / HTTP 429; reports retain stage and attempt count but remove source URLs and query tokens. **Remaining limitation:** no post-fix live X source fetch or real destination send; do not infer support for all X URLs.
+| Post-fix live check of the historical failing URL | 1 owner-approved URL; one video identity, 3 direct MP4 variants | The previous highest/middle candidates exceed the standard 50 MB cap; bounded fallback fetched and validated the lower candidate at 29,799,397 bytes; SHA-256 `58e9b145e35229b9e02dff432bc680e357d065aaa438c55737c648f88166e589` | Source-only; no destination adapter invoked | Local fetch-only test on 2026-10-13; historical source context [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635), post ID `2108928241461551160` | One public post only; this does not imply every X post is supported |
+
+**Release validation (deployed commit `8fb44274738d0c0090958f4b880189b0b93d17c7`):** local `pytest -q` — 129 passed; CI run [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760) — Python 129 and Worker 27 passed; synthetic MEGA integration [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778) and Pages [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) passed; Worker deploy [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) succeeded as version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`. Python compile, Node/inline dashboard JS syntax, workflow YAML parse, and `git diff --check` passed. Sanitized error example is `source_rate_limited` / HTTP 429; reports retain stage and attempt count but remove source URLs and query tokens. Current P2 candidate independently reruns the full Python suite (134 passed), Worker suite (27 passed), compile, YAML parse, and diff checks; its CI is pending. **Remaining limitation:** only the documented source-only test was live-verified; no destination send was made during P1 validation; do not infer support for all X URLs.

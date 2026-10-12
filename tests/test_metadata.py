@@ -133,6 +133,37 @@ def test_ytdlp_assigns_same_media_index_to_all_video_formats():
     assert [item.index for item in result.media] == [0, 0]
 
 
+def test_ytdlp_preserves_distinct_media_entries_and_groups_each_entries_variants():
+    provider = YtDlpMetadataProvider(timeout_seconds=5)
+    post = parse_x_url("https://x.com/user/status/123")
+
+    class FakeYoutubeDL:
+        def __init__(self, _options):
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return None
+        def extract_info(self, _url, download=False):
+            assert download is False
+            return {"entries": [
+                {"formats": [
+                    {"url": "https://video.twimg.com/first-low.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 100},
+                    {"url": "https://video.twimg.com/first-high.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 200},
+                ]},
+                {"formats": [
+                    {"url": "https://video.twimg.com/second-low.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 150},
+                    {"url": "https://video.twimg.com/second-high.mp4", "vcodec": "h264", "protocol": "https", "ext": "mp4", "tbr": 300},
+                ]},
+            ]}
+
+    with patch.dict(sys.modules, {"yt_dlp": SimpleNamespace(YoutubeDL=FakeYoutubeDL)}):
+        result = provider._from_ytdlp(post)
+
+    assert len(result.media) == 4
+    assert [item.index for item in result.media] == [0, 0, 1, 1]
+
+
 def test_ytdlp_metadata_uses_configured_bounded_retry_budget():
     provider = YtDlpMetadataProvider(timeout_seconds=5, max_retries=1)
     post = parse_x_url("https://x.com/user/status/123")

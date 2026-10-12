@@ -1,12 +1,12 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
-**อัปเดต:** 2026-10-12
+**อัปเดต:** 2026-10-13
 **จุดอ้างอิง:** `main` / production deployment commit `8fb4427`
 **สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
 
-**P2 progress (2026-10-12):** feature branch `fix/p2-multiple-video-media-items` groups video variants by media identity and reports `media_index` per destination item. Python full suite: 132 passed. The branch is not merged/deployed and does not replace live X/destination verification; see [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
+**P2 progress (2026-10-13):** PR #23 branch `fix/p2-multiple-video-media-items` now preserves distinct yt-dlp playlist entries, emits a per-media size/SHA-256 manifest and per-destination reconciliation, and has **134 Python tests** passing locally. Post-fix live source-only evidence: historical P1 URL fetched successfully; a real mixed photo/video post exported 2/2 local files with matching manifest hashes. Updated PR CI and isolated synthetic MEGA multi-media/version-retention integration are pending; branch is not merged/deployed. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
 
-**Execution Plan Priority 1:** source reliability release ผ่าน local/CI Python suite 129 tests, Worker suite 27 tests, Pages deploy และ production Worker rollout (version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`). ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md). ยังไม่มี post-fix live X fetch หรือ destination send; คงสถานะ PARTIAL จนกว่าจะมีหลักฐาน source-only ที่ปลอดภัย.
+**Execution Plan Priority 1:** source reliability release ผ่าน local/CI Python suite 129 tests, Worker suite 27 tests, Pages deploy และ production Worker rollout (version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`). ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Historical failing URL ผ่าน post-fix source-only fetch ที่ 29,799,397 bytes; ไม่มี destination send ใน probe นี้. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md).
 
 ## 1. สรุปสำหรับ agent ที่เพิ่งเข้ามา
 
@@ -116,7 +116,7 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 #### P2.2 Multi-photo และหลาย media item แบบ live
 
-ยืนยันว่าโพสต์ที่มีรูป/วิดีโอหลายรายการดาวน์โหลดครบ, report แยกราย media, และ dedupe fingerprint ไม่ทำให้ media คนละชิ้นหายไป
+Live source-only test ยืนยันโพสต์จริงแบบ 1 รูป + 1 วิดีโอ export ครบ 2/2 พร้อม manifest/hash; PR #23 เพิ่ม playlist-entry regression และ manifest/reconciliation. รอ updated PR CI และ isolated synthetic MEGA run เพื่อยืนยัน remote listing/download-back และ changed-content/dedupe semantics. ห้ามใช้ remote folder production.
 
 #### P2.3 Dashboard reload/recovery
 
