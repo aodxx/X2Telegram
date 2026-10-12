@@ -44,3 +44,12 @@ Use unit/integration fixtures first. For a live destination test, use a dedicate
 ## Required handoff
 
 State the exact input count, expected media count, observed count, destination(s), size/hash evidence, test run URL, and any remaining limitation. Do not report “all files complete” when the source extraction or destination output count was not verified.
+
+## Completeness audit additions — expected-versus-observed manifest
+
+- Build an explicit per-job manifest from the submitted URLs and enumerated supported media items before destination delivery. Track each item through extraction, local validation, and each selected destination; make skipped/unsupported items explicit rather than silently omitting them.
+- Keep separate concepts separate: source/post identity, media-item identity, and content SHA-256. Use content hash to verify bytes and avoid collisions, but do not use a post-level identifier alone as the identity for every photo/video in a post.
+- Reconcile expected item count against downloaded/validated count and each destination's verified count. A destination success flag alone is insufficient if the remote object cannot be found or its size does not match.
+- Define and test duplicate policy explicitly: same submitted URL, same source item/content, and different content under a reused filename are different cases. Distinct content must remain available; true duplicates may be skipped idempotently.
+- Test interrupted/failed uploads and name collisions without deleting old content. Where supported, verify remote size and SHA-256 by downloading back; otherwise state exactly which weaker evidence was used.
+- Acceptance report must include a reconciliation table or equivalent: submitted URLs → discovered items → validated local files → expected destination writes → verified destination objects, with explanations for every difference.
