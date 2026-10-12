@@ -7,6 +7,8 @@
 **Branch:** `main`  
 **Status:** Active plan — execute in order; do not treat this document as evidence that a priority is already complete.
 
+**Progress snapshot (2026-10-13):** Priority 1 and Priority 2 acceptance are complete. P1 source reliability is deployed and its historical failure URL passed source-only live verification; P2 was merged as main commit `a5711e1` (PR #23), with main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and synthetic MEGA multi-item integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passing. The Cloudflare Worker remains on deployment commit `8fb4427` because P2 did not change Worker code. Continue with Priority 3; consult the detailed guides for scope and remaining evidence.
+
 This is the overview and acceptance contract for the five agreed development priorities. Detailed implementation guides are stored in `docs/plan/`; Manus must read the matching guide before working on a priority. This lets work continue from repository documents without asking the user to paste long prompts.
 
 ## Detailed implementation guides (read these before coding)

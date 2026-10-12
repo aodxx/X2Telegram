@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-13
-**สถานะ:** Production Worker และ Dashboard ยัง deploy ด้วย commit `8fb4427`; P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness บน PR #23 ผ่าน local/PR tests, real source-only mixed photo/video 2/2 และ synthetic MEGA remote integrity/version/dedupe runs; ยังไม่ merge ไป `main`.
+**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. Cloudflare Worker deployment ยังคงเป็น commit `8fb4427` (P2 ไม่เปลี่ยน Worker code; ไม่ต้อง deploy Worker); GitHub Actions processor ใช้ main code ล่าสุด.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -46,11 +46,11 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## Validation ล่าสุด
 
-- Python: deployed baseline `129 passed` in CI [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760); current P2 candidate full suite **134 passed**, targeted destination/metadata/report suite **54 passed** (local; updated PR CI pending)
+- Python: **134 passed** in main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022); targeted destination/metadata/report suite **54 passed** locally
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
-- Release runs on commit `8fb4427`: automated tests [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760), synthetic MEGA version-retention [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778), Dashboard Pages [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838), and Worker deploy [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) all succeeded. Updated P2 branch adds explicit item manifest/reconciliation and an expanded isolated MEGA multi-item/version-retention integration; remote run and new PR CI are pending.
+- P2 merge commit `a5711e1`: main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and MEGA multi-item/version-retention integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) both succeeded. The integration verified 3 remote objects by listing/download-back bytes/SHA-256 and cleaned the run-isolated folder.
 
 ## การตั้งค่า MEGA
 
@@ -58,7 +58,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## ขอบเขต/ข้อจำกัดที่ยังเหลือ
 
-- P2 media completeness: PR #23 branch `fix/p2-multiple-video-media-items` แก้การเลือก yt-dlp playlist entry แรก, เพิ่ม `media_manifest`/`media_reconciliation` พร้อม size/SHA-256 และเพิ่ม regression; current Python suite **134 passed**. Live source-only mixed post verified 2/2 local files; PR CI [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939) passed; synthetic MEGA runs [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709) verified 3 objects each by remote listing/download-back hash, including changed version and true duplicate, with isolated cleanup. PR not yet merged.
+- P2 media completeness: **complete on main commit `a5711e1` via PR #23**. Adds distinct yt-dlp playlist-entry identities and `media_manifest`/`media_reconciliation` with size/SHA-256; Python suite **134 passed**. Real source-only mixed post verified 2/2 local files; main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and main MEGA integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passed. No Worker deploy was needed.
 - X media fetch ยังมี `download_error` ในบาง run; เมื่อเกิดก่อน destination dispatch จะล้มพร้อมกันทุก target สำหรับ URL นั้น (เช่น run #38037210973)
 - Telegram >50 MB ต้องเปิด Large-file mode และ Local Bot API; run #38102024465 ยืนยันว่า standard mode ปฏิเสธไฟล์ใหญ่ตาม limit; Local Bot API path ยังไม่ live-tested
 - Dropbox live upload ผ่านหนึ่ง media แล้ว; OAuth refresh หลัง token expiry และ large-file upload session ยังมีเพียง automated coverage

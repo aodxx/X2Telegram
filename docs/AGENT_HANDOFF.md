@@ -1,10 +1,10 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-10-13
-**จุดอ้างอิง:** `main` / production deployment commit `8fb4427`
-**สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
+**จุดอ้างอิง:** P2 merge commit `a5711e1` (included in `main`); Cloudflare Worker deployment commit `8fb4427`
+**สถานะสั้น:** P1/P2 ใน Manus execution plan ผ่าน acceptance แล้ว; P2 merge และ main CI/MEGA integration ผ่าน. Worker deployment ยังเป็น `8fb4427` เพราะ P2 ไม่เปลี่ยน Worker; backlog ถัดไปคือ P3 ตาม plan และ live blockers ที่ปลอดภัย
 
-**P2 progress (2026-10-13):** PR #23 branch `fix/p2-multiple-video-media-items` preserves distinct yt-dlp playlist entries, emits a per-media size/SHA-256 manifest/reconciliation, and has **134 Python tests** passing locally. Real source-only mixed photo/video exported 2/2 local files with matching hashes. PR CI [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939) passed; isolated synthetic MEGA verification [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709) each confirmed 3 remote objects, changed-version retention, duplicate idempotency, byte/hash integrity, and run-folder cleanup. Acceptance evidence is complete; PR is not yet merged to main. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
+**P2 complete (2026-10-13):** PR #23 merged as main commit `a5711e1`. It preserves distinct yt-dlp playlist entries and emits a per-media size/SHA-256 manifest/reconciliation. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) passed; main synthetic MEGA integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) verified 3 remote objects, changed-version retention, duplicate idempotency, byte/hash integrity, and run-folder cleanup. Real source-only mixed photo/video exported 2/2 local files with matching hashes. No Worker deployment was needed because Worker code was unchanged. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
 
 **Execution Plan Priority 1:** source reliability release ผ่าน local/CI Python suite 129 tests, Worker suite 27 tests, Pages deploy และ production Worker rollout (version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`). ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Historical failing URL ผ่าน post-fix source-only fetch ที่ 29,799,397 bytes; ไม่มี destination send ใน probe นี้. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md).
 
@@ -39,12 +39,13 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 |---|---|
 | Repository | `aodxx/X2Telegram` |
 | Branch | `main` |
+| P2 merge commit in main | `a5711e1` (media manifest/identity) |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
 | Worker version | `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f` |
 | Deploy commit | `8fb44274738d0c0090958f4b880189b0b93d17c7` |
 | Deploy run | [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) — success |
-| Python tests | 129 passed |
+| Python tests | 134 passed (main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022)) |
 | Worker tests | 27 passed |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
 | Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 302 (Access redirect) |
@@ -116,7 +117,7 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 #### P2.2 Multi-photo และหลาย media item แบบ live
 
-Live source-only test ยืนยันโพสต์จริงแบบ 1 รูป + 1 วิดีโอ export ครบ 2/2 พร้อม manifest/hash; PR #23 เพิ่ม playlist-entry regression และ manifest/reconciliation. รอ updated PR CI และ isolated synthetic MEGA run เพื่อยืนยัน remote listing/download-back และ changed-content/dedupe semantics. ห้ามใช้ remote folder production.
+เสร็จแล้วบน main commit `a5711e1`: live source-only test ยืนยันโพสต์จริงแบบ 1 รูป + 1 วิดีโอ export ครบ 2/2 พร้อม manifest/hash; main CI และ isolated synthetic MEGA run [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) ผ่านการตรวจ remote listing/download-back และ changed-content/dedupe semantics. ห้ามใช้ remote folder production ในการทดสอบใหม่.
 
 #### P2.3 Dashboard reload/recovery
 
