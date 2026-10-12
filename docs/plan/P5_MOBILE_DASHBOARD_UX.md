@@ -47,3 +47,12 @@ Use existing test tooling and targeted browser checks. Run relevant regression c
 ## Required handoff
 
 Report viewport/device or browser, tested flow, screenshots/logs if available without sensitive data, tests actually run, commit/deployment details if deployed, and any real-device limitation.
+
+## Completeness audit additions — interrupted sessions and accessible recovery
+
+- Verify mobile behavior under slow/interrupted connectivity, API polling errors, expired Access sessions, and browser reload during each job phase. Poll with bounded/backoff behavior and show stale/loading state honestly instead of presenting old status as current.
+- Normalize pasted multiline input consistently with the backend and show the accepted URL count before dispatch; identify rejected/blank entries without exposing private query parameters in error summaries.
+- Require clear confirmation/context before a user starts a new job after a prior report expires. A reload, polling error, or unavailable report must never be interpreted as permission to dispatch again.
+- Ensure status and error meaning is not conveyed by color alone; controls have accessible labels/focus states, and primary actions fit narrow viewports without horizontal scrolling.
+- Include a user-visible summary/export or copyable sanitized report where practical, but do not add a new backend endpoint if the existing report contains the needed information. ZIP expiration must include the actual recovery path, not just an expired badge.
+- Acceptance evidence should cover at least narrow mobile width, partial failure, stale connection, reload mid-job, retry, and ZIP expired/unavailable states using existing test tooling; one real-device smoke test is enough unless the relevant flow changes.
