@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 implementation is partially validated on Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), branch `fix/p3-safe-retry-recovery` (Python 143, Worker/Dashboard 40); GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed. It is not merged/deployed and did not invoke a live destination.
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 was merged as main commit `9e9e9f8` (PR [#24](https://github.com/aodxx/X2Telegram/pull/24)); main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deployment [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed. Production Worker version: `f2e1afaf-db8e-4356-be75-215f60eb53e5`. P3 remains partial: no live destination retry was invoked; cross-isolate and checkpoint-storage limitations remain.
 
 ## หลักฐาน live
 
@@ -59,7 +59,7 @@
 - P1 release filters HLS/DASH, bounds lower-variant fallback, classifies and redacts source errors, and reports accepted/duplicate/normalized-duplicate/rejected outcomes while accounting for blank lines separately.
 - Independent review also identified three reliability gaps, now covered by regressions: an empty metadata provider no longer masks another provider's timeout/server error as `no_media`; configured `MAX_RETRIES` is passed to the provider; metadata HTTP redirects are followed only after same-host HTTPS validation and are bounded.
 - Local validation: Python **129 passed**, Worker **27 passed**; compile, Node/inline dashboard JS syntax, workflow YAML and diff checks passed. CI run [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760) passed Python 129 and Worker 27 tests on commit `8fb4427`.
-- Release: synthetic MEGA version-retention run [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778) passed; Dashboard Pages run [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) passed; Worker deploy run [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) passed on the same commit. Production Worker version is `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`.
+- Release at that time: synthetic MEGA version-retention run [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778) passed; Dashboard Pages run [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) passed; Worker deploy run [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) passed on the same commit. That deployment used Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`; current production snapshot is recorded above.
 - Synthetic batch input=5 nonblank tokens + 1 blank line → 3 accepted unique + 1 normalized duplicate + 1 rejected; 3 ordered post results (2 success, 1 failure) remain visible. The batch fixture injects a failure carrying 2 attempts; downloader tests independently verify two mocked HTTP calls and `Retry-After` handling.
 - Post-fix source-only check of the historical failing post (ID `2108928241461551160`) fetched and validated the lower direct MP4 candidate at **29,799,397 bytes**, SHA-256 `58e9b145e35229b9e02dff432bc680e357d065aaa438c55737c648f88166e589`; no destination adapter was invoked. The failure-surrounded-by-success multi-URL case remains mock-based. See [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md) for the evidence matrix.
 
@@ -72,7 +72,7 @@
 
 ## Scenario status
 
-### Priority 3 — safe retry and job recovery (feature branch; not deployed)
+### Priority 3 — safe retry and job recovery (merged and deployed; live destination retry not run)
 
 - Python DedupeStore state is schema v4 and preserves outcome-unconfirmed checkpoints; retry regression asserts a successful Telegram target remains at exactly one invocation while the failed MEGA target is invoked once on retry.
 - Telegram send timeout/non-JSON/5xx, Dropbox upload transport timeout/5xx, and MEGA upload/read-back uncertainty are no longer automatically replayed. New MEGA regression covers `mega-put` success followed by remote listing timeout.
@@ -80,7 +80,7 @@
 - Browserless Dashboard harness: reload uses `POST /jobs/recover` and resumes the existing job without `POST /jobs`; a not-found lookup stays locked and does not dispatch; retry payload includes only confirmed failed destinations, excluding successful and unconfirmed targets.
 - Missing/expired/unavailable report tests return distinct availability states; Dashboard displays safe, actionable messages.
 - Failure-injection boundary: when Telegram confirms success but writing its durable dedupe checkpoint fails, the report includes `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes the successful target, but a later manually-created full-target job may resend because state alone no longer proves prior delivery.
-- Local validation: Python **143 passed**, Worker/Dashboard **40 passed**, Python compile, Node syntax, workflow YAML, internal links, and diff checks passed. GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed both jobs. No live destination was called because no new test chat/folder was approved.
+- Validation: Python **143 passed**, Worker/Dashboard **40 passed** locally and in main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028); Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008) and Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed. No live destination was called because no new test chat/folder was approved.
 - Limitations: isolate-local single-flight is not a durable/global lock. Concurrent requests reaching separate Cloudflare isolates, an isolate restart, or a request after the 30-second retention window may race before GitHub exposes the run. System does not claim exactly-once dispatch/delivery; no database/queue was introduced.
 
 ### Scenario matrix
@@ -113,10 +113,11 @@
 | Mobile browser | NOT RUN | ยังไม่มีการทดสอบบนอุปกรณ์มือถือจริง |
 | Invalid URL, body cap, unauthorized | PASS (Worker tests/live safe checks เดิม) | 400/413/401/403 paths ปฏิเสธก่อน dispatch ตาม report/contract เดิม |
 
-## Automated validation baseline and candidate
+## Automated validation baseline and production releases
 
 - Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local/CI P1 release: **129 passed** (CI #38254729760)
 - P2 main commit `a5711e1`: destination/metadata/report targeted tests — **54 passed**; full Python suite — **134 passed**; Worker — **27 passed**; compile, workflow YAML/embedded shell/Python syntax, internal links, and `git diff --check` passed. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and synthetic MEGA [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passed.
+- P3 main commit `9e9e9f8` (PR #24): Python **143 passed**, Worker/Dashboard **40 passed**; main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed; production version `f2e1afaf-db8e-4356-be75-215f60eb53e5`.
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - Deploy workflow [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272): Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน on commit `8fb4427`; Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
@@ -124,4 +125,4 @@
 
 ## ข้อสรุป
 
-P1 source reliability is deployed on Worker commit `8fb4427`, and the historical failure URL passed a post-fix source-only fetch. P2 is merged on main commit `a5711e1`; main CI and synthetic MEGA remote integrity/version/dedupe checks passed, while the real mixed-media source was verified download-only (not sent to a remote destination). No Worker deploy was needed because Worker code did not change. Remaining unverified live scenarios include Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths, and a real mobile browser.
+P1 source reliability is deployed and the historical failure URL passed a post-fix source-only fetch. P2 is merged on main commit `a5711e1`; P3 is merged and deployed on main commit `9e9e9f8` (Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`). CI and the P3 deploy workflows passed. P3's new retry/recovery flow has automated coverage but no live destination retry; cross-isolate coordination and checkpoint-write failure remain limits, so no exactly-once claim is made. Remaining unverified live scenarios include Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths, and a real mobile browser.

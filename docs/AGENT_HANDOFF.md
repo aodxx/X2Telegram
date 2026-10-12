@@ -1,8 +1,8 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-10-13
-**จุดอ้างอิง:** P2 merge commit `a5711e1` (included in `main`); Cloudflare Worker deployment commit `8fb4427`
-**สถานะสั้น:** P1/P2 ใน Manus execution plan ผ่าน acceptance แล้ว; P2 merge และ main CI/MEGA integration ผ่าน. P3 อยู่บน Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), branch `fix/p3-safe-retry-recovery`, local Python 143/143 และ Worker/Dashboard 40/40 ผ่าน; GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) ผ่าน. สถานะ partial, ยังไม่ merge/deploy และไม่มี live destination invocation. ข้อจำกัดสำคัญ: cross-isolate reservation ไม่มี global durability และ success-checkpoint storage failure อาจเปิดทางให้ full manual replay ส่งซ้ำ. ขั้นถัดไปคือตรวจขอบเขต residual risk และตัดสินใจว่าจะ promote/merge หรือปรับ architecture; Production Worker ยังเป็น `8fb4427`.
+**จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge/deployment commit `9e9e9f8`; Cloudflare Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`
+**สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว: main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) ผ่าน; Python 143/143 และ Worker/Dashboard 40/40. P3 ยังมีสถานะ partial เพราะไม่มี live destination retry และยังมี cross-isolate reservation / success-checkpoint storage limitations; ไม่อ้าง exactly-once. Production Worker คือ version `f2e1afaf-db8e-4356-be75-215f60eb53e5`.
 
 **P2 complete (2026-10-13):** PR #23 merged as main commit `a5711e1`. It preserves distinct yt-dlp playlist entries and emits a per-media size/SHA-256 manifest/reconciliation. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) passed; main synthetic MEGA integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) verified 3 remote objects, changed-version retention, duplicate idempotency, byte/hash integrity, and run-folder cleanup. Real source-only mixed photo/video exported 2/2 local files with matching hashes. No Worker deployment was needed because Worker code was unchanged. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
 
@@ -40,13 +40,14 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Repository | `aodxx/X2Telegram` |
 | Branch | `main` |
 | P2 merge commit in main | `a5711e1` (media manifest/identity) |
+| P3 merge commit in main | `9e9e9f8` (safe retry/job recovery; PR #24) |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
-| Worker version | `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f` |
-| Deploy commit | `8fb44274738d0c0090958f4b880189b0b93d17c7` |
-| Deploy run | [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) — success |
-| Python tests | 134 passed (main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022)) |
-| Worker tests | 27 passed |
+| Worker version | `f2e1afaf-db8e-4356-be75-215f60eb53e5` |
+| Deploy commit | `9e9e9f8fcbcb09f2dfa980dd418b34681af2eed6` |
+| Deploy run | [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) — success |
+| Python tests | 143 passed (main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028)) |
+| Worker tests | 40 passed |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
 | Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 302 (Access redirect) |
 
@@ -121,7 +122,7 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 #### P2.3 Dashboard reload/recovery
 
-ยืนยันว่า refresh/reopen browser สามารถกู้ recent job จาก `localStorage`, ดึง status/report ต่อได้ และไม่ dispatch ซ้ำ
+เสร็จแล้วบน P3 main commit `9e9e9f8`: reload ใช้ lookup-only recovery โดยไม่ dispatch ซ้ำ, แสดง report availability แยกสถานะ และให้ retry เฉพาะ confirmed failed destinations. ผ่าน Worker/Dashboard automated harness; ไม่มี live destination retry.
 
 ### P3 — ประสบการณ์ใช้งานและ assurance
 

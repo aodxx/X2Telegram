@@ -1,7 +1,7 @@
 # Priority 3 — Retry and Job Recovery
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL — implementation on `fix/p3-safe-retry-recovery`; Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), head `329cbd4`; GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed. Merge/deploy remain pending. A failure-injection test documents the irreducible manual-replay risk when durable success checkpoint storage itself fails. No live destination was invoked.
+**Current status:** PARTIAL — merged via PR [#24](https://github.com/aodxx/X2Telegram/pull/24) as main commit `9e9e9f8`; main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed. Production Worker version is `f2e1afaf-db8e-4356-be75-215f60eb53e5`. No live destination was invoked; residual idempotency/checkpoint limits below remain.
 **Scope:** Job idempotency, target-level retry, reports, and Dashboard recovery after refresh/reopen.
 
 ## Existing evidence to preserve
@@ -53,4 +53,4 @@ Report job/target state before and after retry, whether any successful target wa
 - Browser state remains in localStorage and contains job/request IDs and user-selected inputs only; credentials and signed artifact URLs are not stored. Reload/reopen uses `POST /jobs/recover` (lookup only); a not-found response stays locked for explicit user action and never auto-submits a new job. Missing/expired/unavailable report states remain distinguishable.
 - Timeout boundaries are covered by deterministic mocks/fakes, including failed dispatch sanitization, in-flight request races, destination timeout classification, persisted unconfirmed checkpoints, and retry without resending success. No real destination was called because no new approved test target was provided.
 - A failure-injection test simulates confirmed Telegram success followed by failed checkpoint persistence: the report carries `dedupe_checkpoint_failed`, but a later manually-created full-target job can resend because no durable success record exists. Dashboard's failed-only retry excludes that reported-success target, but no exactly-once guarantee is possible when checkpoint storage fails and the user creates a new full job.
-- No database/queue was added. CI passed on the Draft PR; merge and production deployment are still pending, and this branch evidence is not production evidence.
+- No database/queue was added. CI, Pages publish, and Worker deployment passed. This is production code, but no live destination retry was performed and the documented residual limits prevent an exactly-once claim.

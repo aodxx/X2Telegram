@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-13
-**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. P3 implementation อยู่บน feature branch `fix/p3-safe-retry-recovery`; local Python 143/143, Worker/Dashboard 40/40 และ Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24) CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) ผ่าน. ยังไม่ merge/deploy และไม่มี live destination invocation. P3 คงสถานะ partial เนื่องจาก cross-isolate races และ success-checkpoint storage failure ยังไม่สามารถให้ exactly-once guarantee ได้. Production ยังคงเป็น main เดิม โดย Cloudflare Worker deployment เป็น commit `8fb4427`.
+**สถานะ:** P1/P2 ผ่านหลักฐานตามขอบเขตเดิม. P3 ถูก squash-merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) เป็น main commit `9e9e9f8`; main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028) และ GitHub Pages publish [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008) ผ่าน. Cloudflare Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) ผ่านด้วย version `f2e1afaf-db8e-4356-be75-215f60eb53e5`. P3 คงสถานะ partial: ไม่มี live destination invocation และยังมี cross-isolate race / success-checkpoint storage failure ที่ไม่รับประกัน exactly-once.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -14,12 +14,12 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## Deployment ปัจจุบัน
 
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Current Worker version ID: `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
-- Deploy commit: `8fb44274738d0c0090958f4b880189b0b93d17c7`
-- Deploy workflow: [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
+- Current Worker version ID: `f2e1afaf-db8e-4356-be75-215f60eb53e5`
+- Deploy commit: `9e9e9f8fcbcb09f2dfa980dd418b34681af2eed6` (P3 / PR #24)
+- Deploy workflow: [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
 - `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
-- GitHub Pages deploy run [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) ผ่านบน release commit `8fb4427`; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access
-- Production smoke check: unauthenticated `GET /` และ `/health` ตอบ HTTP 302 (Cloudflare Access redirect; ไม่ติดตามหรือบันทึก redirect URL); เนื้อหา Dashboard ต้องมี Access session จึงจะเปิดได้
+- GitHub Pages deploy run [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008) ผ่านบน P3 merge commit `9e9e9f8`; Dashboard includes lookup-only job recovery and failed-target-only retry
+- Production smoke check หลัง deploy: unauthenticated `/health` ตอบ HTTP 302 (Cloudflare Access redirect; ไม่ติดตามหรือบันทึก redirect URL); เนื้อหา API/Dashboard ต้องมี Access session จึงจะเปิดได้
 
 ## ปลายทาง
 
@@ -46,12 +46,12 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## Validation ล่าสุด
 
-- Python: **134 passed** in main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022); targeted destination/metadata/report suite **54 passed** locally
-- Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
+- Python: **143 passed** in main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028)
+- Cloudflare Worker: `npm test --prefix control-worker` — **40 passed** on main CI and deploy workflow
 - `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
 - P2 merge commit `a5711e1`: main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and MEGA multi-item/version-retention integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) both succeeded. The integration verified 3 remote objects by listing/download-back bytes/SHA-256 and cleaned the run-isolated folder.
-- P3 feature branch local validation (2026-10-13): Python **143 passed**; `npm test --prefix control-worker` **40 passed**, including browserless reload/recovery, failed-only retry selection, missing/expired reports, and concurrent same/conflicting request ID cases. A Python failure-injection test documents that later manual full-target replay may resend if success-checkpoint persistence fails. Python compile, Worker/dashboard test syntax, and `git diff --check` passed. This is branch-only evidence; GitHub CI, merge, and deployment have not occurred.
+- P3 production release (2026-10-13): merged as `9e9e9f8` (PR #24); main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) succeeded; Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`. Python 143 and Worker 40 tests passed. No live destination was invoked. Failure-injection demonstrates that a later manually-created full-target job may resend if success-checkpoint storage fails; cross-isolate dispatch remains non-durable.
 
 ## การตั้งค่า MEGA
 
@@ -66,10 +66,10 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - ยังไม่ได้ทดสอบ browser มือถือจริง
 - GitHub artifact หมดอายุ 7 วัน; สร้าง job ใหม่เพื่อได้ ZIP ใหม่
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย
-- P3 branch limits: Worker single-flight reservation protects requests only within one isolate and for 30 seconds; no durable/global coordination exists across isolates or restarts. A narrow pre-visibility race remains; no exactly-once dispatch guarantee is claimed. Destination live retry was not tested because no new test target was explicitly approved.
+- P3 production limits: Worker single-flight reservation protects requests only within one isolate and for 30 seconds; no durable/global coordination exists across isolates or restarts. A narrow pre-visibility race remains; no exactly-once dispatch guarantee is claimed. Destination live retry was not tested because no new test target was explicitly approved.
 - P3 storage limit: if the destination confirms success but the durable dedupe checkpoint cannot be written, the report warns `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes that target, but a later new full-target job may resend it because the prior success was not persisted.
 
-## Priority 1 — X/source reliability release (deployed; post-fix live source check pending)
+## Priority 1 — X/source reliability release (deployed; historical failure URL passed post-fix source-only live check)
 
 - Historical failure #38102121635: fetch-only reproduction พบว่าวิดีโอมี direct MP4 variants ที่ไม่ระบุขนาด; ตัวเลือกที่ bitrate สูงสุดและตัวเลือกระดับกลางเกิน 50 MB แต่ variant bitrate ต่ำกว่าดาวน์โหลด/validate ได้ที่ 29,799,397 bytes. ใน run #38037210973, yt-dlp รายงาน HLS/DASH playlist เสมือน MP4; CDN ตอบ `application/x-mpegurl`; public metadata fallbacks มี direct MP4 ให้ใช้แทน
 - Candidate แก้โดยกรอง HLS/DASH ออกจาก direct MP4 metadata, ลอง bounded lower variants, classify HTTP/timeout/format/size/metadata errors พร้อม attempts/stage, ไม่ปล่อยให้ empty provider ซ่อน transient failure, ส่ง `MAX_RETRIES` เข้า metadata provider, ตรวจ same-host HTTPS redirects และเก็บผล accepted/duplicate/normalized duplicate/rejected แยกทุก URL โดยไม่นับ blank lines เป็น URL
