@@ -7,7 +7,17 @@
 **Branch:** `main`  
 **Status:** Active plan — execute in order; do not treat this document as evidence that a priority is already complete.
 
-This file is the single handoff for the five agreed development priorities. Manus should read it at the start of each session and continue from the current evidence in the repository, so the user does not need to paste long prompts repeatedly.
+This is the overview and acceptance contract for the five agreed development priorities. Detailed implementation guides are stored in `docs/plan/`; Manus must read the matching guide before working on a priority. This lets work continue from repository documents without asking the user to paste long prompts.
+
+## Detailed implementation guides (read these before coding)
+
+1. [Priority 1 — X Source Download Reliability](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md)
+2. [Priority 2 — Media Completeness and File Identity](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md)
+3. [Priority 3 — Retry and Job Recovery](plan/P3_RETRY_AND_JOB_RECOVERY.md)
+4. [Priority 4 — Large-File Telegram and Dropbox](plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md)
+5. [Priority 5 — Mobile Dashboard UX](plan/P5_MOBILE_DASHBOARD_UX.md)
+
+`AGENTS.md` now points agents to these files as required reading. The existence of these plans is not evidence that implementation or acceptance testing is complete.
 
 ## Mission and working rules
 
