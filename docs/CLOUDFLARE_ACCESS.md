@@ -1,18 +1,18 @@
 # Cloudflare Access — Zone 4
 
-## สถานะปัจจุบัน (2026-10-12)
+## สถานะปัจจุบัน (2026-10-13)
 
 ตั้งค่า Cloudflare Zero Trust สำหรับ **X2Telegram Control Worker เท่านั้น** แล้ว:
 
 - Access application: `X2Telegram Control Worker`
 - ครอบคลุม production host: `x2telegram-control-plane.pantipa3826.workers.dev`
-- Policy: `Allow` เฉพาะ owner email ที่ระบุไว้ในการอนุมัติ; ไม่มี `Everyone` หรือ domain-wide allow
+- Policy: `Allow X2Telegram approved emails` จำกัดเฉพาะสอง exact email entries (primary + secondary ที่อนุมัติ); ไม่มี `Everyone` หรือ domain-wide allow
 - Login: Cloudflare One-time PIN (email OTP) provider และจำกัด `allowed_idps` ของแอปไว้ที่ provider นี้
 - Session duration: 24 ชั่วโมง
 - CORS: origin `https://aodxx.github.io`, credentials `true`, methods `GET, POST, OPTIONS`, request header `Content-Type`
-- Worker ตรวจ JWT signature/JWKS, issuer, audience, expiry/not-before และ owner email ซ้ำใน runtime
+- Worker ตรวจ JWT signature/JWKS, issuer, audience, expiry/not-before และอีเมลที่ตรงกับ `ACCESS_ALLOWED_EMAIL` หรือ `ACCESS_ADDITIONAL_EMAIL` ซ้ำใน runtime; secret primary เดิมยังคงอยู่
 
-ไม่พบ Access applications เดิมใน account ตอนตั้งค่า. การเพิ่ม One-time PIN เป็น identity provider เป็นวิธี login ที่เบาที่สุดเมื่อบัญชียังไม่มี login method; policy ยังจำกัดเฉพาะ Worker app และ owner identity.
+ไม่พบ Access applications เดิมใน account ตอนตั้งค่า. การเพิ่ม One-time PIN เป็น identity provider เป็นวิธี login ที่เบาที่สุดเมื่อบัญชียังไม่มี login method; policy ยังคงจำกัดเฉพาะ Worker app และอีเมลสองรายการที่ระบุแบบ exact.
 
 ## การยืนยันที่ทำแล้ว
 
@@ -20,6 +20,8 @@
 - ทดสอบ unauthenticated POST จาก origin `https://aodxx.github.io`: browser ส่งต่อจนได้ opaque redirect จาก Access; ไม่มี Access session จึงไม่เข้าถึง API และไม่มี GitHub workflow ถูก dispatch
 - ตั้งค่า preflight headers ใน Access app และ Worker exact-origin enforcement; ไม่ได้ใช้ wildcard origin
 - เจ้าของ sign in ด้วย OTP แล้ว; authenticated `GET /health` ตอบ `200`, และ `GET /jobs/<random-id>` ตอบ expected `404 job_not_found` จาก GitHub-backed lookup
+- PR [#25](https://github.com/aodxx/X2Telegram/pull/25) เพิ่ม optional second exact-email identity; production Worker version `649353cf-fd9a-498b-9415-14bae01de486` (deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200)) มี `ACCESS_ADDITIONAL_EMAIL`; Access policy มี email rule สองรายการและไม่มี `Everyone`/domain-wide rule
+- ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP; ยังไม่มีการส่ง login code ระหว่าง rollout จึงยังไม่มีหลักฐาน authenticated session ของบัญชีนี้
 - หลัง deploy hardening ทดสอบจาก GitHub Pages origin: `GET /health` ได้ `200`, invalid URL POST ได้ `400 invalid_url`, body 17 KiB ได้ `413 request_too_large`; ทั้งสอง POST ถูกปฏิเสธก่อน dispatch
 - Normal-path E2E ผ่านเมื่อ 2026-10-08: run `37807253687` สำเร็จ, sanitized report คืน `sent=1`, Telegram `message_id=347`; Worker ถูกคืน `GH_REF=main` หลังทดสอบ
 
@@ -33,19 +35,19 @@ Worker ตั้ง `DASHBOARD_ORIGIN` เป็น `https://x2telegram-control-
 
 Worker มี fallback best-effort per-isolate cap 20 `POST /jobs` ต่อหนึ่งนาทีต่อ identity. สำหรับ production เพิ่ม Cloudflare Workers Rate Limiting binding ชื่อ `JOB_DISPATCH_RATE_LIMITER` ใน `control-worker/wrangler.toml` ที่ 20 ครั้ง/60 วินาที โดยใช้ key `jobs:<Access email>`; เมื่อ binding มีอยู่ Worker จะใช้ binding และ fail-closed เป็น `503 rate_limiter_unavailable` หาก binding error. Cloudflare binding ช่วยกระจายการนับระดับ edge แต่เอกสาร Cloudflare ระบุว่า counter แยกตาม Cloudflare location และ eventually consistent จึงไม่ใช่ global exact accounting. หากต้องการ hard global block ข้ามทุก location ให้เพิ่ม Cloudflare WAF Rate Limiting Rule ที่ route `/jobs` เป็นชั้นนอกเพิ่มเติม. Local unit tests ครอบทั้ง binding `429` และ fail-closed; ต้อง deploy และทดสอบ burst/cross-location จริงหลังยืนยัน namespace ID ไม่ชนกับ binding อื่น. Workflow concurrency และ dedupe ปกป้อง execution/delivery ต่อเนื่อง แต่ไม่ใช่ API flood control
 
-## ขั้นตอนเข้าใช้งานครั้งแรกของเจ้าของ
+## ขั้นตอนเข้าใช้งานครั้งแรกของผู้ใช้ที่ได้รับอนุญาต
 
 1. เปิด <https://aodxx.github.io/X2Telegram/>; ระบบจะ redirect ไปยัง Worker-hosted Dashboard หรือกดลิงก์ **ลงชื่อเข้าใช้** ใน Dashboard เพื่อเปิด origin เดียวกันในแท็บใหม่
-2. ใส่อีเมลที่ได้รับอนุญาต แล้วกด **Send login code**
+2. ใส่อีเมลที่ได้รับอนุญาตแบบ exact แล้วกด **Send login code**
 3. เปิดอีเมลจาก Cloudflare, นำ One-time PIN มากรอก และกด sign in; PIN ใช้ครั้งเดียวและหมดอายุใน 10 นาที
 4. หลังยืนยัน OTP จะกลับมายัง Dashboard. เมื่อกลับไปแท็บเดิม ระบบตรวจ `/auth/check` ซ้ำอัตโนมัติ; Cloudflare session มีอายุ 24 ชั่วโมง
 
-ยังไม่มีการส่ง OTP ระหว่างตั้งค่า; จะส่งก็ต่อเมื่อเจ้าของกด Send login code เอง.
+ไม่มีการส่ง OTP ระหว่างตั้งค่า rollout นี้; Cloudflare จะส่งรหัสเมื่อผู้ใช้ที่ได้รับอนุญาตกด **Send login code** เองเท่านั้น.
 
 ## Verification checklist
 
 - [x] Worker-level Access application ครอบ hostname production
-- [x] Allowed identities มีเฉพาะ owner
+- [x] Allowed identities มีสอง exact email entries ที่ได้รับอนุมัติ; ไม่มี `Everyone` หรือ domain-wide rule
 - [x] กำหนด email OTP provider และจำกัด app ให้ใช้ provider นี้เท่านั้น
 - [x] Access CORS origin/method/header/credentials ตรงกับ Dashboard
 - [x] Browser unauthenticated request ถูก redirect ไปหน้า Access login
@@ -58,6 +60,8 @@ Worker มี fallback best-effort per-isolate cap 20 `POST /jobs` ต่อห�
 - [ ] E2E scenarios ที่เหลือ: multi-photo live, partial-failure live recovery, UI refresh, mobile และ Telegram Local Bot API large-file
 - [x] Local test ยืนยัน per-isolate fallback: 21st POST ได้ `429` โดยไม่ dispatch
 - [x] Production deploy ยืนยัน `JOB_DISPATCH_RATE_LIMITER` binding 20 requests/60 seconds
+- [x] Worker มี primary `ACCESS_ALLOWED_EMAIL` และ optional `ACCESS_ADDITIONAL_EMAIL`; Access policy อนุญาตตรงกับสอง identity
+- [ ] ผู้ใช้รอง sign in ด้วย OTP และยืนยัน Dashboard session ด้วยตนเอง
 - [ ] ไม่พบ credential ใน network responses/frontend/logs
 
-**สถานะปัจจุบัน:** Worker และ Dashboard production live แล้ว โดย Access ยังคงครอบ hostname และ rate-limit binding deploy สำเร็จ. `GET /health` แบบไม่มี Access session จะ redirect ไป Cloudflare Access ตาม policy. ยังเหลือเฉพาะ live scenarios ที่ระบุใน checklist; ไม่มี credential rotation warning ค้างอยู่.
+**สถานะปัจจุบัน:** Worker และ Dashboard production live แล้ว; Access ครอบ hostname และจำกัดไว้ที่สอง exact email identities. `GET /` แบบไม่มี Access session ยังคงตอบ HTTP 302 ไป Cloudflare Access. ผู้ใช้รองต้องกดส่ง OTP และยืนยัน session เองก่อนจึงจะนับว่าทดสอบ login end-to-end แล้ว; ไม่มี OTP ถูกส่งโดย agent.

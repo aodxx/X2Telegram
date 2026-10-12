@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 was merged as main commit `9e9e9f8` (PR [#24](https://github.com/aodxx/X2Telegram/pull/24)); main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deployment [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed. Production Worker version: `f2e1afaf-db8e-4356-be75-215f60eb53e5`. P3 remains partial: no live destination retry was invoked; cross-isolate and checkpoint-storage limitations remain.
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. Access second-email support ถูก merge เป็น main commit `f5372e5` (PR [#25](https://github.com/aodxx/X2Telegram/pull/25)); main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) และ Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่าน; production Worker version `649353cf-fd9a-498b-9415-14bae01de486`. Access policy/Worker configuration อนุญาตสอง exact email identities; ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง. P3 remains partial: no live destination retry was invoked; cross-isolate and checkpoint-storage limitations remain.
 
 ## หลักฐาน live
 
@@ -87,6 +87,7 @@
 
 | Scenario | ผล | หลักฐาน/ขอบเขต |
 |---|---|---|
+| Additional Cloudflare Access identity | CONFIGURED; login ยังไม่ยืนยัน | PR #25 / main commit `f5372e5`; policy มีสอง exact email rules และ Worker secret ตั้งแล้ว; ไม่มีการส่ง OTP หรือทดสอบ session ของผู้ใช้รอง |
 | โพสต์หนึ่งรายการมี media หลายชิ้น | PASS (live source-only + automated mock) | Real source-only mixed photo/video: expected 2, exported 2, both validated/accounted, local size/SHA-256 matched manifest; synthetic MEGA independently verified two identities |
 | MEGA multi-media identity, changed version and duplicate | PASS (live synthetic integration on main) | Main run #38288698061: 2 initial items, 1 changed version, 1 true duplicate; 3 remote objects listed and downloaded back with matching bytes/SHA-256; isolated folder cleaned |
 | Dashboard Access/login same-origin | PASS (live) | Browser แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง` |
@@ -118,11 +119,12 @@
 - Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local/CI P1 release: **129 passed** (CI #38254729760)
 - P2 main commit `a5711e1`: destination/metadata/report targeted tests — **54 passed**; full Python suite — **134 passed**; Worker — **27 passed**; compile, workflow YAML/embedded shell/Python syntax, internal links, and `git diff --check` passed. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and synthetic MEGA [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) passed.
 - P3 main commit `9e9e9f8` (PR #24): Python **143 passed**, Worker/Dashboard **40 passed**; main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) passed; production version `f2e1afaf-db8e-4356-be75-215f60eb53e5`.
-- Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
+- Access rollout main commit `f5372e5` (PR #25): main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) and Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) passed; Python **143**, Worker **42**; production version `649353cf-fd9a-498b-9415-14bae01de486`. The new identity's OTP sign-in remains unverified.
+- Cloudflare Worker: latest `npm test --prefix control-worker` — **42 passed**; earlier counts below are historical release baselines.
 - Deploy workflow [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272): Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน on commit `8fb4427`; Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live run #37843359593 ผ่าน automated Python/Worker tests ก่อน process, report และ media artifact upload
 
 ## ข้อสรุป
 
-P1 source reliability is deployed and the historical failure URL passed a post-fix source-only fetch. P2 is merged on main commit `a5711e1`; P3 is merged and deployed on main commit `9e9e9f8` (Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`). CI and the P3 deploy workflows passed. P3's new retry/recovery flow has automated coverage but no live destination retry; cross-isolate coordination and checkpoint-write failure remain limits, so no exactly-once claim is made. Remaining unverified live scenarios include Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths, and a real mobile browser.
+P1 source reliability is deployed and the historical failure URL passed a post-fix source-only fetch. P2 is merged on main commit `a5711e1`; P3 is merged on `9e9e9f8`. Access second-email support is merged and deployed on main commit `f5372e5` (Worker version `649353cf-fd9a-498b-9415-14bae01de486`); both exact identity rules are configured, but the secondary user's OTP sign-in remains unverified because no code was sent during rollout. P3's retry/recovery flow has automated coverage but no live destination retry; cross-isolate coordination and checkpoint-write failure remain limits, so no exactly-once claim is made. Remaining unverified live scenarios include Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths, and a real mobile browser.

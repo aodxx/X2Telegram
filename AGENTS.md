@@ -28,16 +28,17 @@
 - Branch หลัก: `main`
 - Production Worker: `x2telegram-control-plane`
 - Production URL: `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Current Worker version: `f2e1afaf-db8e-4356-be75-215f60eb53e5`
+- Current Worker version: `649353cf-fd9a-498b-9415-14bae01de486`
 - P2 merge commit included in `main`: `a5711e1` (media identity/manifest; PR #23)
 - P3 merge commit included in `main`: `9e9e9f8` (safe retry/job recovery; PR #24)
-- Production Worker deployment commit: `9e9e9f8`
+- Production Worker deployment commit: `f5372e5` (Access secondary-email support; PR #25)
 - Deploy workflow: `.github/workflows/deploy-worker.yml`
-- Deploy ล่าสุด: GitHub Actions run [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) — success; Wrangler dry-run and deploy passed
-- Python tests: **143 passed** on main CI run [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028)
-- Worker tests: **40 passed**
+- Deploy ล่าสุด: GitHub Actions run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) — success; Wrangler dry-run and deploy passed
+- Main CI: run [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) — success; PR validation #38295467205 reported Python 143 and Worker 42 tests
+- Python tests: **143 passed**; Worker tests: **42 passed**
 - Edge rate limit: `JOB_DISPATCH_RATE_LIMITER`, 20 requests/60 seconds ต่อ Access identity
-- Production ถูกป้องกันด้วย Cloudflare Access; smoke check แบบไม่ส่ง credentials พบ unauthenticated `GET /` และ `/health` ตอบ HTTP 302 (Access redirect) เมื่อ 2026-10-13
+- Cloudflare Access อนุญาตอีเมลที่ระบุแบบ exact สองรายการ (primary + optional secondary); Worker secret หลักยังคงอยู่ และไม่มี `Everyone`/domain-wide rule
+- Production ถูกป้องกันด้วย Cloudflare Access; smoke check แบบไม่ส่ง credentials พบ unauthenticated `GET /` ตอบ HTTP 302 (Access redirect) เมื่อ 2026-10-13
 
 ถ้าสถานะข้างต้นไม่ตรงกับ GitHub/production ให้ตรวจระบบจริงก่อนแก้เอกสารหรือสรุปผล
 
