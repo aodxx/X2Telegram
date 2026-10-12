@@ -16,7 +16,7 @@ class DedupeStore:
     but new writes do not persist those fields.
     """
 
-    VERSION = 3
+    VERSION = 4
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -35,7 +35,7 @@ class DedupeStore:
             raise RuntimeError(f"Dedupe state is unreadable: {exc}") from exc
         version = payload.get("version") if isinstance(payload, dict) else None
         posts = payload.get("posts") if isinstance(payload, dict) else None
-        if version not in {1, 2, self.VERSION} or not isinstance(posts, dict):
+        if version not in {1, 2, 3, self.VERSION} or not isinstance(posts, dict):
             raise RuntimeError("Dedupe state has an unsupported schema")
         if version == 1:
             migrated = {}
@@ -48,7 +48,7 @@ class DedupeStore:
                     record["legacy_complete"] = True
                 migrated[key] = record
             return {"version": self.VERSION, "posts": migrated}
-        if version == 2:
+        if version in {2, 3}:
             return {"version": self.VERSION, "posts": posts}
         return payload
 
@@ -132,7 +132,7 @@ class DedupeStore:
         if not media:
             return None
         delivered = (media.get("destinations") or {}).get(destination)
-        if isinstance(delivered, dict) and delivered.get("status") == "success":
+        if isinstance(delivered, dict) and delivered.get("status") in {"success", "outcome_unconfirmed"}:
             return delivered
         # State v2 stored Telegram fields directly on the media record.
         if destination == "telegram" and isinstance(media.get("message_id"), int):
@@ -171,6 +171,38 @@ class DedupeStore:
                 int(item["message_id"]) for item in record["media"].values()
                 if isinstance(item, dict) and isinstance(item.get("message_id"), int)
             ]
+            record["completed"] = False
+            record["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save(payload)
+
+    def mark_destination_outcome_unconfirmed(
+        self,
+        key: str,
+        fingerprint: str,
+        *,
+        destination: str,
+        post_id: str | None,
+        username: str | None,
+        source_url: str,
+        kind: str,
+        filename: str,
+        error_code: str,
+        error: str,
+    ) -> None:
+        """Persist ambiguous remote outcomes so a later retry will not resend blindly."""
+        if destination not in {"telegram", "mega", "dropbox"}:
+            raise ValueError("Only persistent destinations can have outcome checkpoints")
+        with self._locked():
+            payload = self._load()
+            record = payload["posts"].setdefault(key, {"media": {}})
+            record.update({"post_id": post_id, "username": username, "source_url": source_url})
+            media = record.setdefault("media", {}).setdefault(fingerprint, {"kind": kind, "filename": filename})
+            media.setdefault("destinations", {})[destination] = {
+                "status": "outcome_unconfirmed",
+                "filename": filename,
+                "error_code": error_code,
+                "error": error,
+            }
             record["completed"] = False
             record["updated_at"] = datetime.now(timezone.utc).isoformat()
             self._save(payload)

@@ -15,7 +15,7 @@ from typing import Callable
 
 from .config import Config, DEFAULT_TELEGRAM_API_BASE_URL
 from .errors import DestinationError
-from .telegram_api import TelegramClient
+from .telegram_api import TelegramApiError, TelegramClient
 
 
 DESTINATIONS = ("telegram", "mega", "dropbox", "download")
@@ -134,18 +134,29 @@ class MegaUploader:
         # The processor normally names the downloaded file before delivery. Keep this
         # contract correct for other callers too: MEGAcmd uploads using the local
         # basename, not the separate filename argument.
-        if source.name == requested_name:
-            result = self._run(["mega-put", "-c", str(source), f"{remote_folder}/"])
-        else:
-            # Stage only mismatched names; do not rename or mutate the caller's file.
-            with tempfile.TemporaryDirectory(prefix="x2telegram-mega-") as staging_dir:
-                staged_path = Path(staging_dir) / requested_name
-                shutil.copy2(source, staged_path)
-                result = self._run(["mega-put", "-c", str(staged_path), f"{remote_folder}/"])
+        try:
+            if source.name == requested_name:
+                result = self._run(["mega-put", "-c", str(source), f"{remote_folder}/"])
+            else:
+                # Stage only mismatched names; do not rename or mutate the caller's file.
+                with tempfile.TemporaryDirectory(prefix="x2telegram-mega-") as staging_dir:
+                    staged_path = Path(staging_dir) / requested_name
+                    shutil.copy2(source, staged_path)
+                    result = self._run(["mega-put", "-c", str(staged_path), f"{remote_folder}/"])
+        except DestinationError as exc:
+            if exc.code == "mega_timeout":
+                raise DestinationError(
+                    "mega_outcome_unconfirmed",
+                    "MEGA upload timed out; inspect the remote folder before retrying.",
+                    outcome_unknown=True,
+                ) from None
+            raise
 
         if result.returncode != 0:
             raise DestinationError(
-                "mega_upload_failed", "MEGA upload failed. Check available storage, account access, and network status."
+                "mega_outcome_unconfirmed",
+                "MEGA did not confirm upload completion; inspect the remote folder before retrying.",
+                outcome_unknown=True,
             )
 
         # Do not report success merely because mega-put returned zero. MEGAcmd's
@@ -153,8 +164,15 @@ class MegaUploader:
         # that directory itself, not its contents. Refresh the remote cache and
         # verify the exact filename in the directory listing.
         for attempt in range(5):
-            self._run(["mega-reload"], timeout=60)
-            verification = self._run(["mega-ls", f"{remote_folder}/"], timeout=120)
+            try:
+                self._run(["mega-reload"], timeout=60)
+                verification = self._run(["mega-ls", f"{remote_folder}/"], timeout=120)
+            except DestinationError:
+                raise DestinationError(
+                    "mega_upload_verification_failed",
+                    "MEGA upload may have completed, but its remote state could not be verified; inspect the folder before retrying.",
+                    outcome_unknown=True,
+                ) from None
             visible_output = (verification.stdout or "") + "\\n" + (verification.stderr or "")
             if verification.returncode == 0 and requested_name in visible_output:
                 return remote_folder
@@ -164,6 +182,7 @@ class MegaUploader:
         raise DestinationError(
             "mega_upload_verification_failed",
             "MEGA reported upload completion, but the remote file could not be verified.",
+            outcome_unknown=True,
         )
 
     def close(self) -> None:
@@ -244,12 +263,23 @@ class DestinationDispatcher:
                     ("File exceeds Telegram's 50 MB limit. Configure the Local Bot API and enable Large-file mode for larger Telegram files."
                      if not local_api_ready else "File exceeds Telegram's 2000 MB Local Bot API limit."),
                 )
-            if kind == "video":
-                message_id = self.telegram.send_video(str(path), caption)
-            elif kind == "photo":
-                message_id = self.telegram.send_photo(str(path), caption)
-            else:
-                message_id = self.telegram.send_document(str(path), caption)
+            try:
+                if kind == "video":
+                    message_id = self.telegram.send_video(str(path), caption)
+                elif kind == "photo":
+                    message_id = self.telegram.send_photo(str(path), caption)
+                else:
+                    message_id = self.telegram.send_document(str(path), caption)
+            except Exception as exc:
+                if getattr(exc, "outcome_unknown", False):
+                    raise DestinationError(
+                        "telegram_outcome_unconfirmed",
+                        "Telegram may have accepted the media, but no response was confirmed; inspect the chat before retrying.",
+                        outcome_unknown=True,
+                    ) from None
+                if isinstance(exc, TelegramApiError):
+                    raise DestinationError("telegram_delivery_failed", str(exc)) from None
+                raise
             return {"message_id": int(message_id)}
         if destination == "mega":
             remote_folder = self.mega.upload(path, filename)

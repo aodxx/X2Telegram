@@ -51,7 +51,7 @@ MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อ�
 
 Dashboard static assets และ API ใช้ Worker origin เดียวกันภายใต้ Cloudflare Access owner-only. Worker ต้องมี variables/bindings ที่กำหนดใน `control-worker/wrangler.toml` และ server-side secrets ที่จำเป็นสำหรับ Access/GitHub API. รายละเอียด routes/deployment อยู่ใน [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), Access setup อยู่ใน [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)
 
-Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
+Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. `POST /jobs/recover` เป็น lookup-only สำหรับคำขอเดิม; ถ้าไม่พบ workflow run ที่ตรงกันจะคืน not-found โดยไม่ dispatch งานใหม่. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
 Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. สถานะ production ปัจจุบันอ้างอิง `docs/AGENT_HANDOFF.md` และ `docs/PROJECT_STATUS.md` ซึ่งระบุ deploy commit `8fb44274738d0c0090958f4b880189b0b93d17c7`, run [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) และ Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`. ค่า run/version รุ่นก่อนที่ปรากฏในเอกสารเก่าไม่ควรถูกใช้เป็น production snapshot ปัจจุบันโดยไม่ตรวจสอบ run ล่าสุดก่อน deploy.
 
@@ -90,11 +90,11 @@ npx wrangler deploy --config wrangler.toml
 ## 6. Retry, dedupe และ report
 
 - Media ถูกดาวน์โหลดและตรวจครั้งเดียวก่อนส่งให้ dispatcher
-- `state/dedupe.json` รุ่น v3 เก็บ SHA-256 fingerprint และ success แยกตาม destination ที่มีการส่งซ้ำได้ (Telegram/MEGA/Dropbox); retry จะข้าม target ที่สำเร็จแล้ว. State รุ่นปัจจุบันเก็บเฉพาะข้อมูลที่จำเป็นต่อ dedupe (ไม่มี username, source URL หรือ timestamps) และยังอ่าน state รุ่นเก่าได้; state ที่ถูกเขียนใหม่จะ scrub metadata เก่าออก
+- `state/dedupe.json` รุ่น v4 เก็บ SHA-256 fingerprint, success และ `outcome_unconfirmed` แยกตาม destination (Telegram/MEGA/Dropbox); retry จะข้าม target ที่สำเร็จหรือผลยังไม่ยืนยัน และลองเฉพาะ confirmed failures. Telegram/Dropbox upload timeout หรือ 5xx และ MEGA upload/read-back uncertainty จะไม่ถูก replay อัตโนมัติ. Dashboard reload ใช้ lookup-only recovery; รายงาน missing/expired/unavailable แยกกัน
 - Browser artifact เป็นผลลัพธ์ของ job ไม่ได้บันทึกเป็น persistent target-dedupe; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่
 - `report.json` และ sanitized Dashboard artifact มี status ต่อ post/destination/media; private media ZIP แยก artifact จาก report
 - Worker ดึง media ZIP แบบ streaming ผ่าน Access ไม่ส่ง signed GitHub URL ให้ frontend และไม่ buffer archive ทั้งก้อนใน Worker
-- GitHub Actions concurrency serialize การเขียน state. ระบบไม่ได้อ้าง exactly-once เมื่อปลายทางรับไฟล์แต่ response/checkpoint สูญหาย
+- GitHub Actions concurrency serialize การเขียน state. Worker's concurrent-dispatch single-flight อยู่ภายใน isolate เท่านั้นและเก็บ reservation 30 วินาที; ไม่ใช่ global/durable lock. ระบบไม่ได้อ้าง exactly-once เมื่อ dispatch แข่งข้าม isolates หรือปลายทางตอบ success แล้วการเขียน success checkpoint ล้มเหลว; ในกรณีหลัง report เตือน `dedupe_checkpoint_failed`, Dashboard failed-only retry ไม่เลือก target ที่รายงาน success แต่ full job ใหม่ที่ผู้ใช้สร้างเองอาจส่งซ้ำ
 
 ## 7. Tests และ local checks
 

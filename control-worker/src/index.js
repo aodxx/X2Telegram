@@ -6,6 +6,8 @@ const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 20;
 const MAX_BATCH_URLS = 50;
 const attemptsByIdentity = new Map();
+const inFlightDispatches = new Map();
+let nextInFlightSweepAt = 0;
 let jwksCache = { until: 0, keys: [] };
 
 function json(data, status, request, env, extraHeaders = {}) {
@@ -137,6 +139,14 @@ async function checkRate(email, env) {
   return old.count <= RATE_LIMIT;
 }
 
+function pruneInFlightDispatches(now) {
+  if (now < nextInFlightSweepAt) return;
+  nextInFlightSweepAt = now + 30_000;
+  for (const [key, entry] of inFlightDispatches) {
+    if (entry.expiresAt <= now) inFlightDispatches.delete(key);
+  }
+}
+
 function githubConfigError(env) {
   return !env.GH_TOKEN || !env.GH_OWNER || !env.GH_REPO || !env.GH_WORKFLOW_ID || !env.GH_REF;
 }
@@ -212,11 +222,8 @@ function hasRequestIdConflict(runs, requestId, jobId) {
   return runs.some((run) => runTitle(run).startsWith(prefix) && !runTitle(run).endsWith(` ${jobId}`));
 }
 
-async function dispatch(request, env, identity) {
+async function dispatch(request, env, identity, recoverOnly = false) {
   if (githubConfigError(env)) return errorResponse(request, env, 503, "backend_not_configured", "Control Worker is missing server configuration");
-  const rateAllowed = await checkRate(identity.email, env);
-  if (rateAllowed === null) return errorResponse(request, env, 503, "rate_limiter_unavailable", "The request limiter is temporarily unavailable; retry later");
-  if (!rateAllowed) return errorResponse(request, env, 429, "rate_limited", "Too many requests; retry later");
   const length = Number(request.headers.get("Content-Length") || 0);
   if (Number.isFinite(length) && length > BODY_LIMIT) return errorResponse(request, env, 413, "request_too_large", "Request body is too large");
   const bodyRead = await readBoundedBody(request);
@@ -255,8 +262,45 @@ async function dispatch(request, env, identity) {
   let runs;
   try { runs = await workflowRuns(env); } catch (_) { return errorResponse(request, env, 502, "github_read_failed", "Could not check existing workflow jobs", body.request_id); }
   const existing = findRunForJob(runs, jobId);
-  if (existing) return json(await jobPayload(existing, jobId, body.request_id, env, true), 200, request, env);
   if (hasRequestIdConflict(runs, body.request_id, jobId)) return errorResponse(request, env, 409, "idempotency_conflict", "request_id was already used with a different payload", body.request_id);
+  if (existing) return json(await jobPayload(existing, jobId, body.request_id, env, true), 200, request, env);
+  const requestKey = `${identity.email}:${body.request_id}`;
+  const nowMs = Date.now();
+  pruneInFlightDispatches(nowMs);
+  let pending = inFlightDispatches.get(requestKey);
+  if (pending && pending.expiresAt <= nowMs) {
+    inFlightDispatches.delete(requestKey);
+    pending = null;
+  }
+  if (pending) {
+    if (pending.jobId !== jobId) return errorResponse(request, env, 409, "idempotency_conflict", "request_id is already being dispatched with a different payload", body.request_id);
+    const outcome = pending.outcome || await pending.promise;
+    if (outcome.status >= 400) return errorResponse(request, env, outcome.status, outcome.code, outcome.message, body.request_id);
+    return json({ ...outcome.body, duplicate: true }, 200, request, env);
+  }
+  if (recoverOnly) return errorResponse(request, env, 404, "job_not_found", "No matching workflow run is visible; recovery did not dispatch a new job", body.request_id);
+  let resolvePending;
+  const pendingPromise = new Promise((resolve) => { resolvePending = resolve; });
+  pending = { jobId, expiresAt: Number.POSITIVE_INFINITY, promise: pendingPromise, resolve: resolvePending, outcome: null };
+  inFlightDispatches.set(requestKey, pending);
+  const finishPending = (outcome, retain = false) => {
+    pending.outcome = outcome;
+    const resolve = pending.resolve;
+    pending.resolve = null;
+    pending.promise = null;
+    resolve(outcome);
+    if (retain) pending.expiresAt = Date.now() + 30_000;
+    else if (inFlightDispatches.get(requestKey) === pending) inFlightDispatches.delete(requestKey);
+  };
+  const rateAllowed = await checkRate(identity.email, env);
+  if (rateAllowed === null) {
+    finishPending({ status: 503, code: "rate_limiter_unavailable", message: "The request limiter is temporarily unavailable; retry later" });
+    return errorResponse(request, env, 503, "rate_limiter_unavailable", "The request limiter is temporarily unavailable; retry later", body.request_id);
+  }
+  if (!rateAllowed) {
+    finishPending({ status: 429, code: "rate_limited", message: "Too many requests; retry later" });
+    return errorResponse(request, env, 429, "rate_limited", "Too many requests; retry later", body.request_id);
+  }
   try {
     await github(env, `${workflowPath(env, "/dispatches")}`, {
       method: "POST",
@@ -272,12 +316,17 @@ async function dispatch(request, env, identity) {
         },
       }),
     });
-  } catch (_) { return errorResponse(request, env, 502, "github_dispatch_failed", "GitHub Actions could not accept the job", body.request_id); }
+  } catch (_) {
+    finishPending({ status: 502, code: "github_dispatch_failed", message: "GitHub Actions could not accept the job" });
+    return errorResponse(request, env, 502, "github_dispatch_failed", "GitHub Actions could not accept the job", body.request_id);
+  }
   const now = new Date().toISOString();
-  return json({
+  const accepted = {
     job_id: jobId, request_id: body.request_id, url_count: normalizedUrls.length, destinations, state: "accepted", created_at: now, updated_at: now,
     progress: { phase: "queued", percent: 0 }, result: null, error: null, telegram: null, duplicate: false,
-  }, 202, request, env);
+  };
+  finishPending({ status: 202, body: accepted }, true);
+  return json(accepted, 202, request, env);
 }
 
 async function runArtifacts(env, runId) {
@@ -285,10 +334,10 @@ async function runArtifacts(env, runId) {
   return Array.isArray(data?.artifacts) ? data.artifacts : [];
 }
 
-async function downloadArtifact(env, runId) {
-  const artifacts = await runArtifacts(env, runId);
+async function downloadArtifact(env, runId, knownArtifact = null) {
+  const artifacts = knownArtifact ? null : await runArtifacts(env, runId);
   const artifactName = `x2telegram-dashboard-report-${runId}`;
-  const artifact = artifacts.find((item) => item.name === artifactName && !item.expired);
+  const artifact = knownArtifact || artifacts.find((item) => item.name === artifactName && !item.expired);
   if (!artifact) return null;
   const apiUrl = `https://api.github.com/repos/${encodeURIComponent(env.GH_OWNER)}/${encodeURIComponent(env.GH_REPO)}/actions/artifacts/${encodeURIComponent(String(artifact.id))}/zip`;
   const first = await fetch(apiUrl, { redirect: "manual", headers: {
@@ -308,6 +357,22 @@ async function downloadArtifact(env, runId) {
   const report = JSON.parse(new TextDecoder().decode(files[filename]));
   if (!report || typeof report !== "object" || !Array.isArray(report.results)) throw new Error("report_schema_invalid");
   return report;
+}
+
+async function reportArtifactForRun(env, runId) {
+  let artifacts;
+  try { artifacts = await runArtifacts(env, runId); }
+  catch (_) { return { status: "unavailable", error_code: "report_unavailable", report: null }; }
+  const artifact = artifacts.find((item) => item.name === `x2telegram-dashboard-report-${runId}`) || null;
+  if (!artifact) return { status: "missing", error_code: "report_artifact_missing", report: null };
+  if (artifact.expired) return { status: "expired", error_code: "report_expired", expires_at: artifact.expires_at || null, report: null };
+  try {
+    const report = await downloadArtifact(env, runId, artifact);
+    if (!report) return { status: "missing", error_code: "report_artifact_missing", report: null };
+    return { status: "ready", expires_at: artifact.expires_at || null, report };
+  } catch (_) {
+    return { status: "unavailable", error_code: "report_unavailable", expires_at: artifact.expires_at || null, report: null };
+  }
 }
 
 function downloadFileCount(report) {
@@ -371,8 +436,10 @@ async function jobPayload(run, jobId, requestId, env, duplicate = false) {
   const success = completed && run.conclusion === "success";
   const state = success ? "completed" : completed ? "failed" : duplicate ? "duplicate" : run.status === "queued" || run.status === "requested" || run.status === "waiting" ? "accepted" : "processing";
   let report = null;
+  let reportAvailability = { status: completed ? "unavailable" : "pending", error_code: completed ? "report_unavailable" : null };
   if (completed) {
-    try { report = await downloadArtifact(env, run.id); } catch (_) { report = null; }
+    reportAvailability = await reportArtifactForRun(env, run.id);
+    report = reportAvailability.report;
   }
   let download = null;
   const fileCount = downloadFileCount(report);
@@ -394,7 +461,14 @@ async function jobPayload(run, jobId, requestId, env, duplicate = false) {
   const hasDeliveredDestination = (report?.results || []).some((post) =>
     Object.values(post?.destinations || {}).some((destination) => ["success", "ready", "duplicate", "partial_success"].includes(destination?.status))
   );
-  const effectiveState = completed && hasDeliveredDestination ? "completed" : completed && report?.status === "completed_with_errors" ? "failed" : state;
+  const hasUnconfirmedOutcome = (report?.results || []).some((post) =>
+    post?.status === "outcome_unconfirmed"
+    || Object.values(post?.destinations || {}).some((destination) =>
+      destination?.status === "outcome_unconfirmed"
+      || (Array.isArray(destination?.items) && destination.items.some((item) => item?.status === "outcome_unconfirmed"))
+    )
+  );
+  const effectiveState = completed && hasDeliveredDestination ? "completed" : completed && hasUnconfirmedOutcome ? "outcome_unconfirmed" : completed && report?.status === "completed_with_errors" ? "failed" : state;
   const allMessageIds = (report?.results || []).flatMap((item) => Array.isArray(item.message_ids) ? item.message_ids : []);
   return {
     job_id: jobId,
@@ -404,6 +478,11 @@ async function jobPayload(run, jobId, requestId, env, duplicate = false) {
     updated_at: run.updated_at || run.run_started_at || run.created_at || null,
     progress: { phase: completed ? "completed" : state === "accepted" ? "queued" : "running", percent: completed ? 100 : state === "accepted" ? 0 : 50 },
     result: report,
+    report_availability: {
+      status: reportAvailability.status,
+      expires_at: reportAvailability.expires_at || null,
+      error_code: reportAvailability.error_code || null,
+    },
     error: effectiveState === "failed" ? {
       code: run.conclusion && run.conclusion !== "success" ? run.conclusion : "destinations_failed",
       message: report?.error || (report?.status === "completed_with_errors" ? "All requested destinations failed" : "GitHub Actions did not complete successfully"),
@@ -488,6 +567,7 @@ export default {
     if (!identity.ok) return errorResponse(request, env, identity.status, identity.code, identity.message);
     if (request.method === "GET" && url.pathname === "/auth/check") return json({ status: "ok", authenticated: true }, 200, request, env);
     if (request.method === "POST" && url.pathname === "/jobs") return dispatch(request, env, identity);
+    if (request.method === "POST" && url.pathname === "/jobs/recover") return dispatch(request, env, identity, true);
     const downloadMatch = url.pathname.match(/^\/jobs\/([^/]+)\/download$/);
     if (request.method === "GET" && downloadMatch) return downloadJobMedia(request, env, decodeURIComponent(downloadMatch[1]));
     const match = url.pathname.match(/^\/jobs\/([^/]+)$/);

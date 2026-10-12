@@ -9,7 +9,9 @@ REQUIRED_CHAT_ID = "-1003906817580"
 
 
 class TelegramApiError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, outcome_unknown: bool = False):
+        super().__init__(message)
+        self.outcome_unknown = bool(outcome_unknown)
 
 
 @dataclass(frozen=True)
@@ -91,36 +93,49 @@ class TelegramClient:
     def _send(self, method: str, field: str, path: str, caption: str) -> int:
         for attempt in range(self.max_retries):
             try:
-                with Path(path).open("rb") as handle:
+                handle = Path(path).open("rb")
+            except OSError:
+                raise TelegramApiError(f"Telegram {method} could not read local media") from None
+            try:
+                with handle:
                     response = requests.post(
                         f"{self.base_url}/{method}",
                         data={"chat_id": self.chat_id, "caption": caption[:1024]},
                         files={field: handle},
                         timeout=self.timeout,
                     )
-                try:
-                    payload = response.json()
-                except ValueError:
-                    raise TelegramApiError(f"Telegram {method} returned invalid JSON") from None
-                if response.ok and payload.get("ok"):
-                    return int(payload["result"]["message_id"])
-                error_code = payload.get("error_code")
-                if not isinstance(error_code, int) or not 100 <= error_code <= 599:
-                    error_code = response.status_code
-                retry_after = (payload.get("parameters") or {}).get("retry_after")
-                retryable = error_code == 429 or error_code >= 500
-                if not retryable or attempt + 1 >= self.max_retries:
-                    raise TelegramApiError(f"Telegram {method} failed (HTTP {error_code})")
-                try:
-                    delay = min(int(retry_after or (2**attempt)), 60)
-                except (TypeError, ValueError, OverflowError):
-                    delay = min(2**attempt, 60)
-                time.sleep(delay)
-            except (requests.RequestException, OSError):
-                if attempt + 1 >= self.max_retries:
-                    # Do not include exception text: it may contain the tokenized request URL.
-                    raise TelegramApiError(f"Telegram {method} request failed") from None
-                time.sleep(min(2**attempt, 60))
+            except requests.RequestException:
+                # A timed-out multipart send may already have reached Telegram. Retrying
+                # without an API idempotency key can create a duplicate message.
+                raise TelegramApiError(
+                    f"Telegram {method} response was not confirmed; inspect the chat before retrying",
+                    outcome_unknown=True,
+                ) from None
+            try:
+                payload = response.json()
+            except ValueError:
+                raise TelegramApiError(
+                    f"Telegram {method} response was not confirmed; inspect the chat before retrying",
+                    outcome_unknown=True,
+                ) from None
+            if response.ok and isinstance(payload, dict) and payload.get("ok"):
+                return int(payload["result"]["message_id"])
+            error_code = payload.get("error_code") if isinstance(payload, dict) else None
+            if not isinstance(error_code, int) or not 100 <= error_code <= 599:
+                error_code = response.status_code
+            if error_code >= 500:
+                raise TelegramApiError(
+                    f"Telegram {method} response was not confirmed (HTTP {error_code}); inspect the chat before retrying",
+                    outcome_unknown=True,
+                )
+            retry_after = (payload.get("parameters") or {}).get("retry_after") if isinstance(payload, dict) else None
+            if error_code != 429 or attempt + 1 >= self.max_retries:
+                raise TelegramApiError(f"Telegram {method} failed (HTTP {error_code})")
+            try:
+                delay = min(int(retry_after or (2**attempt)), 60)
+            except (TypeError, ValueError, OverflowError):
+                delay = min(2**attempt, 60)
+            time.sleep(delay)
         raise TelegramApiError(f"Telegram {method} failed")
 
     def send_video(self, path: str, caption: str) -> int:

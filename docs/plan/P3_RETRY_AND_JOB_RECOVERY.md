@@ -1,7 +1,7 @@
 # Priority 3 — Retry and Job Recovery
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** AUTOMATED MOCK EVIDENCE EXISTS / LIVE ACCEPTANCE NOT YET COMPLETE  
+**Current status:** PARTIAL — implementation on `fix/p3-safe-retry-recovery`; local automated suites passed; CI/PR pending. A failure-injection test documents the irreducible manual-replay risk when durable success checkpoint storage itself fails. No live destination was invoked.
 **Scope:** Job idempotency, target-level retry, reports, and Dashboard recovery after refresh/reopen.
 
 ## Existing evidence to preserve
@@ -28,13 +28,13 @@ The E2E report records automated mock coverage for retrying a failed MEGA target
 
 ## Acceptance checklist
 
-- [ ] Per-target state is correct and understandable.
-- [ ] A partial-failure retry calls only the failed target(s).
-- [ ] Successful targets produce no duplicate send/upload on retry.
-- [ ] Reload/reopen resumes the existing job and does not dispatch another job.
-- [ ] Expired or unavailable report handling is clear and safe.
-- [ ] Relevant Worker/Python/dashboard tests pass.
-- [ ] Any required live check is performed only with approved test destinations.
+- [x] Per-target state is correct and understandable; `outcome_unconfirmed` is distinct from confirmed failure.
+- [x] Retry submits only targets containing confirmed failed items; successful and outcome-unconfirmed targets are excluded by Dashboard selection.
+- [x] Python checkpoint regression proves successful Telegram is not invoked again when retrying a failed MEGA target.
+- [x] Reload/reopen uses lookup-only recovery, resumes polling when found, and does not dispatch when no run is visible.
+- [x] Missing, expired, and temporarily unavailable reports have distinct Worker states and safe Dashboard messages.
+- [x] Relevant local automated validation passed: Python 143 tests; Worker/Dashboard harness 40 tests.
+- [x] No live check was run: this task has no explicitly approved test chat/folder for new destination retries; no external destination was invoked.
 
 ## Validation
 
@@ -44,10 +44,13 @@ Use deterministic unit/integration tests for idempotency and target retry. Use o
 
 Report job/target state before and after retry, whether any successful target was invoked again, browser recovery evidence, changed files/commit, tests actually run, and any blocked live scenario.
 
-## Completeness audit additions — ambiguous outcomes and dispatch races
+## Completeness audit outcomes — ambiguous outcomes and dispatch races
 
-- Distinguish `failed` from `unknown/outcome-unconfirmed`. If a destination may have accepted an upload but the response or checkpoint was lost, reconcile remote state before retrying where the adapter supports it; do not blindly resend and do not claim exactly-once delivery.
-- Verify concurrent duplicate `POST /jobs` requests with the same request ID/payload and conflicting payloads. Server-side behavior must be authoritative; document the actual guarantee and any remaining race rather than relying on disabled UI buttons.
-- Define which state survives reload and where it lives. Do not store credentials or signed artifact URLs in browser storage; handle missing, stale, malformed, or unavailable local state without silently creating a new job.
-- Test retry after timeout at three boundaries: before dispatch, after dispatch but before job ID is received, and after destination success but before success is persisted. Use mocks/fakes unless an approved test destination is available.
-- Acceptance evidence must show the target invocation count before/after retry and identify any outcome that remains inherently ambiguous under the current architecture. Do not introduce a database/queue just to hide a documented limitation.
+- `failed` is distinct from `outcome_unconfirmed`. Telegram send timeouts/non-JSON/5xx, Dropbox upload transport timeout/5xx, and MEGA upload/remote-verification uncertainty are checkpointed as unconfirmed and excluded from automatic retry. Regression coverage includes MEGA timeout during remote read-back after `mega-put` returned success.
+- A failed MEGA target retry invokes MEGA once and leaves successful Telegram invocation count at 1 (before/after); the Python test asserts exact adapter call counts. Browser harness asserts retry payload contains only confirmed failed targets and excludes `success` and `outcome_unconfirmed` targets.
+- The Worker now single-flights identical `request_id` submissions inside one isolate, rejects an in-flight conflicting payload with HTTP 409, and retains an accepted outcome for 30 seconds to cover GitHub run-list visibility delay. Deterministic concurrent tests assert one dispatch for identical payloads and one dispatch plus one 409 for conflicting payloads.
+- **Remaining idempotency limit:** this reservation is isolate-local and ephemeral. It is not a global/durable lock across Cloudflare isolates, isolate restarts, or requests after its 30-second window. GitHub run lookup remains the durable practical dedupe signal once the run is visible. Exactly-once dispatch/delivery is not claimed; a narrow cross-isolate visibility race remains without a durable coordination service.
+- Browser state remains in localStorage and contains job/request IDs and user-selected inputs only; credentials and signed artifact URLs are not stored. Reload/reopen uses `POST /jobs/recover` (lookup only); a not-found response stays locked for explicit user action and never auto-submits a new job. Missing/expired/unavailable report states remain distinguishable.
+- Timeout boundaries are covered by deterministic mocks/fakes, including failed dispatch sanitization, in-flight request races, destination timeout classification, persisted unconfirmed checkpoints, and retry without resending success. No real destination was called because no new approved test target was provided.
+- A failure-injection test simulates confirmed Telegram success followed by failed checkpoint persistence: the report carries `dedupe_checkpoint_failed`, but a later manually-created full-target job can resend because no durable success record exists. Dashboard's failed-only retry excludes that reported-success target, but no exactly-once guarantee is possible when checkpoint storage fails and the user creates a new full job.
+- No database/queue was added. CI/PR merge and production deployment are still pending; this branch evidence is not production evidence.

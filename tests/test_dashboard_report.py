@@ -17,6 +17,15 @@ def test_build_summary_empty():
     assert build_summary([])["total"] == 0
 
 
+def test_build_summary_counts_unconfirmed_separately_from_confirmed_failures():
+    summary = build_summary([{
+        "status": "outcome_unconfirmed",
+        "destinations": {"telegram": {"status": "outcome_unconfirmed"}},
+    }])
+    assert summary["failed"] == 0
+    assert summary["outcome_unconfirmed"] == 1
+
+
 def test_build_summary_counts_destination_outcomes_separately():
     summary = build_summary([
         {"status": "partial_success", "destinations": {"telegram": {"status": "success"}, "mega": {"status": "failed"}}},
@@ -124,6 +133,29 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
     assert "[url]" in item["destinations"]["mega"]["items"][0]["error"]
     assert "remote_folder" not in item["destinations"]["mega"]
     assert "unknown" not in item["destinations"]
+
+
+def test_sanitizer_preserves_outcome_unconfirmed_without_remote_details():
+    clean = sanitize_report({
+        "summary": {"total": 1, "outcome_unconfirmed": 1},
+        "results": [{"status": "outcome_unconfirmed", "destinations": {
+            "telegram": {"status": "outcome_unconfirmed", "items": [{
+                "status": "outcome_unconfirmed", "error_code": "telegram_outcome_unconfirmed",
+                "error": "response lost https://api.telegram.org/botsecret/sendVideo",
+                "remote_path": "/private/path",
+            }]},
+        }, "media_reconciliation": {"destinations": {
+            "telegram": {"unconfirmed_items": 1, "expected_items": 1},
+        }}}],
+    })
+    result = clean["results"][0]
+    assert clean["summary"]["outcome_unconfirmed"] == 1
+    assert result["status"] == "outcome_unconfirmed"
+    assert result["destinations"]["telegram"]["status"] == "outcome_unconfirmed"
+    assert result["destinations"]["telegram"]["items"][0]["status"] == "outcome_unconfirmed"
+    assert result["media_reconciliation"]["destinations"]["telegram"]["unconfirmed_items"] == 1
+    assert "botsecret" not in str(clean)
+    assert "/private/path" not in str(clean)
 
 
 def test_sanitizer_keeps_reconciled_media_manifest_without_urls_or_remote_paths():

@@ -51,7 +51,7 @@ def _write_report(payload: dict, path: str) -> str:
 def _has_destination_failure(results: list[dict]) -> bool:
     """Return true when any selected destination failed, including partial delivery."""
     return any(
-        value.get("status") in {"failed", "partial_success"}
+        value.get("status") in {"failed", "partial_success", "outcome_unconfirmed"}
         for item in results
         for value in (item.get("destinations") or {}).values()
     )
@@ -76,6 +76,13 @@ def build_summary(results: list[dict]) -> dict:
         "no_media": statuses.count("no_media"),
         "failed": sum(1 for status in statuses if status in failed_statuses),
     }
+    unconfirmed = sum(
+        1 for item in results
+        if item.get("status") == "outcome_unconfirmed"
+        or any(value.get("status") == "outcome_unconfirmed" for value in (item.get("destinations") or {}).values() if isinstance(value, dict))
+    )
+    if unconfirmed:
+        summary["outcome_unconfirmed"] = unconfirmed
     if per_destination:
         summary["destinations"] = per_destination
     return summary
@@ -242,12 +249,20 @@ def main() -> int:
             for item in payload["results"]:
                 item["status"] = item["status"].value
             any_failure = _has_destination_failure(payload["results"])
+            any_unconfirmed = any(
+                item.get("status") == "outcome_unconfirmed"
+                or any(value.get("status") == "outcome_unconfirmed" for value in (item.get("destinations") or {}).values() if isinstance(value, dict))
+                for item in payload["results"]
+            )
             any_delivery = any(
                 value.get("status") in {"success", "ready", "duplicate", "partial_success"}
                 for item in payload["results"]
                 for value in (item.get("destinations") or {}).values()
             )
-            if any_failure and any_delivery:
+            if any_unconfirmed and not any_delivery:
+                payload["status"] = "outcome_unconfirmed"
+                exit_code = 1
+            elif any_failure and any_delivery:
                 payload["status"] = "partial_success"
                 exit_code = 1
             elif any_failure:

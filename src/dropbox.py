@@ -20,7 +20,6 @@ class DropboxUploader:
     TOKEN_URL = "https://api.dropboxapi.com/oauth2/token"
     CHUNK_SIZE = 8 * 1024 * 1024
     SMALL_FILE_LIMIT = 150 * 1024 * 1024
-    RETRY_STATUSES = {429, 500, 502, 503, 504}
 
     def __init__(
         self,
@@ -109,17 +108,26 @@ class DropboxUploader:
                 body = data
             try:
                 response = self.request(method, url, headers=request_headers, data=body, timeout=self.timeout_seconds)
-            except requests.RequestException as exc:
-                if attempt >= self.max_retries:
-                    raise DestinationError("dropbox_network_error", "Dropbox request failed after retries.") from exc
-                self.sleep(min(2 ** attempt, 30))
-                continue
+            except requests.RequestException:
+                # Upload POSTs have no safe client idempotency key. A lost response
+                # does not prove that Dropbox rejected the write, so do not replay it.
+                raise DestinationError(
+                    "dropbox_outcome_unconfirmed",
+                    "Dropbox may have accepted the upload, but no response was confirmed; inspect the remote file before retrying.",
+                    outcome_unknown=True,
+                ) from None
             if response.status_code == 401 and not refreshed and self.refresh_token:
                 self._refresh_access_token()
                 refreshed = True
                 continue
-            if response.status_code in self.RETRY_STATUSES and attempt < self.max_retries:
-                self.sleep(self._retry_after(response) if response.status_code == 429 else min(2 ** attempt, 30))
+            if response.status_code in {500, 502, 503, 504}:
+                raise DestinationError(
+                    "dropbox_outcome_unconfirmed",
+                    "Dropbox returned a server error after the upload request; inspect the remote file before retrying.",
+                    outcome_unknown=True,
+                )
+            if response.status_code == 429 and attempt < self.max_retries:
+                self.sleep(self._retry_after(response))
                 continue
             return response
         raise DestinationError("dropbox_network_error", "Dropbox request failed after retries.")

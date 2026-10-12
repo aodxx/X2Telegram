@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1 historical source failure ผ่าน post-fix source-only fetch. P2 real mixed photo/video source แสดง 2/2 local outputs พร้อม manifest/hash; PR #23 merged เป็น `main` commit `a5711e1`, main CI และ synthetic MEGA multi-item integration ผ่าน.
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 implementation is partially validated on `fix/p3-safe-retry-recovery` (Python 143, Worker/Dashboard 40); it is not merged/deployed and did not invoke a live destination.
 
 ## หลักฐาน live
 
@@ -72,6 +72,19 @@
 
 ## Scenario status
 
+### Priority 3 — safe retry and job recovery (feature branch; not deployed)
+
+- Python DedupeStore state is schema v4 and preserves outcome-unconfirmed checkpoints; retry regression asserts a successful Telegram target remains at exactly one invocation while the failed MEGA target is invoked once on retry.
+- Telegram send timeout/non-JSON/5xx, Dropbox upload transport timeout/5xx, and MEGA upload/read-back uncertainty are no longer automatically replayed. New MEGA regression covers `mega-put` success followed by remote listing timeout.
+- Worker same-isolate concurrency tests: identical concurrent POSTs share one dispatch (202 + duplicate 200); conflicting payloads under one request ID return 202 + 409; lookup-only recovery can observe the in-flight request. Reservation expires after 30 seconds.
+- Browserless Dashboard harness: reload uses `POST /jobs/recover` and resumes the existing job without `POST /jobs`; a not-found lookup stays locked and does not dispatch; retry payload includes only confirmed failed destinations, excluding successful and unconfirmed targets.
+- Missing/expired/unavailable report tests return distinct availability states; Dashboard displays safe, actionable messages.
+- Failure-injection boundary: when Telegram confirms success but writing its durable dedupe checkpoint fails, the report includes `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes the successful target, but a later manually-created full-target job may resend because state alone no longer proves prior delivery.
+- Local validation: Python **143 passed**, Worker/Dashboard **40 passed**, Python compile, Node syntax, and diff checks passed. No live destination was called because no new test chat/folder was approved.
+- Limitations: isolate-local single-flight is not a durable/global lock. Concurrent requests reaching separate Cloudflare isolates, an isolate restart, or a request after the 30-second retention window may race before GitHub exposes the run. System does not claim exactly-once dispatch/delivery; no database/queue was introduced.
+
+### Scenario matrix
+
 | Scenario | ผล | หลักฐาน/ขอบเขต |
 |---|---|---|
 | โพสต์หนึ่งรายการมี media หลายชิ้น | PASS (live source-only + automated mock) | Real source-only mixed photo/video: expected 2, exported 2, both validated/accounted, local size/SHA-256 matched manifest; synthetic MEGA independently verified two identities |
@@ -83,6 +96,9 @@
 | Worker protected ZIP streaming | PASS (live) | Browser ดาวน์โหลดจริงผ่าน Access route; ZIP CRC ผ่าน |
 | Telegram/MEGA/Dropbox/Download combinations | PASS สำหรับ media 1 รายการ (live); อีก URL ล้มก่อนถึง targets | Run #38037210973; all 4 destinations success/ready สำหรับรายการที่ดึงได้ |
 | Retry เฉพาะ destination ที่ล้มเหลว | PASS (automated mock) | Mega failure แล้ว retry; Telegram ที่สำเร็จไม่ถูกส่งซ้ำ |
+| P3 concurrent duplicate/conflicting POST in one isolate | PASS (automated Worker tests) | Same payload dispatches once; conflicting payload receives 409; cross-isolate race remains documented |
+| Dashboard reload/report recovery and retry selection | PASS (browserless harness) | Lookup-only restore/no auto-dispatch; retry contains only confirmed failed targets |
+| Destination ambiguous outcome recovery | PASS (automated mock) | Timeout/5xx/verification uncertainty is checkpointed and not replayed; no live destination check |
 | ภาพ+วิดีโอในโพสต์เดียว | PASS (automated mock) | ภาพยังคงอยู่ และเลือก video variant สูงสุด; download หนึ่งครั้งต่อ media |
 | Invalid MEGA folder/credential failure | PASS (automated mock) | MEGA failure ไม่หยุด Telegram/Download; ไม่มี command output ใน report |
 | MEGA upload จริง | PASS (live MEGA-only) | Run #37848879753; หนึ่ง media upload สำเร็จ; Telegram ไม่ได้เลือก |

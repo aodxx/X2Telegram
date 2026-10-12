@@ -2,7 +2,7 @@
 
 **อัปเดต:** 2026-10-13
 **จุดอ้างอิง:** P2 merge commit `a5711e1` (included in `main`); Cloudflare Worker deployment commit `8fb4427`
-**สถานะสั้น:** P1/P2 ใน Manus execution plan ผ่าน acceptance แล้ว; P2 merge และ main CI/MEGA integration ผ่าน. Worker deployment ยังเป็น `8fb4427` เพราะ P2 ไม่เปลี่ยน Worker; backlog ถัดไปคือ P3 ตาม plan และ live blockers ที่ปลอดภัย
+**สถานะสั้น:** P1/P2 ใน Manus execution plan ผ่าน acceptance แล้ว; P2 merge และ main CI/MEGA integration ผ่าน. P3 อยู่บน `fix/p3-safe-retry-recovery`, local Python 143/143 และ Worker/Dashboard 40/40 ผ่าน; สถานะ partial, ยังไม่ merge/deploy และไม่มี live destination invocation. ข้อจำกัดสำคัญ: cross-isolate reservation ไม่มี global durability และ success-checkpoint storage failure อาจเปิดทางให้ full manual replay ส่งซ้ำ. ขั้นถัดไปคือทบทวน diff, push/open PR และรอ GitHub CI; Production Worker ยังเป็น `8fb4427`.
 
 **P2 complete (2026-10-13):** PR #23 merged as main commit `a5711e1`. It preserves distinct yt-dlp playlist entries and emits a per-media size/SHA-256 manifest/reconciliation. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) passed; main synthetic MEGA integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) verified 3 remote objects, changed-version retention, duplicate idempotency, byte/hash integrity, and run-folder cleanup. Real source-only mixed photo/video exported 2/2 local files with matching hashes. No Worker deployment was needed because Worker code was unchanged. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
 

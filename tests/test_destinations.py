@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -361,6 +362,31 @@ def test_failed_mega_does_not_resend_telegram_on_retry(tmp_path):
     assert retry_mega.calls == 1
 
 
+def test_success_checkpoint_write_failure_is_visible_but_cannot_prevent_later_replay(tmp_path):
+    store = DedupeStore(tmp_path / "dedupe.json")
+    telegram = FakeTelegram()
+    post = parse_x_url("https://x.com/user/status/457")
+    first, media_path = make_processor(tmp_path, ["telegram"], telegram=telegram, dedupe=store)
+    with patch.object(first.downloader, "download", return_value=media_path), patch.object(
+        store, "mark_destination_sent", side_effect=OSError("simulated checkpoint storage failure")
+    ):
+        initial = first.process(post)
+
+    assert initial.destinations["telegram"]["status"] == "success"
+    assert initial.destinations["telegram"]["items"][0]["warning"] == "dedupe_checkpoint_failed"
+    assert telegram.calls == 1
+
+    # The adapter confirmed success, but the failed durable checkpoint means a later
+    # manually-created job cannot prove prior delivery from state alone.
+    retry, retry_path = make_processor(tmp_path, ["telegram"], telegram=telegram, dedupe=store)
+    with patch.object(retry.downloader, "download", return_value=retry_path), patch.object(
+        store, "mark_destination_sent", side_effect=OSError("simulated checkpoint storage failure")
+    ):
+        retried = retry.process(post)
+    assert retried.destinations["telegram"]["status"] == "success"
+    assert telegram.calls == 2
+
+
 def test_mega_only_without_credentials_fails_only_mega_target(tmp_path):
     processor, media_path = make_processor(tmp_path, ["mega"], mega=MegaUploader(email="", password=""))
     with patch.object(processor.downloader, "download", return_value=media_path):
@@ -457,6 +483,24 @@ def test_mega_upload_fails_if_remote_file_cannot_be_verified(tmp_path):
         with pytest.raises(DestinationError) as raised:
             uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
     assert raised.value.code == "mega_upload_verification_failed"
+    assert raised.value.outcome_unknown is True
+    uploader.close()
+
+
+def test_mega_verification_timeout_after_upload_is_outcome_unconfirmed(tmp_path):
+    media_path = tmp_path / "safe_name.mp4"
+    media_path.write_bytes(b"video")
+
+    def runner(args, **kwargs):
+        if args[0] == "mega-ls":
+            raise subprocess.TimeoutExpired(args, 1)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    uploader = MegaUploader(email="owner@example.com", password="p", runner=runner, which=lambda _name: True)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc))
+    assert raised.value.code == "mega_upload_verification_failed"
+    assert raised.value.outcome_unknown is True
     uploader.close()
 
 

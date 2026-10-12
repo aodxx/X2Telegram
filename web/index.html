@@ -28,6 +28,7 @@
       --radius: 22px;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0; min-width: 320px; color: var(--text);
@@ -101,6 +102,7 @@
     .status-badge[data-state="processing"], .status-badge[data-state="accepted"], .status-badge[data-state="duplicate"] { color: var(--blue); border-color: rgba(105,184,255,.35); }
     .status-badge[data-state="completed"] { color: var(--green); border-color: rgba(98,212,155,.35); }
     .status-badge[data-state="failed"] { color: var(--red); border-color: rgba(255,140,155,.4); }
+    .status-badge[data-state="uncertain"], .status-badge[data-state="outcome_unconfirmed"] { color: var(--amber); border-color: rgba(255,198,109,.45); }
     .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 22px 0 18px; padding: 0; list-style: none; }
     .stepper li { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; color: #7189a3; font-size: 12px; }
     .stepper li::before { content: attr(data-number); display: grid; place-items: center; width: 26px; height: 26px; flex: none; border: 1px solid var(--line); border-radius: 50%; color: inherit; background: rgba(255,255,255,.035); font-size: 11px; font-weight: 800; }
@@ -110,6 +112,8 @@
     .stepper li.is-current::before { border-color: var(--blue); color: #061321; background: var(--blue); box-shadow: 0 0 0 4px rgba(105,184,255,.12); }
     .stepper li.is-error { color: var(--red); }
     .stepper li.is-error::before { border-color: var(--red); color: #1a0b10; background: var(--red); }
+    .stepper li.is-uncertain { color: var(--amber); }
+    .stepper li.is-uncertain::before { border-color: var(--amber); color: #241a09; background: var(--amber); }
     .progress { height: 8px; }
     .run-meta { display: block; margin-top: 16px; }
     .run-details { color: var(--muted); font-size: 12px; }
@@ -124,6 +128,7 @@
     .status-dot { width: 9px; height: 9px; flex: none; margin-top: 7px; border-radius: 50%; background: var(--amber); }
     .status-dot.good { background: var(--green); box-shadow: 0 0 0 4px rgba(98,212,155,.1); }
     .status-dot.bad { background: var(--red); }
+    .status-dot.uncertain { background: var(--amber); box-shadow: 0 0 0 4px rgba(255,198,109,.1); }
     .url-row b { display: block; font-size: 13px; }
     .url-row code { display: block; max-width: 100%; overflow: hidden; color: var(--muted); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
     .badge { margin-left: auto; flex: none; padding: 4px 8px; border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.07); font-size: 10px; font-weight: 800; }
@@ -154,6 +159,7 @@
     .recent-job span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
     .result-ok { color: var(--green) !important; }
     .result-bad { color: var(--red) !important; }
+    .result-uncertain { color: var(--amber) !important; }
     @media (max-width: 820px) { .hero { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 20px; } .grid { grid-template-columns: 1fr; } .status-card, .recent-card { grid-column: auto; } }
     @media (max-width: 560px) { .shell { padding: 18px 14px 46px; } .topbar { margin-bottom: 26px; } .top-actions .backend-pill { max-width: 190px; font-size: 10px; padding: 7px 9px; } .card { padding: 17px; border-radius: 18px; } h1 { font-size: 39px; } .stats { gap: 7px; } .stat { padding: 11px; } .footer { flex-direction: column; } .destination-picker { grid-template-columns: 1fr; } .stepper { gap: 4px; } .stepper li { flex-direction: column; align-items: flex-start; gap: 5px; font-size: 10px; } .status-header { flex-direction: column; } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
@@ -205,6 +211,16 @@
         <div class="progress-label"><span>ขั้นตอนงาน</span><span id="progressStepCount">0 จาก 4 ขั้น</span></div><div class="progress" id="progressTrack" role="progressbar" aria-label="ขั้นตอนงาน" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" aria-valuetext="ยังไม่เริ่ม"><div class="bar" id="progressBar"></div></div>
         <div class="run-meta" id="runMeta"><span>รายละเอียดงานจะแสดงเมื่อเริ่มประมวลผล</span></div>
         <div class="result-list" id="resultList"></div>
+        <div class="actions" id="recoveryActions" hidden>
+          <button class="btn btn-secondary" id="recoverBtn" type="button">ตรวจสอบคำขอเดิมอีกครั้ง</button>
+          <button class="ghost" id="clearPendingBtn" type="button">ล้างเฉพาะการติดตามที่ค้าง</button>
+        </div>
+        <div class="actions" id="retryActions" hidden>
+          <button class="btn btn-secondary" id="retryFailuresBtn" type="button">ลองใหม่เฉพาะปลายทางที่ยืนยันว่าล้มเหลว</button>
+        </div>
+        <div class="actions" id="reportActions" hidden>
+          <button class="btn btn-secondary" id="refreshReportBtn" type="button">ลองดึงสถานะ/รายงานอีกครั้ง</button>
+        </div>
       </div>
       <div class="card recent-card">
         <h2>งานล่าสุด</h2>
@@ -227,6 +243,8 @@
     let pollTimer = null;
     let backendReady = false;
     let runBusy = false;
+    let recoveryUnconfirmed = false;
+    let pollMisses = 0;
     let lastReview = { lines: [], validLines: [], valid: 0, invalid: 0, overLimit: false };
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
     function parseUrl(value) {
@@ -259,7 +277,7 @@
       $('destDownload').checked = selected.includes('download');
       syncRunButton();
     }
-    function setBusy(value) { runBusy = Boolean(value); syncRunButton(); }
+    function setBusy(value) { runBusy = Boolean(value) || recoveryUnconfirmed; syncRunButton(); }
     function review() {
       const lines = getLines(); const seen = new Set(); const validLines = []; let valid = 0; let invalid = 0;
       const overLimit = lines.length > MAX_BATCH_URLS;
@@ -301,7 +319,7 @@
       }
       let data;
       try { data = await response.json(); }
-      catch (_) { throw new Error(`Worker ตอบกลับไม่ใช่ JSON (HTTP ${response.status}); ตรวจ Access, CORS และ endpoint`); }
+      catch (_) { const error = new Error(`Worker ตอบกลับไม่ใช่ JSON (HTTP ${response.status}); ตรวจ Access, CORS และ endpoint`); error.status = response.status; error.code = 'invalid_response'; throw error; }
       if (!response.ok) {
         const messages = {
           unauthorized: 'ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access หรือ session หมดอายุ',
@@ -315,13 +333,16 @@
           invalid_destinations: 'เลือกปลายทางอย่างน้อยหนึ่งรายการ',
           idempotency_conflict: 'Request ID นี้ถูกใช้กับข้อมูลอื่นแล้ว กรุณาเริ่มรายการใหม่',
           rate_limited: 'ส่งคำขอเร็วเกินไป กรุณารอสักครู่',
-          job_not_found: 'ยังไม่พบงานใน GitHub Actions กำลังลองค้นหาอีกครั้ง',
+          job_not_found: 'ยังไม่พบงานเดิมใน GitHub Actions; ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ',
           github_dispatch_failed: 'GitHub Actions รับงานไม่ได้ กรุณาตรวจสถานะระบบ',
           backend_not_configured: 'Cloudflare Worker ยังตั้งค่าไม่ครบ',
           download_not_ready: 'ไฟล์ยังไม่พร้อมดาวน์โหลด กรุณารอสักครู่',
           download_unavailable: 'งานนี้ไม่มีไฟล์ ZIP สำหรับดาวน์โหลด',
-          download_expired: 'ไฟล์ดาวน์โหลดหมดอายุแล้ว กรุณาเริ่มงานใหม่',
-          download_artifact_missing: 'ไม่พบ ZIP artifact สำหรับดาวน์โหลด กรุณาเริ่มงานใหม่',
+          download_expired: 'ไฟล์ ZIP หมดอายุแล้ว; หากต้องการให้สร้างใหม่ ให้ retry เฉพาะปลายทางดาวน์โหลด',
+          download_artifact_missing: 'ไม่พบ ZIP artifact; หากต้องการให้สร้างใหม่ ให้ retry เฉพาะปลายทางดาวน์โหลด',
+          report_expired: 'รายงานหมดอายุ; สถานะ workflow ยังตรวจได้ แต่ผลรายปลายทางเรียกคืนไม่ได้',
+          report_artifact_missing: 'ไม่พบรายงานของงานเดิม; ระบบจะไม่ dispatch งานใหม่ให้เอง',
+          report_unavailable: 'ดึงรายงานไม่สำเร็จ; ตรวจสถานะอีกครั้งได้โดยไม่ส่งงานใหม่',
           artifact_download_failed: 'ดึง ZIP จาก GitHub ไม่สำเร็จ',
         };
         const error = new Error(messages[data.error?.code] || data.error?.message || 'เรียก Control Worker ไม่สำเร็จ');
@@ -346,6 +367,21 @@
         const date = job.saved_at && !Number.isNaN(Date.parse(job.saved_at)) ? new Date(job.saved_at).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
         return `<button class="ghost recent-job" type="button" data-job-id="${escapeHtml(job.job_id || '')}" data-request-id="${escapeHtml(job.request_id || '')}"><b>${escapeHtml(label)}</b><span>${date ? `เริ่มเมื่อ ${escapeHtml(date)}` : 'ดูสถานะงานล่าสุด'}</span></button>`;
       }).join('') : '<div class="empty">ยังไม่มีงานล่าสุด</div>';
+    }
+    function retryableFailedTargets(report) {
+      if (!report || !Array.isArray(report.results)) return [];
+      const targets = ['telegram', 'mega', 'dropbox', 'download'];
+      return targets.filter((name) => {
+        let confirmedFailure = false;
+        let ambiguous = false;
+        for (const post of report.results) {
+          const destination = post?.destinations?.[name];
+          if (!destination) continue;
+          if (destination.status === 'outcome_unconfirmed' || (destination.items || []).some((item) => item?.status === 'outcome_unconfirmed')) ambiguous = true;
+          if (destination.status === 'failed' || (destination.items || []).some((item) => item?.status === 'failed')) confirmedFailure = true;
+        }
+        return confirmedFailure && !ambiguous;
+      });
     }
     async function checkBackend() {
       const pill = $('backendPill');
@@ -375,21 +411,34 @@
     function renderRun(data) {
       activeRun = { ...(activeRun || {}), ...data };
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
+      recoveryUnconfirmed = false;
+      $('recoveryActions').hidden = true;
       const status = data.state || 'accepted';
       const urlCount = data.url_count || activeRun.url_count || (Array.isArray(activeRun.urls) ? activeRun.urls.length : activeRun.url ? 1 : 0);
       const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
       const destinationText = (data.destinations || activeRun.destinations || []).map((name) => destinationNames[name] || name).join(' + ');
       const downloadUrl = typeof data.download?.url === 'string' && /^\/jobs\/job-[a-f0-9]{32}\/download$/.test(data.download.url) ? data.download.url : '';
       const downloadLink = downloadUrl ? `<a href="${escapeHtml(downloadUrl)}" download>ดาวน์โหลดไฟล์ ZIP (${Number(data.download.file_count || 0)} ไฟล์) ↓</a>` : '';
-      const downloadStatus = data.download?.status === 'expired' ? '<span>ไฟล์ ZIP หมดอายุแล้ว · เริ่มงานใหม่เพื่อสร้างไฟล์อีกครั้ง</span>' : data.download?.status === 'unavailable' ? '<span>ไฟล์ ZIP ไม่พร้อมใช้งาน · ตรวจผลปลายทางด้านล่าง</span>' : data.download?.status === 'checking' ? '<span>กำลังตรวจไฟล์ ZIP...</span>' : '';
-      const labels = { accepted: 'รับงานแล้ว', duplicate: 'กำลังติดตามงานเดิม', processing: 'กำลังประมวลผล', completed: 'งานเสร็จแล้ว', failed: 'งานไม่สำเร็จ' };
-      const descriptions = { accepted: 'งานอยู่ในคิวและจะเริ่มทำงานโดยอัตโนมัติ', duplicate: 'พบคำขอเดิม กำลังติดตามงานเดิมโดยไม่ส่งซ้ำ', processing: 'กำลังประมวลผลและส่งรายการไปยังปลายทางที่เลือก', completed: 'ตรวจดูผลแยกรายลิงก์ได้ด้านล่าง', failed: data.error?.message || 'ตรวจดูผลลัพธ์ด้านล่าง แล้วลองอีกครั้งหากจำเป็น' };
-      const badgeLabels = { accepted: 'อยู่ในคิว', duplicate: 'งานเดิม', processing: 'กำลังทำงาน', completed: 'เสร็จสิ้น', failed: 'ต้องตรวจสอบ' };
+      const downloadStatus = data.download?.status === 'expired' ? '<span>ไฟล์ ZIP หมดอายุแล้ว · retry เฉพาะปลายทางดาวน์โหลดได้</span>' : data.download?.status === 'unavailable' ? '<span>ไฟล์ ZIP ไม่พร้อมใช้งาน · ตรวจผลปลายทางด้านล่าง</span>' : data.download?.status === 'checking' ? '<span>กำลังตรวจไฟล์ ZIP...</span>' : '';
+      const reportMessages = {
+        missing: 'ไม่พบรายงานของงานเดิม; ระบบไม่ส่งงานซ้ำให้อัตโนมัติ',
+        expired: 'รายงานหมดอายุแล้ว; สถานะงานยังแสดงได้ แต่ผลรายปลายทางเรียกคืนไม่ได้',
+        unavailable: 'ดึงรายงานไม่ได้ชั่วคราว; ลองตรวจอีกครั้งได้โดยไม่ dispatch งานใหม่'
+      };
+      const reportStatus = data.report_availability?.status;
+      const reportNotice = reportMessages[reportStatus] ? `<span class="result-uncertain">${reportMessages[reportStatus]}</span>` : '';
+      $('reportActions').hidden = reportStatus !== 'unavailable';
+      const retryTargets = retryableFailedTargets(data.result);
+      $('retryFailuresBtn').dataset.targets = retryTargets.join(',');
+      $('retryActions').hidden = retryTargets.length === 0;
+      const labels = { accepted: 'รับงานแล้ว', duplicate: 'กำลังติดตามงานเดิม', processing: 'กำลังประมวลผล', completed: 'งานเสร็จแล้ว', failed: 'งานไม่สำเร็จ', outcome_unconfirmed: 'ผลปลายทางยังไม่ยืนยัน' };
+      const descriptions = { accepted: 'งานอยู่ในคิวและจะเริ่มทำงานโดยอัตโนมัติ', duplicate: 'พบคำขอเดิม กำลังติดตามงานเดิมโดยไม่ส่งซ้ำ', processing: 'กำลังประมวลผลและส่งรายการไปยังปลายทางที่เลือก', completed: 'ตรวจดูผลแยกรายลิงก์ได้ด้านล่าง', failed: data.error?.message || 'ตรวจดูผลลัพธ์ด้านล่าง แล้วลองใหม่เฉพาะปลายทางที่ยืนยันว่าล้มเหลว', outcome_unconfirmed: 'ปลายทางอาจรับไฟล์แล้ว แต่ระบบไม่ได้รับคำยืนยัน; ตรวจปลายทางก่อน retry' };
+      const badgeLabels = { accepted: 'อยู่ในคิว', duplicate: 'งานเดิม', processing: 'กำลังทำงาน', completed: 'เสร็จสิ้น', failed: 'ต้องตรวจสอบ', outcome_unconfirmed: 'ยังไม่ยืนยัน' };
       $('progressText').textContent = labels[status] || 'กำลังอัปเดตสถานะ';
       $('runDescription').textContent = descriptions[status] || 'ระบบกำลังตรวจสอบสถานะล่าสุด';
       $('runStateBadge').textContent = badgeLabels[status] || 'กำลังอัปเดต';
       $('runStateBadge').dataset.state = status;
-      const currentStage = status === 'accepted' || status === 'duplicate' ? 2 : status === 'processing' ? 3 : ['completed', 'failed'].includes(status) ? 4 : 1;
+      const currentStage = status === 'accepted' || status === 'duplicate' ? 2 : status === 'processing' ? 3 : ['completed', 'failed', 'outcome_unconfirmed'].includes(status) ? 4 : 1;
       $('progressStepCount').textContent = `${currentStage} จาก 4 ขั้น`;
       $('progressTrack').setAttribute('aria-valuenow', String(currentStage));
       $('progressTrack').setAttribute('aria-valuetext', `ขั้นตอน ${currentStage} จาก 4: ${labels[status] || 'กำลังอัปเดตสถานะ'}`);
@@ -397,12 +446,13 @@
       document.querySelectorAll('#jobStepper li').forEach((step) => {
         const number = Number(step.dataset.stage);
         step.classList.toggle('is-done', number < currentStage);
-        step.classList.toggle('is-current', number === currentStage && status !== 'failed');
+        step.classList.toggle('is-current', number === currentStage && !['failed', 'outcome_unconfirmed'].includes(status));
         step.classList.toggle('is-error', number === currentStage && status === 'failed');
-        if (number === currentStage && status !== 'failed') step.setAttribute('aria-current', 'step');
+        step.classList.toggle('is-uncertain', number === currentStage && status === 'outcome_unconfirmed');
+        if (number === currentStage && !['failed', 'outcome_unconfirmed'].includes(status)) step.setAttribute('aria-current', 'step');
         else step.removeAttribute('aria-current');
       });
-      $('runMeta').innerHTML = `<details class="run-details"><summary>รายละเอียดงาน</summary><div class="run-details-content"><span>${urlCount ? `${urlCount} ลิงก์` : ''}${destinationText ? `${urlCount ? ' · ' : ''}ส่งไปยัง ${escapeHtml(destinationText)}` : ''}</span><span><strong>รหัสงาน:</strong> ${escapeHtml(data.job_id || activeRun.job_id || 'กำลังลงทะเบียน')}</span>${data.run_id ? `<span><strong>รอบการทำงาน:</strong> ${escapeHtml(data.run_id)}</span>` : ''}${downloadLink}${downloadStatus}${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">ดูรายละเอียดเพิ่มเติม</a>` : ''}</div></details>`;
+      $('runMeta').innerHTML = `<details class="run-details"><summary>รายละเอียดงาน</summary><div class="run-details-content"><span>${urlCount ? `${urlCount} ลิงก์` : ''}${destinationText ? `${urlCount ? ' · ' : ''}ส่งไปยัง ${escapeHtml(destinationText)}` : ''}</span><span><strong>รหัสงาน:</strong> ${escapeHtml(data.job_id || activeRun.job_id || 'กำลังลงทะเบียน')}</span>${data.run_id ? `<span><strong>รอบการทำงาน:</strong> ${escapeHtml(data.run_id)}</span>` : ''}${reportNotice}${downloadLink}${downloadStatus}${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">ดูรายละเอียดเพิ่มเติม</a>` : ''}</div></details>`;
     }
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
@@ -421,16 +471,21 @@
           source_download_failed: 'ดาวน์โหลดสื่อไม่สำเร็จ', unsupported_media_format: 'รูปแบบวิดีโอไม่รองรับ',
           media_too_large: 'ไฟล์ใหญ่เกินกำหนด', invalid_media_response: 'ไฟล์ต้นทางไม่สมบูรณ์',
           unsupported_media_url: 'ลิงก์ไฟล์ต้นทางไม่รองรับ', invalid_media_url: 'ลิงก์ไฟล์ต้นทางไม่ถูกต้อง',
-          no_supported_media: 'ไม่พบรูปหรือวิดีโอที่รองรับ'
+          no_supported_media: 'ไม่พบรูปหรือวิดีโอที่รองรับ', outcome_unconfirmed: 'ผลปลายทางยังไม่ยืนยัน',
+          telegram_outcome_unconfirmed: 'Telegram อาจรับไฟล์แล้ว · ตรวจแชตก่อน retry',
+          mega_outcome_unconfirmed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อน retry',
+          mega_upload_verification_failed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อน retry',
+          dropbox_outcome_unconfirmed: 'Dropbox อาจรับไฟล์แล้ว · ตรวจไฟล์ก่อน retry'
         };
         const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
         const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}${destination.attempts > 1 ? ` · ลอง ${destination.attempts} ครั้ง` : ''}`);
-        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => part.status === 'failed').map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.media_index ? ` · สื่อ #${part.media_index}` : ''}${part.attempts > 1 ? ` · ลอง ${part.attempts} ครั้ง` : ''}${part.variant_attempts > 1 ? ` · ลองวิดีโอ ${part.variant_attempts} แบบ` : ''}${part.error ? ` — ${part.error}` : ''}`));
+        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => ['failed', 'outcome_unconfirmed'].includes(part.status)).map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.media_index ? ` · สื่อ #${part.media_index}` : ''}${part.status === 'outcome_unconfirmed' ? ' · ผลยังไม่ยืนยัน' : ''}${part.attempts > 1 ? ` · ลอง ${part.attempts} ครั้ง` : ''}${part.variant_attempts > 1 ? ` · ลองวิดีโอ ${part.variant_attempts} แบบ` : ''}${part.error ? ` — ${part.error}` : ''}`));
         const stageNames = { input: 'ตรวจลิงก์', metadata: 'อ่านข้อมูลโพสต์', download: 'ดาวน์โหลดสื่อ', processing: 'เตรียมไฟล์', completed: 'ส่งปลายทาง' };
         const stageText = item.stage ? `${stageNames[item.stage] || item.stage} · ` : '';
         const failureText = failures.length ? ` · ${failures.join(' · ')}` : item.error ? ` · ${item.error}` : '';
         const detail = stageText + (targetStates.length ? targetStates.join(' · ') + failureText : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} รายการ · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ'));
-        return `<div class="result-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
+        const uncertain = item.status === 'outcome_unconfirmed' || Object.values(item.destinations || {}).some((destination) => destination.status === 'outcome_unconfirmed' || (destination.items || []).some((part) => part.status === 'outcome_unconfirmed'));
+        return `<div class="result-row"><i class="status-dot ${good ? 'good' : uncertain ? 'uncertain' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : uncertain ? 'result-uncertain' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
       }).join('');
       const inputs = report.input_outcomes || [];
       const inputSummary = report.input_summary || {};
@@ -444,23 +499,7 @@
       }).join('');
       $('resultList').innerHTML = `${rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>'}${inputOverview}${inputIssues}`;
       const summary = report.summary || {};
-      showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0}`);
-    }
-    async function pollRun() {
-      if (!activeRun || !activeRun.job_id) return;
-      try {
-        const status = await api(`/jobs/${encodeURIComponent(activeRun.job_id)}`);
-        renderRun(status);
-        if (status.result) renderReport(status.result);
-        if (status.state === 'completed' || status.state === 'failed') {
-          if (status.state === 'failed') showToast(status.error?.message || 'Workflow ทำงานไม่สำเร็จ');
-          setBusy(false); clearTimeout(pollTimer); return;
-        }
-        pollTimer = setTimeout(pollRun, status.state === 'accepted' ? 7000 : 5000);
-      } catch (error) {
-        if (error.code === 'job_not_found') { pollTimer = setTimeout(pollRun, 3000); return; }
-        setBusy(false); showToast(error.message); clearTimeout(pollTimer);
-      }
+      showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0} · ยังไม่ยืนยัน ${summary.outcome_unconfirmed || 0}`);
     }
     function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations()) {
       const payload = { large_file_mode: Boolean(largeFileMode), request_id: requestId, destinations };
@@ -468,40 +507,132 @@
       else payload.urls = urlList;
       return payload;
     }
+    function jobUrls(job) { return Array.isArray(job?.urls) ? job.urls : job?.url ? [job.url] : []; }
+    function showRecoveryUnconfirmed(saved, error) {
+      activeRun = { ...saved };
+      localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
+      recoveryUnconfirmed = true;
+      setBusy(true);
+      $('progressText').textContent = 'รอยืนยันคำขอเดิม';
+      $('runDescription').textContent = 'ยังยืนยันไม่ได้ว่างานเข้าคิวหรือไม่ ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ';
+      $('runStateBadge').textContent = 'ยังไม่ยืนยัน';
+      $('runStateBadge').dataset.state = 'uncertain';
+      $('progressStepCount').textContent = 'รอตรวจสอบ';
+      $('progressTrack').setAttribute('aria-valuetext', 'ยังไม่ยืนยันคำขอเดิม');
+      $('recoveryActions').hidden = false;
+      $('recoverBtn').disabled = false;
+      $('retryActions').hidden = true;
+      $('reportActions').hidden = true;
+      $('resultList').innerHTML = `<div class="notice">ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}</div>`;
+      showToast('ยังยืนยันคำขอเดิมไม่ได้ — ระบบไม่ส่งซ้ำอัตโนมัติ');
+    }
+    function clearPendingTracking() {
+      if (!recoveryUnconfirmed) return;
+      const confirmed = window.confirm('ล้างเฉพาะสถานะที่บันทึกในเบราว์เซอร์ ไม่ได้ยกเลิกงานเดิม งานเดิมอาจยังทำงานอยู่ และการเริ่มงานใหม่อาจส่งซ้ำ ต้องการล้างการติดตามหรือไม่?');
+      if (!confirmed) return;
+      clearTimeout(pollTimer);
+      localStorage.removeItem(CURRENT_KEY);
+      activeRun = null; recoveryUnconfirmed = false; pollMisses = 0;
+      $('recoveryActions').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
+      $('resultList').innerHTML = ''; $('runStateBadge').textContent = 'ยังไม่มีงาน'; $('runStateBadge').dataset.state = 'idle';
+      setBusy(false); review();
+      $('progressText').textContent = 'พร้อมเริ่ม'; $('runDescription').textContent = 'การล้างนี้ไม่ยกเลิกงานเดิมใน GitHub Actions';
+      $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressBar').style.width = '0%';
+      showToast('ล้างเฉพาะการติดตามในเบราว์เซอร์แล้ว');
+    }
+    async function lookupCurrentJob() {
+      if (!activeRun) return;
+      const saved = { ...activeRun };
+      const savedUrls = jobUrls(saved);
+      if (!saved.job_id && (!saved.request_id || !savedUrls.length)) throw new Error('ข้อมูลคำขอเดิมไม่ครบพอสำหรับค้นหาแบบไม่ dispatch');
+      const payload = makeJobPayload(savedUrls, saved.large_file_mode, saved.request_id, saved.destinations || ['telegram']);
+      const data = saved.job_id
+        ? await api(`/jobs/${encodeURIComponent(saved.job_id)}`)
+        : await api('/jobs/recover', { method: 'POST', body: JSON.stringify(payload) });
+      pollMisses = 0;
+      if (data.job_id) saveRecentJob({ ...saved, job_id: data.job_id });
+      renderRun(data);
+      if (data.result) renderReport(data.result);
+      const terminal = ['completed', 'failed', 'outcome_unconfirmed'].includes(data.state);
+      setBusy(!terminal);
+      if (terminal) clearTimeout(pollTimer); else pollRun();
+      return data;
+    }
+    async function pollRun() {
+      if (!activeRun || !activeRun.job_id) return;
+      try {
+        const status = await api(`/jobs/${encodeURIComponent(activeRun.job_id)}`);
+        pollMisses = 0;
+        renderRun(status);
+        if (status.result) renderReport(status.result);
+        if (['completed', 'failed', 'outcome_unconfirmed'].includes(status.state)) {
+          if (status.state === 'failed') showToast(status.error?.message || 'Workflow ทำงานไม่สำเร็จ');
+          setBusy(false); clearTimeout(pollTimer); return;
+        }
+        pollTimer = setTimeout(pollRun, status.state === 'accepted' ? 7000 : 5000);
+      } catch (error) {
+        if (error.code === 'job_not_found') {
+          pollMisses += 1;
+          if (pollMisses < 6) { pollTimer = setTimeout(pollRun, 3000); return; }
+          showRecoveryUnconfirmed(activeRun, error); return;
+        }
+        setBusy(false); showToast(error.message); clearTimeout(pollTimer);
+      }
+    }
+    async function submitJobPayload(payload) {
+      setBusy(true); recoveryUnconfirmed = false; pollMisses = 0;
+      $('recoveryActions').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
+      $('progressText').textContent = 'กำลังเริ่มงาน'; $('runDescription').textContent = 'กำลังส่งรายการเพื่อตรวจสอบและเข้าคิว'; $('progressStepCount').textContent = '1 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '1'); $('progressTrack').setAttribute('aria-valuetext', 'ขั้นตอน 1 จาก 4: กำลังเริ่มงาน'); $('progressBar').style.width = '25%'; $('runStateBadge').textContent = 'กำลังส่งคำขอ'; $('runStateBadge').dataset.state = 'accepted'; document.querySelectorAll('#jobStepper li').forEach((step) => { const current = Number(step.dataset.stage) === 1; step.classList.remove('is-done', 'is-error', 'is-uncertain'); step.classList.toggle('is-current', current); if (current) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current'); }); $('resultList').innerHTML = '';
+      activeRun = { ...payload };
+      localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
+      try {
+        const data = await api('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+        if (data.job_id) saveRecentJob({ ...payload, job_id: data.job_id });
+        renderRun(data); showToast(data.duplicate ? 'พบงานเดิม กำลังเปิดสถานะเดิม' : 'รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
+      } catch (error) {
+        const ambiguous = error.code === 'network_error' || error.code === 'invalid_response' || error.status >= 500;
+        if (ambiguous) {
+          try {
+            const recovered = await api('/jobs/recover', { method: 'POST', body: JSON.stringify(payload) });
+            if (recovered.job_id) saveRecentJob({ ...payload, job_id: recovered.job_id });
+            renderRun(recovered); if (recovered.result) renderReport(recovered.result); setBusy(!['completed', 'failed', 'outcome_unconfirmed'].includes(recovered.state));
+            if (['completed', 'failed', 'outcome_unconfirmed'].includes(recovered.state)) clearTimeout(pollTimer); else pollRun();
+            showToast('กู้คืนการติดตามงานเดิมแล้ว โดยไม่ส่งคำขอซ้ำ'); return;
+          } catch (recoveryError) { showRecoveryUnconfirmed(payload, recoveryError); return; }
+        }
+        localStorage.removeItem(CURRENT_KEY); activeRun = null; setBusy(false);
+        $('progressText').textContent = 'เริ่มงานไม่สำเร็จ'; $('runDescription').textContent = 'คำขอถูกปฏิเสธก่อน dispatch; ตรวจข้อความแล้วแก้ไขได้'; $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressTrack').setAttribute('aria-valuetext', 'เริ่มงานไม่สำเร็จ'); $('progressBar').style.width = '0%'; $('runStateBadge').textContent = 'ต้องตรวจสอบ'; $('runStateBadge').dataset.state = 'failed'; showToast(error.message || 'เริ่มงานไม่สำเร็จ');
+      }
+    }
     async function startJob() {
       const r = review();
+      if (recoveryUnconfirmed) { showToast('ตรวจสอบหรือล้างการติดตามคำขอเดิมก่อนเริ่มงานใหม่'); return; }
       if (!backendReady) { showToast('ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access — กดลิงก์ด้านบนแล้วกลับมาตรวจอีกครั้ง'); checkBackend(); return; }
       if (r.overLimit) { showToast(`หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} URLs`); return; }
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
       if (r.invalid) { showToast('แก้หรือลบ URL ที่ผิดหรือซ้ำก่อนเริ่มส่ง'); return; }
       if (!selectedDestinations().length) { showToast('เลือกปลายทางอย่างน้อยหนึ่งรายการ'); return; }
-      setBusy(true); $('progressText').textContent = 'กำลังเริ่มงาน'; $('runDescription').textContent = 'กำลังส่งรายการเพื่อตรวจสอบและเข้าคิว'; $('progressStepCount').textContent = '1 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '1'); $('progressTrack').setAttribute('aria-valuetext', 'ขั้นตอน 1 จาก 4: กำลังเริ่มงาน'); $('progressBar').style.width = '25%'; $('runStateBadge').textContent = 'กำลังส่งคำขอ'; $('runStateBadge').dataset.state = 'accepted'; document.querySelectorAll('#jobStepper li').forEach((step) => { const current = Number(step.dataset.stage) === 1; step.classList.remove('is-done', 'is-error'); step.classList.toggle('is-current', current); if (current) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current'); }); $('resultList').innerHTML = '';
-      const requestId = makeId('dashboard');
-      const payload = makeJobPayload(r.validLines, $('largeMode').checked, requestId, selectedDestinations());
-      activeRun = { ...payload, request_id: requestId };
-      localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
-      try {
-        const data = await api('/jobs', { method: 'POST', body: JSON.stringify(payload) });
-        saveRecentJob({ ...payload, job_id: data.job_id });
-        renderRun(data); showToast(data.duplicate ? 'พบงานเดิม กำลังเปิดสถานะเดิม' : 'รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
-      } catch (error) { setBusy(false); $('progressText').textContent = 'เริ่มงานไม่สำเร็จ'; $('runDescription').textContent = 'ตรวจสอบข้อความแจ้งเตือน แล้วลองอีกครั้ง'; $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressTrack').setAttribute('aria-valuetext', 'เริ่มงานไม่สำเร็จ'); $('progressBar').style.width = '0%'; $('runStateBadge').textContent = 'ต้องตรวจสอบ'; $('runStateBadge').dataset.state = 'failed'; showToast(error.message || 'เริ่มงานไม่สำเร็จ'); }
+      const payload = makeJobPayload(r.validLines, $('largeMode').checked, makeId('dashboard'), selectedDestinations());
+      await submitJobPayload(payload);
+    }
+    async function retryConfirmedFailures() {
+      const targets = retryableFailedTargets(activeRun?.result);
+      const retryUrls = jobUrls(activeRun);
+      if (!targets.length || !retryUrls.length) { showToast('ไม่พบปลายทางที่ยืนยันว่าล้มเหลวและ retry ได้อย่างปลอดภัย'); return; }
+      const payload = makeJobPayload(retryUrls, activeRun.large_file_mode, makeId('dashboard-retry'), targets);
+      await submitJobPayload(payload);
     }
     async function restoreCurrentJob() {
       let saved;
       try { saved = JSON.parse(localStorage.getItem(CURRENT_KEY) || 'null'); } catch (_) { saved = null; }
       if (!saved || !saved.request_id) return;
       activeRun = saved;
-      const savedUrls = Array.isArray(saved.urls) ? saved.urls : saved.url ? [saved.url] : [];
+      const savedUrls = jobUrls(saved);
       if (savedUrls.length) urls.value = savedUrls.join('\n');
       setSelectedDestinations(saved.destinations);
       review(); renderRun(saved); setBusy(true);
-      try {
-        if (!saved.job_id && savedUrls.length) {
-          const recovered = await api('/jobs', { method: 'POST', body: JSON.stringify(makeJobPayload(savedUrls, saved.large_file_mode, saved.request_id, saved.destinations || ['telegram'])) });
-          renderRun(recovered); saveRecentJob({ ...saved, job_id: recovered.job_id });
-        }
-        pollRun();
-      } catch (error) { setBusy(false); showToast(error.message); }
+      try { await lookupCurrentJob(); }
+      catch (error) { showRecoveryUnconfirmed(saved, error); }
     }
     urls.addEventListener('input', review);
     $('reviewBtn').addEventListener('click', () => { const r = review(); $('reviewBtn').textContent = r.valid && !r.invalid && !r.overLimit ? `ตรวจแล้ว · ${r.valid} รายการ` : 'ตรวจสอบรายการ'; showToast(r.overLimit ? `เกินขีดจำกัด ${MAX_BATCH_URLS} URLs` : r.invalid ? 'แก้หรือลบ URL ที่ผิดหรือซ้ำก่อนส่ง' : r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
@@ -510,12 +641,24 @@
       const button = event.target.closest('[data-job-id]'); if (!button) return;
       const saved = getRecentJobs().find((job) => job.job_id === button.dataset.jobId); if (!saved) return;
       activeRun = saved;
-      const savedUrls = Array.isArray(saved.urls) ? saved.urls : saved.url ? [saved.url] : [];
+      const savedUrls = jobUrls(saved);
       if (savedUrls.length) urls.value = savedUrls.join('\n');
       setSelectedDestinations(saved.destinations);
       review(); setBusy(true);
-      try { const data = await api(`/jobs/${encodeURIComponent(saved.job_id)}`); renderRun(data); if (data.result) renderReport(data.result); pollRun(); }
-      catch (error) { setBusy(false); showToast(error.message); }
+      try { await lookupCurrentJob(); }
+      catch (error) { showRecoveryUnconfirmed(saved, error); }
+    });
+    $('recoverBtn').addEventListener('click', async () => {
+      if (!activeRun) return;
+      setBusy(true);
+      try { await lookupCurrentJob(); }
+      catch (error) { showRecoveryUnconfirmed(activeRun, error); }
+    });
+    $('clearPendingBtn').addEventListener('click', clearPendingTracking);
+    $('retryFailuresBtn').addEventListener('click', retryConfirmedFailures);
+    $('refreshReportBtn').addEventListener('click', async () => {
+      try { await lookupCurrentJob(); }
+      catch (error) { showToast(error.message || 'ตรวจรายงานไม่สำเร็จ; ไม่มีการส่งงานใหม่'); }
     });
     $('runBtn').addEventListener('click', startJob);
     ['destTelegram', 'destMega', 'destDropbox', 'destDownload'].forEach((id) => $(id).addEventListener('change', syncRunButton));
