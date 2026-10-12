@@ -28,7 +28,7 @@ Worker ไม่ดาวน์โหลด/แปลง media และไม�
 
 ## Configuration
 
-`control-worker/wrangler.toml` กำหนด non-secret values/bindings ได้แก่ GitHub owner/repo/workflow/ref, Dashboard origin, Access team domain/audience และ Static Assets จาก `../web`. Cloudflare secret store มี `ACCESS_ALLOWED_EMAIL` สำหรับ allowlist และ `GH_TOKEN` สำหรับ GitHub Actions API; secret values ไม่อยู่ใน source/Dashboard
+`control-worker/wrangler.toml` กำหนด non-secret values/bindings ได้แก่ GitHub owner/repo/workflow/ref, Dashboard origin, Access team domain/audience และ Static Assets จาก `../web`. Cloudflare secret store มี `ACCESS_ALLOWED_EMAIL` สำหรับ identity หลัก, optional `ACCESS_ADDITIONAL_EMAIL` สำหรับ identity ที่สองซึ่งอนุมัติเป็นรายอีเมล, และ `GH_TOKEN` สำหรับ GitHub Actions API; secret values ไม่อยู่ใน source/Dashboard. Worker ยอมรับเฉพาะ email claim ที่ตรงกับหนึ่งในสอง bindings นี้แบบ exact (case-insensitive); ห้ามแทนค่าบัญชีหลักเมื่อต้องเพิ่มบัญชีที่สอง
 
 เผยแพร่ source จาก root repo:
 

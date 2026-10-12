@@ -56,7 +56,12 @@ async function getAccessKeys(teamDomain) {
 }
 
 async function verifyAccess(request, env) {
-  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !env.ACCESS_ALLOWED_EMAIL) {
+  const primaryEmail = typeof env.ACCESS_ALLOWED_EMAIL === "string" ? env.ACCESS_ALLOWED_EMAIL.trim() : "";
+  const allowedEmails = [primaryEmail, env.ACCESS_ADDITIONAL_EMAIL]
+    .filter((value) => typeof value === "string")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD || !primaryEmail) {
     return { ok: false, status: 503, code: "access_not_configured", message: "Cloudflare Access is not configured" };
   }
   const token = request.headers.get("Cf-Access-Jwt-Assertion");
@@ -84,8 +89,8 @@ async function verifyAccess(request, env) {
       new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
     );
     if (!valid) throw new Error("token_signature");
-    const email = String(claims.email || "").toLowerCase();
-    if (!email || email !== env.ACCESS_ALLOWED_EMAIL.toLowerCase()) {
+    const email = String(claims.email || "").trim().toLowerCase();
+    if (!email || !allowedEmails.includes(email)) {
       return { ok: false, status: 403, code: "forbidden", message: "This identity is not allowed" };
     }
     return { ok: true, email };

@@ -22,7 +22,7 @@ Base URL คือ Worker origin ที่ติดตั้ง Access เช่
 
 ### `POST /jobs`
 
-ทุก POST ต้องผ่าน Cloudflare Access JWT และ worker ตรวจ signature/issuer/audience/expiry/email allowlist ซ้ำ
+ทุก POST ต้องผ่าน Cloudflare Access JWT และ Worker ตรวจ signature/issuer/audience/expiry/email allowlist ซ้ำ โดยอนุญาตเฉพาะอีเมลที่ตั้งไว้แบบ exact
 
 Request JSON:
 
@@ -78,7 +78,7 @@ Response ไม่คืน raw logs, signed GitHub artifact URL, media CDN URL,
 
 ### `GET /auth/check` และ `/health`
 
-- `/auth/check` ต้องผ่าน Access JWT และ email allowlist; ตอบ authenticated session สำหรับ Dashboard
+- `/auth/check` ต้องผ่าน Access JWT และ email allowlist แบบ exact; ตอบ authenticated session สำหรับ Dashboard
 - `/health` เป็น liveness endpoint ไม่มี GitHub lookup และไม่ยืนยัน upstream readiness
 - Static assets ถูก serve หลัง Access/JWT check; `OPTIONS` ยอมรับเฉพาะ configured Dashboard origin
 
@@ -94,8 +94,8 @@ Destination status ใน manifest หมายถึง adapter outcome (`succe
 
 ## Authentication/security boundary
 
-1. Cloudflare Access จำกัดผู้ใช้ตาม owner email policy
-2. Worker ตรวจ `Cf-Access-Jwt-Assertion` ด้วย Cloudflare Access JWKS, issuer, audience, `exp`/`nbf` และ email allowlist
+1. Cloudflare Access จำกัดผู้ใช้ตามอีเมลที่ระบุแบบ exact ใน policy ของแอป
+2. Worker ตรวจ `Cf-Access-Jwt-Assertion` ด้วย Cloudflare Access JWKS, issuer, audience, `exp`/`nbf` และอีเมลที่ตรงกับ `ACCESS_ALLOWED_EMAIL` หรือ optional `ACCESS_ADDITIONAL_EMAIL`
 3. GitHub credential อยู่ใน Worker secret; Telegram, MEGA และ Dropbox credentials อยู่ใน GitHub Actions Secrets เท่านั้น
 4. Browser ไม่ส่ง credential, chat ID หรือ raw workflow configuration
 5. Worker จำกัด request body 16 KiB, exact Dashboard origin และ response cache `no-store`
