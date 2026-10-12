@@ -193,3 +193,13 @@ Always continue from the latest repository state. Do not make the user paste thi
 2. Inspect the current branch/head, recent commits, working tree, and latest relevant GitHub Actions results.
 3. Map the existing evidence/code to Priority 1 acceptance criteria; state the confirmed root cause and then implement the smallest justified fix.
 4. Continue in priority order. Do not return only a plan or a test checklist.
+
+## Cross-priority acceptance additions from completeness audit
+
+Before declaring any priority complete, record a compact evidence matrix with: scenario, input/expected count, observed result, destinations involved, test type (unit/mock/CI/live), evidence URL or artifact, and remaining limitation. Do not use a percentage-complete estimate as a substitute for acceptance evidence.
+
+- Reconcile expected and observed counts at every boundary relevant to the priority; explain every missing, skipped, duplicate, or unverified item.
+- Distinguish confirmed failure from unknown outcome. Where a remote side effect may have happened but cannot be confirmed, reconcile before retrying when possible and state the remaining exactly-once limitation.
+- Keep one current source of truth for production commit/version/run. If status documents disagree, verify the actual latest successful deployment run and update the conflicting document(s) rather than copying old values forward.
+- Map each change to its regression test and only rerun the relevant tests after changes; reuse prior CI evidence only when the tested code and configuration are unchanged.
+- The priority numbers in `docs/AGENT_HANDOFF.md` describe an operational backlog and may group live-validation blockers differently. The five-step implementation order in this plan is authoritative for Manus unless a concrete blocker is recorded with evidence.
