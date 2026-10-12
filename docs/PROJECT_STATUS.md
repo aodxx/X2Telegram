@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-13
-**สถานะ:** Production Worker และ Dashboard ยัง deploy ด้วย commit `8fb4427`; P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness อยู่บน PR #23: source-only live mixed photo/video ส่งออก local ได้ครบ 2/2 พร้อม SHA-256 manifest; synthetic remote verification และ merge/deploy ยัง pending.
+**สถานะ:** Production Worker และ Dashboard ยัง deploy ด้วย commit `8fb4427`; P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness บน PR #23 ผ่าน local/PR tests, real source-only mixed photo/video 2/2 และ synthetic MEGA remote integrity/version/dedupe runs; ยังไม่ merge ไป `main`.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -58,7 +58,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## ขอบเขต/ข้อจำกัดที่ยังเหลือ
 
-- P2 media completeness: PR #23 branch `fix/p2-multiple-video-media-items` แก้การเลือก yt-dlp playlist entry แรก, เพิ่ม `media_manifest`/`media_reconciliation` พร้อม size/SHA-256 และเพิ่ม regression; current Python suite **134 passed**. Live source-only mixed post verified 2 items/2 local files; isolated synthetic MEGA run (2 identities + changed version + duplicate) and updated PR CI pending; no merge/deploy yet.
+- P2 media completeness: PR #23 branch `fix/p2-multiple-video-media-items` แก้การเลือก yt-dlp playlist entry แรก, เพิ่ม `media_manifest`/`media_reconciliation` พร้อม size/SHA-256 และเพิ่ม regression; current Python suite **134 passed**. Live source-only mixed post verified 2/2 local files; PR CI [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939) passed; synthetic MEGA runs [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709) verified 3 objects each by remote listing/download-back hash, including changed version and true duplicate, with isolated cleanup. PR not yet merged.
 - X media fetch ยังมี `download_error` ในบาง run; เมื่อเกิดก่อน destination dispatch จะล้มพร้อมกันทุก target สำหรับ URL นั้น (เช่น run #38037210973)
 - Telegram >50 MB ต้องเปิด Large-file mode และ Local Bot API; run #38102024465 ยืนยันว่า standard mode ปฏิเสธไฟล์ใหญ่ตาม limit; Local Bot API path ยังไม่ live-tested
 - Dropbox live upload ผ่านหนึ่ง media แล้ว; OAuth refresh หลัง token expiry และ large-file upload session ยังมีเพียง automated coverage

@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1 historical source failure ผ่าน post-fix source-only fetch; P2 real mixed photo/video source แสดง 2/2 local outputs พร้อม size/SHA-256 และ manifest reconciliation. Synthetic MEGA test ใหม่สำหรับหลาย media identities/changed version ยังรอรันบน feature branch; source-only tests ไม่ได้เขียนเข้า remote destination.
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1 historical source failure ผ่าน post-fix source-only fetch; P2 real mixed photo/video source แสดง 2/2 local outputs พร้อม size/SHA-256 และ manifest reconciliation. Synthetic MEGA multi-media/version/dedupe integration และ PR CI ผ่านบน PR #23; merge ไป `main` ยัง pending.
 
 ## หลักฐาน live
 
@@ -68,13 +68,14 @@
 - Historical owner-used post ID `2108081184366604583`: current source-only run found **4 metadata entries** representing **1 photo + 1 video with 3 variants**; processor exported exactly **2 files**, both validated and ready, with **2/2 accounted** and **0 unaccounted**.
 - Manifest hashes matched local output bytes: photo **79,517 bytes**, SHA-256 `e309f9c18a4b55322afd56312b7ac6a66f5c5769cd3d3de476105f835422a84a`; video **2,797,748 bytes**, SHA-256 `551ceed75acef2aadccf7f7c2f98d62eece4e304e8c0fa1f55f81adeeba3b8f5`. Temp outputs were removed; no remote destination was called.
 - Historical run [#38160545553](https://github.com/aodxx/X2Telegram/actions/runs/38160545553) has a two-item Dropbox report for this source, but its overall conclusion was failure; it is **not** treated as successful remote-integrity evidence.
-- Candidate code adds playlist-entry identity tests, per-media SHA/size/status manifests, and a synthetic MEGA integration for two video identities plus changed-content retention and true duplicate behavior. Updated PR CI and isolated remote verification are pending.
+- Candidate code adds playlist-entry identity tests, per-media SHA/size/status manifests, and a synthetic MEGA integration for two video identities plus changed-content retention and true duplicate behavior. Runs [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709) both passed on commit `da3432b`; each confirmed 3 remote objects (48/55/64 bytes), matching hashes, 1 changed-content version, 1 unchanged duplicate, 0 unaccounted items, and cleanup of its run-isolated test folder. These are synthetic MEGA fixtures, not X-downloaded media. PR CI [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939) also passed; PR #23 remains open pending merge.
 
 ## Scenario status
 
 | Scenario | ผล | หลักฐาน/ขอบเขต |
 |---|---|---|
-| โพสต์หนึ่งรายการมี media หลายชิ้น | PASS (live source-only + automated mock); remote integration pending | Real source-only mixed photo/video: expected 2, exported 2, both validated/accounted, local size/SHA-256 matched manifest; no remote write |
+| โพสต์หนึ่งรายการมี media หลายชิ้น | PASS (live source-only + automated mock) | Real source-only mixed photo/video: expected 2, exported 2, both validated/accounted, local size/SHA-256 matched manifest; synthetic MEGA independently verified two identities |
+| MEGA multi-media identity, changed version and duplicate | PASS (live synthetic integration) | Runs #38288011489/#38288024709: 2 initial items, 1 changed version, 1 true duplicate; 3 remote objects listed and downloaded back with matching bytes/SHA-256; isolated folders cleaned |
 | Dashboard Access/login same-origin | PASS (live) | Browser แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง` |
 | Telegram normal path | PASS (live) | Run #37807253687, MP4 1 ไฟล์, message ID 347 |
 | Batch URL dispatch 1–50 | PASS (live 2 URLs) | Run #37816856323; completed posts ถูก dedupe ไม่ส่งซ้ำ |
@@ -98,7 +99,7 @@
 ## Automated validation baseline and candidate
 
 - Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local/CI P1 release: **129 passed** (CI #38254729760)
-- Current P2 candidate branch `fix/p2-multiple-video-media-items`: destination/metadata/report targeted tests — **54 passed**; full Python suite — **134 passed**; Worker — **27 passed**; compile, YAML parse, and `git diff --check` passed. Real source-only mixed-media evidence is recorded above; updated PR CI and isolated synthetic MEGA verification are pending.
+- Current P2 candidate branch `fix/p2-multiple-video-media-items`, commit `da3432b`: destination/metadata/report targeted tests — **54 passed**; full Python suite — **134 passed**; Worker — **27 passed**; compile, workflow YAML/embedded shell/Python syntax, internal links, and `git diff --check` passed. PR CI [#38287966939](https://github.com/aodxx/X2Telegram/actions/runs/38287966939), synthetic MEGA runs [#38288011489](https://github.com/aodxx/X2Telegram/actions/runs/38288011489) and [#38288024709](https://github.com/aodxx/X2Telegram/actions/runs/38288024709) passed. PR #23 is open; no main merge yet.
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - Deploy workflow [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272): Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน on commit `8fb4427`; Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
@@ -106,4 +107,4 @@
 
 ## ข้อสรุป
 
-ระบบ production deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. P1 release commit `8fb4427` ผ่าน CI/deploy และ historical source failure URL ผ่าน post-fix source-only fetch. P2 candidate แสดง completeness ของ source จริงแบบ download-only พร้อม manifest; remote synthetic multi-media MEGA verification และ updated PR CI ยัง pending. ข้อจำกัดอื่นที่ยังไม่ยืนยัน live ได้แก่ Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths และ browser มือถือจริง.
+ระบบ production deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. P1 release commit `8fb4427` ผ่าน CI/deploy และ historical source failure URL ผ่าน post-fix source-only fetch. P2 candidate ผ่าน real source-only mixed-media completeness, PR CI และ synthetic MEGA remote integrity/version/dedupe tests; PR #23 ยังไม่ merge. ข้อจำกัดอื่นที่ยังไม่ยืนยัน live ได้แก่ Telegram Local Bot API >50 MB, Dropbox token-refresh/large-file edge paths และ browser มือถือจริง.
