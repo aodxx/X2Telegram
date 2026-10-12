@@ -67,6 +67,8 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 ## 4. Backlog ตามลำดับความสำคัญ
 
+> หมายเหตุสำหรับ Manus: รายการย่อยใน handoff นี้เป็น operational backlog โดยเฉพาะ live-validation blockers และอาจใช้การจัดกลุ่ม P1/P2/P3 คนละแบบกับแผนพัฒนา 5 อันดับใน `docs/MANUS_EXECUTION_PLAN.md`. สำหรับลำดับ implementation ให้ยึด P1→P5 ใน `MANUS_EXECUTION_PLAN.md`; ใช้รายการด้านล่างเพื่อเลือกงานตรวจ live ที่ปลอดภัยเมื่อถึงจุดที่เกี่ยวข้องหรือเมื่อมี blocker ที่ระบุหลักฐานแล้ว.
+
 ### P1 — ต้องทำต่อเมื่อมีสภาพแวดล้อมพร้อม
 
 #### P1.1 Telegram Local Bot API สำหรับไฟล์เกิน 50 MB
