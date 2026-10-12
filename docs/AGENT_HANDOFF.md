@@ -1,8 +1,8 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-10-13
-**จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge/deployment commit `9e9e9f8`; Cloudflare Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`
-**สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว: main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) ผ่าน; Python 143/143 และ Worker/Dashboard 40/40. P3 ยังมีสถานะ partial เพราะไม่มี live destination retry และยังมี cross-isolate reservation / success-checkpoint storage limitations; ไม่อ้าง exactly-once. Production Worker คือ version `f2e1afaf-db8e-4356-be75-215f60eb53e5`.
+**จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge commit `9e9e9f8`; Access secondary-email support main commit `f5372e5` (PR #25); Cloudflare Worker version `649353cf-fd9a-498b-9415-14bae01de486`
+**สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว. Access policy/Worker รองรับ primary และ optional secondary email แบบ exact หลัง PR [#25](https://github.com/aodxx/X2Telegram/pull/25); main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) และ Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่าน; Python 143/143 และ Worker 42/42. ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง; ไม่มีการส่ง OTP ระหว่าง rollout. P3 ยังมี cross-isolate reservation / success-checkpoint storage limitations; ไม่อ้าง exactly-once. Production Worker คือ version `649353cf-fd9a-498b-9415-14bae01de486`.
 
 **P2 complete (2026-10-13):** PR #23 merged as main commit `a5711e1`. It preserves distinct yt-dlp playlist entries and emits a per-media size/SHA-256 manifest/reconciliation. Main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) passed; main synthetic MEGA integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) verified 3 remote objects, changed-version retention, duplicate idempotency, byte/hash integrity, and run-folder cleanup. Real source-only mixed photo/video exported 2/2 local files with matching hashes. No Worker deployment was needed because Worker code was unchanged. See [P2 evidence](plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md).
 
@@ -41,15 +41,16 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Branch | `main` |
 | P2 merge commit in main | `a5711e1` (media manifest/identity) |
 | P3 merge commit in main | `9e9e9f8` (safe retry/job recovery; PR #24) |
+| Current main commit | `f5372e5` (Access secondary-email support; PR #25) |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
-| Worker version | `f2e1afaf-db8e-4356-be75-215f60eb53e5` |
-| Deploy commit | `9e9e9f8fcbcb09f2dfa980dd418b34681af2eed6` |
-| Deploy run | [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) — success |
-| Python tests | 143 passed (main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028)) |
-| Worker tests | 40 passed |
+| Worker version | `649353cf-fd9a-498b-9415-14bae01de486` |
+| Deploy commit | `f5372e5e0656c300687b404f1f60e215c8d5962a` |
+| Deploy run | [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) — success |
+| Python tests | 143 passed (main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125)) |
+| Worker tests | 42 passed |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
-| Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 302 (Access redirect) |
+| Access | Cloudflare Access allows two exact email identities; no `Everyone`/domain-wide rule; unauthenticated `GET /` returns HTTP 302 |
 
 หลักฐานและรายละเอียดอยู่ใน:
 
