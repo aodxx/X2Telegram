@@ -12,6 +12,14 @@
 4. [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — วิธีทดสอบและ deploy
 5. [`docs/CONTROL_PLANE_CONTRACT.md`](docs/CONTROL_PLANE_CONTRACT.md) — API contract
 6. อ่านเอกสารเฉพาะส่วนที่เกี่ยวข้องกับงานที่จะทำ
+7. สำหรับงานตามแผน 5 อันดับ ให้อ่าน `docs/MANUS_EXECUTION_PLAN.md` และเอกสารเฉพาะอันดับใน `docs/plan/` ตามลำดับก่อนเริ่ม implementation:
+   - `docs/plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`
+   - `docs/plan/P2_MEDIA_COMPLETENESS_AND_FILE_IDENTITY.md`
+   - `docs/plan/P3_RETRY_AND_JOB_RECOVERY.md`
+   - `docs/plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md`
+   - `docs/plan/P5_MOBILE_DASHBOARD_UX.md`
+
+ห้ามสรุปว่าเอกสารแผนมีไม่ครบก่อนตรวจไฟล์ทั้งห้าตาม path เหล่านี้ และห้ามหยุดเพียงแค่ส่ง checklist กลับมา: ต้องเริ่มแก้ปัญหาตามลำดับที่แผนกำหนด หากติด blocker ภายนอก ให้ระบุหลักฐานและทำงานส่วนที่ไม่ติด blocker ต่อ
 
 ห้ามยึดเอกสาร migration/audit รุ่นเก่าเป็นสถานะ runtime โดยไม่ตรวจ `PROJECT_STATUS.md` และ `AGENT_HANDOFF.md` ก่อน
 
