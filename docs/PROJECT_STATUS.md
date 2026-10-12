@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-13
-**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. P3 implementation อยู่บน feature branch `fix/p3-safe-retry-recovery` และผ่าน local suites Python 143/143, Worker/Dashboard 40/40; ยังไม่ merge/deploy และไม่มี live destination invocation. P3 คงสถานะ partial เนื่องจาก cross-isolate races และ success-checkpoint storage failure ยังไม่สามารถให้ exactly-once guarantee ได้. Production ยังคงเป็น main เดิม โดย Cloudflare Worker deployment เป็น commit `8fb4427`.
+**สถานะ:** P1 source reliability ผ่าน CI/deploy และ post-fix source-only live fetch ของ URL ที่เคยล้ม. P2 media completeness merged เป็น main commit `a5711e1`; main CI และ synthetic MEGA multi-item integration ผ่าน. P3 implementation อยู่บน feature branch `fix/p3-safe-retry-recovery`; local Python 143/143, Worker/Dashboard 40/40 และ Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24) CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) ผ่าน. ยังไม่ merge/deploy และไม่มี live destination invocation. P3 คงสถานะ partial เนื่องจาก cross-isolate races และ success-checkpoint storage failure ยังไม่สามารถให้ exactly-once guarantee ได้. Production ยังคงเป็น main เดิม โดย Cloudflare Worker deployment เป็น commit `8fb4427`.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 

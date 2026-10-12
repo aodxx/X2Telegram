@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
 **วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 implementation is partially validated on `fix/p3-safe-retry-recovery` (Python 143, Worker/Dashboard 40); it is not merged/deployed and did not invoke a live destination.
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. P1/P2 evidence remains on main as previously recorded. P3 implementation is partially validated on Draft PR [#24](https://github.com/aodxx/X2Telegram/pull/24), branch `fix/p3-safe-retry-recovery` (Python 143, Worker/Dashboard 40); GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed. It is not merged/deployed and did not invoke a live destination.
 
 ## หลักฐาน live
 
@@ -80,7 +80,7 @@
 - Browserless Dashboard harness: reload uses `POST /jobs/recover` and resumes the existing job without `POST /jobs`; a not-found lookup stays locked and does not dispatch; retry payload includes only confirmed failed destinations, excluding successful and unconfirmed targets.
 - Missing/expired/unavailable report tests return distinct availability states; Dashboard displays safe, actionable messages.
 - Failure-injection boundary: when Telegram confirms success but writing its durable dedupe checkpoint fails, the report includes `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes the successful target, but a later manually-created full-target job may resend because state alone no longer proves prior delivery.
-- Local validation: Python **143 passed**, Worker/Dashboard **40 passed**, Python compile, Node syntax, and diff checks passed. No live destination was called because no new test chat/folder was approved.
+- Local validation: Python **143 passed**, Worker/Dashboard **40 passed**, Python compile, Node syntax, workflow YAML, internal links, and diff checks passed. GitHub CI [#38292528199](https://github.com/aodxx/X2Telegram/actions/runs/38292528199) passed both jobs. No live destination was called because no new test chat/folder was approved.
 - Limitations: isolate-local single-flight is not a durable/global lock. Concurrent requests reaching separate Cloudflare isolates, an isolate restart, or a request after the 30-second retention window may race before GitHub exposes the run. System does not claim exactly-once dispatch/delivery; no database/queue was introduced.
 
 ### Scenario matrix
