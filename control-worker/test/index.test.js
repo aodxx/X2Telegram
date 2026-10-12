@@ -148,6 +148,43 @@ test("Access JWT with a non-allowlisted identity is denied", async () => {
   assert.equal(response.status, 403);
 });
 
+test("Access accepts an additional exact email and preserves the primary identity", async () => {
+  const previousPrimary = ENV.ACCESS_ALLOWED_EMAIL;
+  const previousAdditional = ENV.ACCESS_ADDITIONAL_EMAIL;
+  ENV.ACCESS_ALLOWED_EMAIL = "owner@example.com";
+  ENV.ACCESS_ADDITIONAL_EMAIL = " second@example.com ";
+  try {
+    for (const email of ["owner@example.com", "SECOND@example.com"]) {
+      const response = await worker.fetch(new Request("https://worker.test/auth/check", {
+        headers: { "Cf-Access-Jwt-Assertion": accessJwt(email) },
+      }), ENV);
+      assert.equal(response.status, 200, `${email} should remain explicitly allowed`);
+      assert.deepEqual(await response.json(), { status: "ok", authenticated: true });
+    }
+  } finally {
+    ENV.ACCESS_ALLOWED_EMAIL = previousPrimary;
+    if (previousAdditional === undefined) delete ENV.ACCESS_ADDITIONAL_EMAIL;
+    else ENV.ACCESS_ADDITIONAL_EMAIL = previousAdditional;
+  }
+});
+
+test("Access still requires the primary allowlist when an additional email is configured", async () => {
+  const previousPrimary = ENV.ACCESS_ALLOWED_EMAIL;
+  const previousAdditional = ENV.ACCESS_ADDITIONAL_EMAIL;
+  delete ENV.ACCESS_ALLOWED_EMAIL;
+  ENV.ACCESS_ADDITIONAL_EMAIL = "second@example.com";
+  try {
+    const response = await worker.fetch(new Request("https://worker.test/auth/check"), ENV);
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).error.code, "access_not_configured");
+  } finally {
+    if (previousPrimary === undefined) delete ENV.ACCESS_ALLOWED_EMAIL;
+    else ENV.ACCESS_ALLOWED_EMAIL = previousPrimary;
+    if (previousAdditional === undefined) delete ENV.ACCESS_ADDITIONAL_EMAIL;
+    else ENV.ACCESS_ADDITIONAL_EMAIL = previousAdditional;
+  }
+});
+
 test("malformed JSON is rejected with a bounded error", async () => {
   const response = await worker.fetch(request("/jobs", { method: "POST", body: "{" }), ENV);
   assert.equal(response.status, 400);

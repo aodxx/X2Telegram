@@ -49,7 +49,9 @@ MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อ�
 
 ## 3. Cloudflare Worker และ Access
 
-Dashboard static assets และ API ใช้ Worker origin เดียวกันภายใต้ Cloudflare Access owner-only. Worker ต้องมี variables/bindings ที่กำหนดใน `control-worker/wrangler.toml` และ server-side secrets ที่จำเป็นสำหรับ Access/GitHub API. รายละเอียด routes/deployment อยู่ใน [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), Access setup อยู่ใน [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)
+Dashboard static assets และ API ใช้ Worker origin เดียวกันภายใต้ Cloudflare Access ซึ่งอนุญาตเฉพาะอีเมลที่ระบุแบบ exact. Worker ต้องมี variables/bindings ที่กำหนดใน `control-worker/wrangler.toml` และ server-side secrets ที่จำเป็นสำหรับ Access/GitHub API. รายละเอียด routes/deployment อยู่ใน [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), Access setup อยู่ใน [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)
+
+การเพิ่มผู้ใช้รายที่สองต้องทำ **ทั้งสองชั้น**: เพิ่มอีเมลนั้นเป็น `Include → Emails` รายการใหม่ใน Access policy ของแอป X2Telegram และตั้ง Cloudflare Worker secret `ACCESS_ADDITIONAL_EMAIL` เป็นอีเมลเดียวกันหลัง deploy source ที่รองรับ secret นี้แล้ว. คง `ACCESS_ALLOWED_EMAIL` ของผู้ใช้เดิมไว้; ห้ามใช้ `Everyone` หรือ email-domain rule. เมื่อต้องถอนสิทธิ์ ให้นำอีเมลออกจาก policy และลบ secret `ACCESS_ADDITIONAL_EMAIL` ด้วย
 
 Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. `POST /jobs/recover` เป็น lookup-only สำหรับคำขอเดิม; ถ้าไม่พบ workflow run ที่ตรงกันจะคืน not-found โดยไม่ dispatch งานใหม่. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
