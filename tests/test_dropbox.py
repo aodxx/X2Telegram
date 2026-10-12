@@ -123,6 +123,26 @@ def test_refresh_token_only_configuration_gets_access_token_before_upload(tmp_pa
     assert calls[1][2]["headers"]["Authorization"] == "Bearer fresh-access"
 
 
+def test_refresh_failure_is_sanitized_and_does_not_replay_upload(tmp_path):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if url.endswith("/oauth2/token"):
+            return Response(400, payload={"error": "invalid_grant", "error_description": "private credential"})
+        return Response(401, payload={"error": "expired"})
+
+    source = tmp_path / "refresh-failure.mp4"
+    source.write_bytes(b"video")
+    uploader = DropboxUploader(access_token="expired", refresh_token="refresh", app_key="key", app_secret="private-secret", request=request)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(source, "refresh-failure.mp4")
+    assert raised.value.code == "dropbox_authentication_failed"
+    assert "private" not in str(raised.value)
+    assert len([call for call in calls if call[1].endswith("/files/upload")]) == 1
+    assert len([call for call in calls if call[1].endswith("/oauth2/token")]) == 1
+
+
 def test_rate_limit_honors_retry_after():
     waits = []
     attempts = []
@@ -177,6 +197,33 @@ def test_large_upload_uses_session_start_append_finish(tmp_path):
     uploader.CHUNK_SIZE = 3
     assert uploader.upload(source, "large.mp4") == "/X2Telegram/large.mp4"
     assert [url.rsplit("/", 1)[-1] for url, _ in calls] == ["start", "append_v2", "append_v2", "finish"]
+    arguments = [json.loads(kwargs["headers"]["Dropbox-API-Arg"]) for _, kwargs in calls]
+    assert [arguments[1]["cursor"]["offset"], arguments[2]["cursor"]["offset"], arguments[3]["cursor"]["offset"]] == [3, 6, 9]
+    assert [kwargs["data"] for _, kwargs in calls] == [b"012", b"345", b"678", b"9"]
+    assert arguments[3]["commit"]["path"] == "/X2Telegram/large.mp4"
+
+
+def test_large_upload_session_final_timeout_is_unconfirmed_and_not_replayed(tmp_path):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append(url.rsplit("/", 1)[-1])
+        if url.endswith("/upload_session/start"):
+            return Response(payload={"session_id": "session-ambiguous"})
+        if url.endswith("/upload_session/append_v2"):
+            return Response(payload={})
+        raise requests.Timeout("final response lost")
+
+    source = tmp_path / "session-timeout.mp4"
+    source.write_bytes(b"0123456789")
+    uploader = DropboxUploader(access_token="token", max_retries=3, request=request, sleep=lambda _seconds: None)
+    uploader.SMALL_FILE_LIMIT = 4
+    uploader.CHUNK_SIZE = 3
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(source, "session-timeout.mp4")
+    assert raised.value.code == "dropbox_outcome_unconfirmed"
+    assert raised.value.outcome_unknown is True
+    assert calls == ["start", "append_v2", "append_v2", "finish"]
 
 
 def test_missing_oauth_credentials_is_reported_without_api_call(tmp_path):

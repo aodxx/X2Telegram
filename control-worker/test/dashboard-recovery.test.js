@@ -32,7 +32,7 @@ function fakeElement(id = "") {
   };
 }
 
-function makeBrowser({ savedJob, recoveryResponse, statusBody = null }) {
+function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResponses = [] }) {
   const elements = new Map();
   const getElement = (id) => {
     if (!elements.has(id)) elements.set(id, fakeElement(id));
@@ -43,6 +43,7 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null }) {
   const store = new Map([["x2telegram.currentJob.v1", JSON.stringify(savedJob)]]);
   const requests = [];
   const listeners = {};
+  const timers = new Map();
   let timerId = 0;
   const fetch = async (url, options = {}) => {
     const parsed = new URL(url);
@@ -57,14 +58,19 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null }) {
       destinations: requests.at(-1).body.destinations,
     }, { status: 202 });
     if (parsed.pathname === `/jobs/${retryJobId}`) return Response.json({ job_id: retryJobId, state: "completed", result: { summary: {}, results: [] } });
-    if (parsed.pathname === `/jobs/${jobId}`) return Response.json(statusBody || {
-      job_id: jobId,
-      state: "completed",
-      destinations: ["telegram"],
-      result: { status: "completed", summary: { sent: 1, failed: 0, outcome_unconfirmed: 0 }, results: [] },
-      report_availability: { status: "ready", error_code: null, expires_at: "2026-11-01T00:00:00Z" },
-      run_id: "901",
-    });
+    if (parsed.pathname === `/jobs/${jobId}`) {
+      const next = statusResponses.shift();
+      if (next instanceof Error) throw next;
+      if (next !== undefined) return Response.json(next);
+      return Response.json(statusBody || {
+        job_id: jobId,
+        state: "completed",
+        destinations: ["telegram"],
+        result: { status: "completed", summary: { sent: 1, failed: 0, outcome_unconfirmed: 0 }, results: [] },
+        report_availability: { status: "ready", error_code: null, expires_at: "2026-11-01T00:00:00Z" },
+        run_id: "901",
+      });
+    }
     throw new Error(`Unexpected fetch ${method} ${parsed.pathname}`);
   };
   const context = {
@@ -94,14 +100,24 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null }) {
     fetch,
     URL,
     Response,
-    setTimeout() { timerId += 1; return timerId; },
-    clearTimeout() {},
+    setTimeout(callback, delay = 0) { timerId += 1; timers.set(timerId, { callback, delay }); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
     console,
     location: { hostname: "worker.test", pathname: "/" },
     crypto: { randomUUID: () => "12345678-1234-1234-1234-123456789abc" },
   };
   vm.runInNewContext(dashboardScript, context, { filename: "dashboard-inline.js" });
-  return { elements, requests, store };
+  return {
+    elements, requests, store,
+    async runNextTimer() {
+      const next = timers.entries().next().value;
+      if (!next) throw new Error("No pending timer");
+      timers.delete(next[0]);
+      await next[1].callback();
+      await settle();
+    },
+    pendingTimerCount() { return timers.size; },
+  };
 }
 
 async function settle() {
@@ -147,6 +163,64 @@ test("reload with no matching run stays locked for explicit recovery and never d
   assert.equal(browser.elements.get("runBtn").disabled, true);
   assert.equal(browser.elements.get("runStateBadge").textContent, "ยังไม่ยืนยัน");
   assert.match(browser.elements.get("resultList").innerHTML, /ไม่ส่งงานใหม่เอง/);
+});
+
+test("new URL batch is clearly marked unsent while previous job results remain visible", async () => {
+  const browser = makeBrowser({
+    savedJob: { request_id: "completed-batch", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
+    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "unused" } } },
+  });
+  await settle();
+  const input = browser.elements.get("urls");
+  input.value = "https://x.com/person/status/456\nhttps://x.com/person/status/789";
+  input.listeners.input();
+  assert.equal(browser.elements.get("progressText").textContent, "พร้อมเริ่มชุดใหม่");
+  assert.equal(browser.elements.get("runStateBadge").textContent, "ชุดใหม่ยังไม่ส่ง");
+  assert.match(browser.elements.get("runDescription").textContent, /ยังไม่ได้ส่ง.*งานก่อนหน้า/);
+  assert.equal(browser.elements.get("runBtn").disabled, false);
+  assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
+});
+
+test("temporary status lookup failure retries polling and completes the same job", async () => {
+  const browser = makeBrowser({
+    savedJob: { request_id: "poll-retry", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
+    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "unused" } } },
+    statusResponses: [
+      { job_id: jobId, state: "processing", destinations: ["telegram"] },
+      new Error("temporary network interruption"),
+      { job_id: jobId, state: "completed", destinations: ["telegram"], result: { summary: { sent: 1 }, results: [] } },
+    ],
+  });
+  await settle();
+  assert.equal(browser.elements.get("progressText").textContent, "กำลังลองตรวจสถานะใหม่");
+  assert.equal(browser.elements.get("runBtn").disabled, true);
+  assert.equal(browser.pendingTimerCount(), 1);
+  await browser.runNextTimer();
+  assert.equal(browser.elements.get("progressText").textContent, "งานเสร็จแล้ว");
+  assert.equal(browser.elements.get("runBtn").disabled, false);
+  assert.equal(browser.elements.get("recoveryActions").hidden, true);
+});
+
+test("repeated status failures keep next batch locked until explicit status recovery", async () => {
+  const browser = makeBrowser({
+    savedJob: { request_id: "poll-lock", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
+    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "unused" } } },
+    statusResponses: [
+      { job_id: jobId, state: "processing", destinations: ["telegram"] },
+      ...Array.from({ length: 5 }, () => new Error("temporary status outage")),
+    ],
+  });
+  await settle();
+  for (let attempt = 0; attempt < 4; attempt += 1) await browser.runNextTimer();
+  assert.equal(browser.elements.get("progressText").textContent, "สถานะงานยังยืนยันไม่ได้");
+  assert.equal(browser.elements.get("recoverBtn").textContent, "ตรวจสถานะงานอีกครั้ง");
+  assert.equal(browser.elements.get("recoveryActions").hidden, false);
+  assert.equal(browser.elements.get("runBtn").disabled, true);
+  assert.match(browser.elements.get("resultList").innerHTML, /งานเดิมอาจยังทำงานอยู่/);
+  await browser.elements.get("recoverBtn").listeners.click();
+  await settle();
+  assert.equal(browser.elements.get("progressText").textContent, "งานเสร็จแล้ว");
+  assert.equal(browser.elements.get("runBtn").disabled, false);
 });
 
 test("retry UI sends only confirmed failed targets and excludes success or unconfirmed targets", async () => {

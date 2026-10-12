@@ -1,8 +1,21 @@
 # Priority 4 — Large-File Telegram and Dropbox Validation
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL — normal uploads have live evidence; large-file paths require live proof  
+**Current status:** PARTIAL — automated edge-case coverage was strengthened on the current working branch; both large-file live tracks remain blocked pending explicitly authorized test destinations
 **Scope:** Telegram Local Bot API for files over 50 MB and Dropbox token refresh/large-file upload sessions.
+
+## Current implementation and validation update (2026-10-13)
+
+This update is **local automated evidence only**; the branch has not yet been merged or deployed, and no live Telegram/Dropbox write was performed.
+
+| Track | Status in this session | Evidence / blocker |
+|---|---|---|
+| Telegram Local Bot API | **BLOCKED (live)** | Added mocked size-boundary coverage at 50 MB and 50 MB + 1 byte. Confirmed a missing/unready Local Bot API does not send an oversized file through the standard Bot API, while an independent destination can still proceed. No dedicated test-chat authorization is recorded; the production chat is not used. |
+| Dropbox OAuth/session | **BLOCKED (live)** | Added assertions for exact session chunk bytes/offsets, refresh failure sanitization, and an ambiguous final response that is not replayed. No explicitly authorized test account/folder and cleanup policy are recorded for a live upload. |
+
+Regression suite on the working branch: Python **147 passed**, Worker/Dashboard **45 passed**; Python compile, inline Dashboard JavaScript syntax, workflow YAML parsing, and `git diff --check` passed. These mocked tests do **not** satisfy the live acceptance checkboxes below.
+
+**ภาษาไทย:** เพิ่ม automated tests สำหรับขอบเขต 50 MB, การปฏิเสธเมื่อ Local Bot API ไม่พร้อม, Dropbox chunk/offset, refresh failure และ final timeout โดยไม่ส่งไฟล์จริง; สถานะ live ของทั้งสอง track ยัง **BLOCKED** เพราะยังไม่มีปลายทางทดสอบและขอบเขตอนุญาตที่ยืนยันไว้
 
 ## Track A — Telegram Local Bot API
 
