@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
 **อัปเดต:** 2026-10-12
-**สถานะ:** Production Worker deploy ผ่าน GitHub Actions แล้ว พร้อม edge rate limiting; Dashboard UX รุ่นล่าสุด deploy ด้วย commit `6e673c4`. Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. P1 source-reliability candidate ผ่าน local regression tests แต่ยังไม่ deploy; production ปัจจุบันยังมีข้อจำกัดตาม source failures ที่บันทึกไว้ด้านล่าง
+**สถานะ:** Production Worker และ Dashboard deploy ผ่าน GitHub Actions ด้วย commit `8fb4427`; P1 source-reliability release ผ่าน CI/local regression tests. Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live สำเร็จอย่างน้อยหนึ่งไฟล์. ยังไม่มี post-fix live X source fetch; ดูข้อจำกัด P1 ด้านล่าง
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -14,12 +14,12 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## Deployment ปัจจุบัน
 
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Current Worker version ID: `25c4517d-56fc-402b-bc62-c65a525d2618`
-- Deploy commit: `6e673c47842343dee9845ceb4d2a4489fced5d39`
-- Deploy workflow: [#38174506806](https://github.com/aodxx/X2Telegram/actions/runs/38174506806) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
+- Current Worker version ID: `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
+- Deploy commit: `8fb44274738d0c0090958f4b880189b0b93d17c7`
+- Deploy workflow: [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
 - `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
-- GitHub Pages deploy run [#37842981450](https://github.com/aodxx/X2Telegram/actions/runs/37842981450) ผ่าน; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access
-- Production smoke check: unauthenticated `GET /` และ `/health` ตอบ HTTP 403; เนื้อหา Dashboard ต้องมี Cloudflare Access session จึงจะเปิดได้
+- GitHub Pages deploy run [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) ผ่านบน release commit `8fb4427`; URL redirect ไปยัง Worker-hosted Dashboard ที่ป้องกันด้วย Access
+- Production smoke check: unauthenticated `GET /` และ `/health` ตอบ HTTP 302 (Cloudflare Access redirect; ไม่ติดตามหรือบันทึก redirect URL); เนื้อหา Dashboard ต้องมี Access session จึงจะเปิดได้
 
 ## ปลายทาง
 
@@ -45,11 +45,11 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## Validation ล่าสุด
 
-- Python: `python3 -m pytest -q` — **97 passed**
+- Python: `python3 -m pytest -q` — **129 passed** locally and in CI run [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760)
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
 - `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
-- Live Actions run #37848879753 ผ่าน automated tests และ MEGA-only process/report; Dashboard report ยืนยัน media success
+- Release runs on commit `8fb4427`: automated tests [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760), synthetic MEGA version-retention [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778), Dashboard Pages [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838), and Worker deploy [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) all succeeded
 
 ## การตั้งค่า MEGA
 
@@ -64,12 +64,12 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - GitHub artifact หมดอายุ 7 วัน; สร้าง job ใหม่เพื่อได้ ZIP ใหม่
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย
 
-## Priority 1 — X/source reliability candidate (ยังไม่ release)
+## Priority 1 — X/source reliability release (deployed; post-fix live source check pending)
 
 - Historical failure #38102121635: fetch-only reproduction พบว่าวิดีโอมี direct MP4 variants ที่ไม่ระบุขนาด; ตัวเลือกที่ bitrate สูงสุดและตัวเลือกระดับกลางเกิน 50 MB แต่ variant bitrate ต่ำกว่าดาวน์โหลด/validate ได้ที่ 29,799,397 bytes. ใน run #38037210973, yt-dlp รายงาน HLS/DASH playlist เสมือน MP4; CDN ตอบ `application/x-mpegurl`; public metadata fallbacks มี direct MP4 ให้ใช้แทน
 - Candidate แก้โดยกรอง HLS/DASH ออกจาก direct MP4 metadata, ลอง bounded lower variants, classify HTTP/timeout/format/size/metadata errors พร้อม attempts/stage, ไม่ปล่อยให้ empty provider ซ่อน transient failure, ส่ง `MAX_RETRIES` เข้า metadata provider, ตรวจ same-host HTTPS redirects และเก็บผล accepted/duplicate/normalized duplicate/rejected แยกทุก URL โดยไม่นับ blank lines เป็น URL
 - Local validation: Python `pytest -q` **129 passed**, Worker `npm test --prefix control-worker` **27 passed**, compile/Node/inline dashboard JavaScript/workflow YAML/diff checks ผ่าน
-- ยังไม่มี post-fix live X fetch หรือ destination send; ไม่มีการส่ง Telegram/อัปโหลดปลายทางระหว่าง validation นี้. ดู evidence matrix และข้อจำกัดที่ [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md)
+- ไม่มี post-fix live X fetch หรือ destination send; ไม่มีการส่ง Telegram/อัปโหลดปลายทางระหว่าง validation นี้. ดู evidence matrix และข้อจำกัดที่ [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md)
 
 ## เอกสาร
 

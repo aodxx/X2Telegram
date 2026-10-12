@@ -28,14 +28,14 @@
 - Branch หลัก: `main`
 - Production Worker: `x2telegram-control-plane`
 - Production URL: `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Current Worker version: `25c4517d-56fc-402b-bc62-c65a525d2618`
-- Current deployed commit: `6e673c4` (Dashboard UX update)
+- Current Worker version: `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
+- Current deployed commit: `8fb4427` (X source reliability and batch reporting)
 - Deploy workflow: `.github/workflows/deploy-worker.yml`
-- Deploy ล่าสุด: GitHub Actions run `38174506806` — success
-- Python tests: **97 passed**
+- Deploy ล่าสุด: GitHub Actions run `38263528272` — success
+- Python tests: **129 passed**
 - Worker tests: **27 passed**
 - Edge rate limit: `JOB_DISPATCH_RATE_LIMITER`, 20 requests/60 seconds ต่อ Access identity
-- Production ถูกป้องกันด้วย Cloudflare Access; unauthenticated `GET /` และ `/health` ตอบ HTTP 403 ตามที่ตรวจเมื่อ 2026-10-12
+- Production ถูกป้องกันด้วย Cloudflare Access; smoke check แบบไม่ส่ง credentials พบ unauthenticated `GET /` และ `/health` ตอบ HTTP 302 (Access redirect) เมื่อ 2026-10-12
 
 ถ้าสถานะข้างต้นไม่ตรงกับ GitHub/production ให้ตรวจระบบจริงก่อนแก้เอกสารหรือสรุปผล
 

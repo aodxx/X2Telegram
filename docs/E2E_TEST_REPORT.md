@@ -52,13 +52,15 @@
 - Run [#38102024465](https://github.com/aodxx/X2Telegram/actions/runs/38102024465): MEGA success แต่ Telegram item fail ด้วย `telegram_file_too_large`; standard Telegram Bot API policy คือ 50 MB เมื่อไม่ได้เปิด Large-file mode
 - Run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635): `download_error` ก่อนถึง Telegram send; จัดเป็น X/media source retrieval issue ไม่ใช่ Telegram API error
 
-### Priority 1 — X/source reliability (candidate; not deployed)
+### Priority 1 — X/source reliability (deployed; post-fix live source check pending)
 
 - Run [#38102121635](https://github.com/aodxx/X2Telegram/actions/runs/38102121635) source-only probes found three direct MP4 variants without sizes; the preferred 2,176,000-bitrate and 950,000-bitrate candidates exceeded the 50 MB cap, while the 632,000-bitrate candidate fetched and validated at **29,799,397 bytes**. No destination adapter was called.
 - In combined run [#38037210973](https://github.com/aodxx/X2Telegram/actions/runs/38037210973), yt-dlp variants were marked MP4 despite HLS protocol/playlist URLs; the source returned `application/x-mpegurl`. Public syndication/FxTwitter fallbacks exposed direct MP4 variants. The first historical URL's other post reached all four destinations; the failed post did not reach any.
 - Candidate code filters HLS/DASH, bounds lower-variant fallback, classifies and redacts source errors, and reports accepted/duplicate/normalized-duplicate/rejected outcomes while accounting for blank lines separately.
 - Independent review also identified three reliability gaps, now covered by regressions: an empty metadata provider no longer masks another provider's timeout/server error as `no_media`; configured `MAX_RETRIES` is passed to the provider; metadata HTTP redirects are followed only after same-host HTTPS validation and are bounded.
-- Candidate validation: Python **129 passed**, Worker **27 passed**. Synthetic batch input=5 nonblank tokens + 1 blank line → 3 accepted unique + 1 normalized duplicate + 1 rejected; 3 ordered post results (2 success, 1 failure) remain visible. The batch fixture injects a failure carrying 2 attempts; downloader tests independently verify two mocked HTTP calls and `Retry-After` handling.
+- Local validation: Python **129 passed**, Worker **27 passed**; compile, Node/inline dashboard JS syntax, workflow YAML and diff checks passed. CI run [#38254729760](https://github.com/aodxx/X2Telegram/actions/runs/38254729760) passed Python 129 and Worker 27 tests on commit `8fb4427`.
+- Release: synthetic MEGA version-retention run [#38254729778](https://github.com/aodxx/X2Telegram/actions/runs/38254729778) passed; Dashboard Pages run [#38254729838](https://github.com/aodxx/X2Telegram/actions/runs/38254729838) passed; Worker deploy run [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) passed on the same commit. Production Worker version is `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`.
+- Synthetic batch input=5 nonblank tokens + 1 blank line → 3 accepted unique + 1 normalized duplicate + 1 rejected; 3 ordered post results (2 success, 1 failure) remain visible. The batch fixture injects a failure carrying 2 attempts; downloader tests independently verify two mocked HTTP calls and `Retry-After` handling.
 - **Not live-verified after the code change:** no post-fix X request or real destination send. The failure-surrounded-by-success regression is download-only mocked. See [`P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md) for the evidence matrix.
 
 ## Scenario status
@@ -81,18 +83,18 @@
 | Telegram+MEGA live combined send | PASS (one live media item) | Run #38037210973; ทั้ง Telegram และ MEGA สำเร็จ; Telegram >50 MB ยังต้องใช้ Large-file mode |
 | Telegram Local Bot API large file | NOT RUN (live) | Run #38102024465 เจอ `telegram_file_too_large` ใน standard mode; ไม่ได้ยืนยัน large-file mode จริง |
 | X/media shared download | PARTIAL (live failures observed) | `download_error` ใน runs #38037210973 และ #38102121635; เมื่อ source media ดึงไม่ได้ ทุก target ของ URL นั้น fail ก่อน dispatch |
-| X/source reliability P1 candidate | PASS (local automated; no post-change live source) | 120 Python tests; fallback, stage/error classification, per-input reconciliation and sanitized retry evidence; production rollout pending |
+| X/source reliability P1 release | PARTIAL (local/CI automated + production deployed; no post-change live source) | Python 129, Worker 27; CI #38254729760; Worker #38263528272; fallback, stage/error classification, per-input reconciliation and sanitized retry evidence |
 | Mobile browser | NOT RUN | ยังไม่มีการทดสอบบนอุปกรณ์มือถือจริง |
 | Invalid URL, body cap, unauthorized | PASS (Worker tests/live safe checks เดิม) | 400/413/401/403 paths ปฏิเสธก่อน dispatch ตาม report/contract เดิม |
 
 ## Automated validation baseline and candidate
 
-- Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local P1 candidate: **120 passed** (GitHub CI pending)
+- Previously recorded Python baseline: `python3 -m pytest -q` — **95 passed**; current local/CI P1 release: **129 passed** (CI #38254729760)
 - Cloudflare Worker: `npm test --prefix control-worker` — **27 passed**
-- Deploy workflow: Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน
+- Deploy workflow [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272): Worker tests 27/27, Wrangler dry-run และ production deploy ผ่าน on commit `8fb4427`; Worker version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`
 - Python compile, Node syntax, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live run #37843359593 ผ่าน automated Python/Worker tests ก่อน process, report และ media artifact upload
 
 ## ข้อสรุป
 
-ระบบ production deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. Deploy run #38171587335 ยืนยัน Worker tests, Wrangler config/rate-limit binding และ production deploy ผ่าน. สิ่งที่ยังไม่สมบูรณ์/ยืนยัน live คือ source fetch ที่มี `download_error` บาง URL, Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox token-refresh และ large-file edge paths, รวมถึงการใช้งาน browser บนมือถือจริง
+ระบบ production deployed; ทุก destination มีหลักฐาน live success อย่างน้อยหนึ่งรายการ และ run #38037210973 ยืนยัน combined 4-destination success สำหรับ media หนึ่งชิ้น. P1 release commit `8fb4427` ผ่าน CI, synthetic MEGA integration, Pages deploy และ Worker deploy; Worker run [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) ยืนยัน Worker tests, Wrangler dry-run และ production rollout เป็น version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`. สิ่งที่ยังไม่ยืนยัน live คือ post-fix X source fetch, Telegram Local Bot API สำหรับไฟล์เกิน 50 MB, Dropbox token-refresh และ large-file edge paths, รวมถึงการใช้งาน browser บนมือถือจริง

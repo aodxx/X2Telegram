@@ -1,10 +1,10 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-10-12
-**จุดอ้างอิง:** `main` / production deployment commit `6e673c4`
+**จุดอ้างอิง:** `main` / production deployment commit `8fb4427`
 **สถานะสั้น:** Production ใช้งานได้ตามขอบเขตที่ทดสอบแล้ว; deployment ผ่าน GitHub Actions; งานถัดไปคือเก็บ live evidence ของ edge cases ที่ยังค้าง ไม่ใช่ย้าย architecture ใหม่
 
-**Execution Plan Priority 1:** source reliability candidate ผ่าน local Python suite 129 tests และ Worker suite 27 tests; ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md). ขณะบันทึกนี้ยัง pending commit/CI/production Worker rollout; ไม่มี post-fix live X fetch หรือ destination send.
+**Execution Plan Priority 1:** source reliability release ผ่าน local/CI Python suite 129 tests, Worker suite 27 tests, Pages deploy และ production Worker rollout (version `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f`). ครอบคลุม root-cause fix, per-input reporting, transient metadata failure, retry budget และ provider redirect validation. Evidence matrix อยู่ใน [`plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md`](plan/P1_X_SOURCE_DOWNLOAD_RELIABILITY.md). ยังไม่มี post-fix live X fetch หรือ destination send; คงสถานะ PARTIAL จนกว่าจะมีหลักฐาน source-only ที่ปลอดภัย.
 
 ## 1. สรุปสำหรับ agent ที่เพิ่งเข้ามา
 
@@ -39,13 +39,13 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Branch | `main` |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
-| Worker version | `25c4517d-56fc-402b-bc62-c65a525d2618` |
-| Deploy commit | `6e673c47842343dee9845ceb4d2a4489fced5d39` |
-| Deploy run | [#38174506806](https://github.com/aodxx/X2Telegram/actions/runs/38174506806) — success |
-| Python tests | 97 passed |
+| Worker version | `e6bff44f-12e9-4a55-bfdb-c7b7cfb6587f` |
+| Deploy commit | `8fb44274738d0c0090958f4b880189b0b93d17c7` |
+| Deploy run | [#38263528272](https://github.com/aodxx/X2Telegram/actions/runs/38263528272) — success |
+| Python tests | 129 passed |
 | Worker tests | 27 passed |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
-| Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 403 |
+| Access | owner-only Cloudflare Access; unauthenticated `GET /` and `/health` return HTTP 302 (Access redirect) |
 
 หลักฐานและรายละเอียดอยู่ใน:
 
