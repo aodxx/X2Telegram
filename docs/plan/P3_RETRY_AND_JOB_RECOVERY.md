@@ -43,3 +43,11 @@ Use deterministic unit/integration tests for idempotency and target retry. Use o
 ## Required handoff
 
 Report job/target state before and after retry, whether any successful target was invoked again, browser recovery evidence, changed files/commit, tests actually run, and any blocked live scenario.
+
+## Completeness audit additions — ambiguous outcomes and dispatch races
+
+- Distinguish `failed` from `unknown/outcome-unconfirmed`. If a destination may have accepted an upload but the response or checkpoint was lost, reconcile remote state before retrying where the adapter supports it; do not blindly resend and do not claim exactly-once delivery.
+- Verify concurrent duplicate `POST /jobs` requests with the same request ID/payload and conflicting payloads. Server-side behavior must be authoritative; document the actual guarantee and any remaining race rather than relying on disabled UI buttons.
+- Define which state survives reload and where it lives. Do not store credentials or signed artifact URLs in browser storage; handle missing, stale, malformed, or unavailable local state without silently creating a new job.
+- Test retry after timeout at three boundaries: before dispatch, after dispatch but before job ID is received, and after destination success but before success is persisted. Use mocks/fakes unless an approved test destination is available.
+- Acceptance evidence must show the target invocation count before/after retry and identify any outcome that remains inherently ambiguous under the current architecture. Do not introduce a database/queue just to hide a documented limitation.
