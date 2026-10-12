@@ -550,10 +550,47 @@ def test_telegram_standard_size_limit_is_per_destination(tmp_path):
     dispatcher = DestinationDispatcher(config, telegram, mega)
     sparse = tmp_path / "large.mp4"
     with sparse.open("wb") as handle:
-        handle.truncate(51 * 1024 * 1024)
+        handle.truncate(50 * 1024 * 1024)
+    assert dispatcher.deliver("telegram", sparse, "large.mp4", "caption", "video")["message_id"] == 701
+    with sparse.open("wb") as handle:
+        handle.truncate(50 * 1024 * 1024 + 1)
     with pytest.raises(DestinationError, match="50 MB"):
         dispatcher.deliver("telegram", sparse, "large.mp4", "caption", "video")
+    assert telegram.calls == 1
     assert dispatcher.deliver("mega", sparse, "large.mp4", "caption", "video")["remote_folder"] == "/X2Telegram/2026-10-09"
+
+
+def test_large_file_mode_without_local_api_fails_telegram_only_and_allows_other_destinations(tmp_path):
+    telegram = FakeTelegram()
+    mega = FakeMega()
+    config = Config(
+        "bot-token", "-1003906817580", max_file_size_mb=2000,
+        large_file_mode=True, destinations=("telegram", "mega"),
+    )
+    dispatcher = DestinationDispatcher(config, telegram, mega)
+    sparse = tmp_path / "local-api-unavailable.mp4"
+    with sparse.open("wb") as handle:
+        handle.truncate(50 * 1024 * 1024 + 1)
+    with pytest.raises(DestinationError) as raised:
+        dispatcher.deliver("telegram", sparse, "local-api-unavailable.mp4", "caption", "video")
+    assert raised.value.code == "telegram_file_too_large"
+    assert telegram.calls == 0
+    assert dispatcher.deliver("mega", sparse, "local-api-unavailable.mp4", "caption", "video")["remote_folder"] == "/X2Telegram/2026-10-09"
+
+
+def test_large_file_mode_uses_custom_local_api_size_limit(tmp_path):
+    telegram = FakeTelegram()
+    config = Config(
+        "bot-token", "-1003906817580", max_file_size_mb=2000,
+        large_file_mode=True, telegram_api_base_url="http://127.0.0.1:8081",
+        destinations=("telegram", "mega"),
+    )
+    dispatcher = DestinationDispatcher(config, telegram)
+    sparse = tmp_path / "local-api-enabled.mp4"
+    with sparse.open("wb") as handle:
+        handle.truncate(50 * 1024 * 1024 + 1)
+    assert dispatcher.deliver("telegram", sparse, "local-api-enabled.mp4", "caption", "video")["message_id"] == 701
+    assert telegram.calls == 1
 
 
 def test_non_telegram_destinations_can_run_without_telegram_secrets(monkeypatch):

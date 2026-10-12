@@ -245,6 +245,9 @@
     let runBusy = false;
     let recoveryUnconfirmed = false;
     let pollMisses = 0;
+    let pollFailures = 0;
+    let pollGeneration = 0;
+    const MAX_POLL_STATUS_FAILURES = 5;
     let lastReview = { lines: [], validLines: [], valid: 0, invalid: 0, overLimit: false };
     function getLines() { return urls.value.split(/\r?\n/).map(v => v.trim()).filter(Boolean); }
     function parseUrl(value) {
@@ -299,6 +302,23 @@
         $('progressTrack').setAttribute('aria-valuenow', '0');
         $('progressTrack').setAttribute('aria-valuetext', 'ยังไม่เริ่ม');
         $('progressBar').style.width = '0%';
+      } else if (!sameUrlBatch(validLines, jobUrls(activeRun))) {
+        if (isTerminalRunState(activeRun.state)) {
+          $('progressText').textContent = 'พร้อมเริ่มชุดใหม่';
+          $('runDescription').textContent = 'URL ในช่องเป็นชุดใหม่ที่ยังไม่ได้ส่ง; สถานะและผลด้านล่างเป็นงานก่อนหน้า';
+          $('runStateBadge').textContent = 'ชุดใหม่ยังไม่ส่ง';
+          $('runStateBadge').dataset.state = 'idle';
+          $('progressStepCount').textContent = 'พร้อมเริ่มชุดใหม่';
+          $('progressTrack').setAttribute('aria-valuenow', '0');
+          $('progressTrack').setAttribute('aria-valuetext', 'URL ชุดใหม่ยังไม่ถูกส่ง');
+          $('progressBar').style.width = '0%';
+          document.querySelectorAll('#jobStepper li').forEach((step) => {
+            step.classList.remove('is-done', 'is-current', 'is-error', 'is-uncertain');
+            step.removeAttribute('aria-current');
+          });
+        } else {
+          $('runDescription').textContent = 'กำลังติดตามงานก่อนหน้า; URL ในช่องเป็นชุดใหม่ที่ยังไม่ได้ส่ง และจะเริ่มได้เมื่องานเดิมจบ';
+        }
       }
       lastReview = { lines, validLines, valid, invalid, overLimit };
       syncRunButton();
@@ -508,31 +528,44 @@
       return payload;
     }
     function jobUrls(job) { return Array.isArray(job?.urls) ? job.urls : job?.url ? [job.url] : []; }
-    function showRecoveryUnconfirmed(saved, error) {
+    function isTerminalRunState(state) { return ['completed', 'failed', 'outcome_unconfirmed'].includes(state); }
+    function sameUrlBatch(left, right) {
+      const ids = (values) => values.map((value) => parseUrl(value)?.id || null);
+      const a = ids(left); const b = ids(right);
+      return a.length > 0 && a.length === b.length && a.every((id, index) => id && id === b[index]);
+    }
+    function showRecoveryUnconfirmed(saved, error, { statusOnly = Boolean(saved?.job_id) } = {}) {
+      clearTimeout(pollTimer); pollTimer = null;
       activeRun = { ...saved };
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
       recoveryUnconfirmed = true;
       setBusy(true);
-      $('progressText').textContent = 'รอยืนยันคำขอเดิม';
-      $('runDescription').textContent = 'ยังยืนยันไม่ได้ว่างานเข้าคิวหรือไม่ ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ';
-      $('runStateBadge').textContent = 'ยังไม่ยืนยัน';
+      $('progressText').textContent = statusOnly ? 'สถานะงานยังยืนยันไม่ได้' : 'รอยืนยันคำขอเดิม';
+      $('runDescription').textContent = statusOnly
+        ? 'ยังอ่านสถานะงานเดิมไม่ได้ งานอาจยังทำงานอยู่; URL ชุดใหม่ยังไม่ถูกส่ง กรุณาตรวจสถานะก่อนเริ่มงานใหม่'
+        : 'ยังยืนยันไม่ได้ว่างานเข้าคิวหรือไม่ ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ';
+      $('runStateBadge').textContent = statusOnly ? 'ตรวจสถานะอีกครั้ง' : 'ยังไม่ยืนยัน';
       $('runStateBadge').dataset.state = 'uncertain';
-      $('progressStepCount').textContent = 'รอตรวจสอบ';
-      $('progressTrack').setAttribute('aria-valuetext', 'ยังไม่ยืนยันคำขอเดิม');
+      $('progressStepCount').textContent = statusOnly ? 'สถานะยังไม่พร้อม' : 'รอตรวจสอบ';
+      $('progressTrack').setAttribute('aria-valuetext', statusOnly ? 'สถานะงานยังไม่ยืนยัน' : 'ยังไม่ยืนยันคำขอเดิม');
       $('recoveryActions').hidden = false;
       $('recoverBtn').disabled = false;
+      $('recoverBtn').textContent = statusOnly ? 'ตรวจสถานะงานอีกครั้ง' : 'ตรวจสอบคำขอเดิมอีกครั้ง';
       $('retryActions').hidden = true;
       $('reportActions').hidden = true;
-      $('resultList').innerHTML = `<div class="notice">ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}</div>`;
-      showToast('ยังยืนยันคำขอเดิมไม่ได้ — ระบบไม่ส่งซ้ำอัตโนมัติ');
+      const note = statusOnly
+        ? `ยังอ่านสถานะงานเดิมไม่ได้${error?.code === 'unauthorized' ? ' · ตรวจการลงชื่อเข้าใช้ Cloudflare Access ก่อน' : ''} · งานเดิมอาจยังทำงานอยู่; กด “ตรวจสถานะงานอีกครั้ง” เพื่อค้นหาโดยไม่ส่งซ้ำ`
+        : `ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}`;
+      $('resultList').innerHTML = `<div class="notice">${note}</div>`;
+      showToast(statusOnly ? 'ตรวจสถานะงานไม่สำเร็จ — ยังติดตามงานเดิมไว้และไม่เริ่มชุดใหม่' : 'ยังยืนยันคำขอเดิมไม่ได้ — ระบบไม่ส่งซ้ำอัตโนมัติ');
     }
     function clearPendingTracking() {
       if (!recoveryUnconfirmed) return;
       const confirmed = window.confirm('ล้างเฉพาะสถานะที่บันทึกในเบราว์เซอร์ ไม่ได้ยกเลิกงานเดิม งานเดิมอาจยังทำงานอยู่ และการเริ่มงานใหม่อาจส่งซ้ำ ต้องการล้างการติดตามหรือไม่?');
       if (!confirmed) return;
-      clearTimeout(pollTimer);
+      pollGeneration += 1; clearTimeout(pollTimer); pollTimer = null;
       localStorage.removeItem(CURRENT_KEY);
-      activeRun = null; recoveryUnconfirmed = false; pollMisses = 0;
+      activeRun = null; recoveryUnconfirmed = false; pollMisses = 0; pollFailures = 0;
       $('recoveryActions').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
       $('resultList').innerHTML = ''; $('runStateBadge').textContent = 'ยังไม่มีงาน'; $('runStateBadge').dataset.state = 'idle';
       setBusy(false); review();
@@ -542,6 +575,8 @@
     }
     async function lookupCurrentJob() {
       if (!activeRun) return;
+      clearTimeout(pollTimer); pollTimer = null;
+      const generation = ++pollGeneration;
       const saved = { ...activeRun };
       const savedUrls = jobUrls(saved);
       if (!saved.job_id && (!saved.request_id || !savedUrls.length)) throw new Error('ข้อมูลคำขอเดิมไม่ครบพอสำหรับค้นหาแบบไม่ dispatch');
@@ -549,56 +584,81 @@
       const data = saved.job_id
         ? await api(`/jobs/${encodeURIComponent(saved.job_id)}`)
         : await api('/jobs/recover', { method: 'POST', body: JSON.stringify(payload) });
-      pollMisses = 0;
+      if (generation !== pollGeneration) return null;
+      pollMisses = 0; pollFailures = 0;
       if (data.job_id) saveRecentJob({ ...saved, job_id: data.job_id });
       renderRun(data);
       if (data.result) renderReport(data.result);
-      const terminal = ['completed', 'failed', 'outcome_unconfirmed'].includes(data.state);
+      const terminal = isTerminalRunState(data.state);
       setBusy(!terminal);
-      if (terminal) clearTimeout(pollTimer); else pollRun();
+      if (terminal) { clearTimeout(pollTimer); pollTimer = null; } else pollRun(generation);
       return data;
     }
-    async function pollRun() {
-      if (!activeRun || !activeRun.job_id) return;
+    async function pollRun(generation = pollGeneration) {
+      const jobId = activeRun?.job_id;
+      if (!jobId || generation !== pollGeneration) return;
       try {
-        const status = await api(`/jobs/${encodeURIComponent(activeRun.job_id)}`);
-        pollMisses = 0;
+        const status = await api(`/jobs/${encodeURIComponent(jobId)}`);
+        if (generation !== pollGeneration || activeRun?.job_id !== jobId) return;
+        pollMisses = 0; pollFailures = 0;
         renderRun(status);
         if (status.result) renderReport(status.result);
-        if (['completed', 'failed', 'outcome_unconfirmed'].includes(status.state)) {
+        if (isTerminalRunState(status.state)) {
           if (status.state === 'failed') showToast(status.error?.message || 'Workflow ทำงานไม่สำเร็จ');
-          setBusy(false); clearTimeout(pollTimer); return;
+          setBusy(false); clearTimeout(pollTimer); pollTimer = null; return;
         }
-        pollTimer = setTimeout(pollRun, status.state === 'accepted' ? 7000 : 5000);
+        pollTimer = setTimeout(() => pollRun(generation), status.state === 'accepted' ? 7000 : 5000);
       } catch (error) {
+        if (generation !== pollGeneration || activeRun?.job_id !== jobId) return;
         if (error.code === 'job_not_found') {
           pollMisses += 1;
-          if (pollMisses < 6) { pollTimer = setTimeout(pollRun, 3000); return; }
-          showRecoveryUnconfirmed(activeRun, error); return;
+          if (pollMisses < 6) {
+            $('progressText').textContent = 'กำลังรอให้ระบบพบงาน';
+            $('runDescription').textContent = 'งานได้รับการบันทึกแล้ว แต่รอบของ GitHub Actions ยังไม่แสดง; กำลังตรวจซ้ำโดยไม่ส่งงานใหม่';
+            setBusy(true); pollTimer = setTimeout(() => pollRun(generation), 3000); return;
+          }
+          showRecoveryUnconfirmed(activeRun, error, { statusOnly: true }); return;
         }
-        setBusy(false); showToast(error.message); clearTimeout(pollTimer);
+        const retryable = error.code === 'network_error' || error.code === 'invalid_response' || error.status === 408 || error.status >= 500;
+        if (retryable) {
+          pollFailures += 1;
+          if (pollFailures < MAX_POLL_STATUS_FAILURES) {
+            $('progressText').textContent = 'กำลังลองตรวจสถานะใหม่';
+            $('runDescription').textContent = `เชื่อมต่อเพื่อตรวจงานสะดุดชั่วคราว (${pollFailures}/${MAX_POLL_STATUS_FAILURES - 1}); งานเดิมยังถูกติดตามและจะไม่ส่งซ้ำ`;
+            $('runStateBadge').textContent = 'กำลังลองใหม่';
+            setBusy(true);
+            const delay = Math.min(15000, 1500 * (2 ** (pollFailures - 1)));
+            pollTimer = setTimeout(() => pollRun(generation), delay); return;
+          }
+        }
+        showRecoveryUnconfirmed(activeRun, error, { statusOnly: true });
       }
     }
     async function submitJobPayload(payload) {
-      setBusy(true); recoveryUnconfirmed = false; pollMisses = 0;
+      clearTimeout(pollTimer); pollTimer = null;
+      const generation = ++pollGeneration;
+      setBusy(true); recoveryUnconfirmed = false; pollMisses = 0; pollFailures = 0;
       $('recoveryActions').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
       $('progressText').textContent = 'กำลังเริ่มงาน'; $('runDescription').textContent = 'กำลังส่งรายการเพื่อตรวจสอบและเข้าคิว'; $('progressStepCount').textContent = '1 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '1'); $('progressTrack').setAttribute('aria-valuetext', 'ขั้นตอน 1 จาก 4: กำลังเริ่มงาน'); $('progressBar').style.width = '25%'; $('runStateBadge').textContent = 'กำลังส่งคำขอ'; $('runStateBadge').dataset.state = 'accepted'; document.querySelectorAll('#jobStepper li').forEach((step) => { const current = Number(step.dataset.stage) === 1; step.classList.remove('is-done', 'is-error', 'is-uncertain'); step.classList.toggle('is-current', current); if (current) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current'); }); $('resultList').innerHTML = '';
       activeRun = { ...payload };
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
       try {
         const data = await api('/jobs', { method: 'POST', body: JSON.stringify(payload) });
+        if (generation !== pollGeneration) return;
         if (data.job_id) saveRecentJob({ ...payload, job_id: data.job_id });
-        renderRun(data); showToast(data.duplicate ? 'พบงานเดิม กำลังเปิดสถานะเดิม' : 'รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun();
+        renderRun(data); showToast(data.duplicate ? 'พบงานเดิม กำลังเปิดสถานะเดิม' : 'รับรายการแล้ว กำลังรอ GitHub Actions'); pollRun(generation);
       } catch (error) {
+        if (generation !== pollGeneration) return;
         const ambiguous = error.code === 'network_error' || error.code === 'invalid_response' || error.status >= 500;
         if (ambiguous) {
           try {
             const recovered = await api('/jobs/recover', { method: 'POST', body: JSON.stringify(payload) });
+            if (generation !== pollGeneration) return;
             if (recovered.job_id) saveRecentJob({ ...payload, job_id: recovered.job_id });
-            renderRun(recovered); if (recovered.result) renderReport(recovered.result); setBusy(!['completed', 'failed', 'outcome_unconfirmed'].includes(recovered.state));
-            if (['completed', 'failed', 'outcome_unconfirmed'].includes(recovered.state)) clearTimeout(pollTimer); else pollRun();
+            renderRun(recovered); if (recovered.result) renderReport(recovered.result); setBusy(!isTerminalRunState(recovered.state));
+            if (isTerminalRunState(recovered.state)) { clearTimeout(pollTimer); pollTimer = null; } else pollRun(generation);
             showToast('กู้คืนการติดตามงานเดิมแล้ว โดยไม่ส่งคำขอซ้ำ'); return;
-          } catch (recoveryError) { showRecoveryUnconfirmed(payload, recoveryError); return; }
+          } catch (recoveryError) { if (generation === pollGeneration) showRecoveryUnconfirmed(payload, recoveryError, { statusOnly: false }); return; }
         }
         localStorage.removeItem(CURRENT_KEY); activeRun = null; setBusy(false);
         $('progressText').textContent = 'เริ่มงานไม่สำเร็จ'; $('runDescription').textContent = 'คำขอถูกปฏิเสธก่อน dispatch; ตรวจข้อความแล้วแก้ไขได้'; $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressTrack').setAttribute('aria-valuetext', 'เริ่มงานไม่สำเร็จ'); $('progressBar').style.width = '0%'; $('runStateBadge').textContent = 'ต้องตรวจสอบ'; $('runStateBadge').dataset.state = 'failed'; showToast(error.message || 'เริ่มงานไม่สำเร็จ');
@@ -606,7 +666,7 @@
     }
     async function startJob() {
       const r = review();
-      if (recoveryUnconfirmed) { showToast('ตรวจสอบหรือล้างการติดตามคำขอเดิมก่อนเริ่มงานใหม่'); return; }
+      if (recoveryUnconfirmed) { showToast('ตรวจสถานะหรือล้างการติดตามงานก่อนหน้าก่อนเริ่มชุดใหม่'); return; }
       if (!backendReady) { showToast('ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access — กดลิงก์ด้านบนแล้วกลับมาตรวจอีกครั้ง'); checkBackend(); return; }
       if (r.overLimit) { showToast(`หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} URLs`); return; }
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
