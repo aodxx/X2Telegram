@@ -41,3 +41,11 @@ Run targeted tests first, then the relevant Python suite before finalizing a beh
 ## Required handoff
 
 Report: confirmed cause; code/tests changed; commands actually run; CI/run URL; live evidence or why unavailable; remaining source limitations; next action. Do not claim all X URLs are supported because one URL passed.
+
+## Completeness audit additions — input normalization and bounded recovery
+
+- Normalize line endings (LF/CRLF), trim surrounding whitespace, and ignore blank lines without merging distinct URLs. Preserve the original submitted URL for user-facing identification while never exposing cookies, authorization headers, or signed query values in logs.
+- Record an outcome for every submitted line: accepted, duplicate/normalized duplicate, rejected input, source metadata failure, media download failure, or success. Totals must reconcile to the submitted input count; explain explicitly how blank lines and duplicate URLs are counted.
+- Classify errors as transient, permanent, or unknown only when evidence supports the classification. For transient network/HTTP failures, use bounded attempts with backoff and respect source rate limits; do not repeatedly retry private, deleted, unsupported, or malformed content.
+- Add fixtures for CRLF/mixed newlines, blank lines, duplicate URLs, redirect loops/limits, timeout, rate-limit response (including Retry-After when present), malformed metadata, and one failing URL surrounded by successful URLs.
+- Acceptance evidence must include input count, per-input outcome count, retry attempt count, and a sanitized error example. Do not include full private/signed URLs in saved reports.
