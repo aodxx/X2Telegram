@@ -97,6 +97,7 @@ npx wrangler deploy --config wrangler.toml
 - `report.json` และ sanitized Dashboard artifact มี status ต่อ post/destination/media; private media ZIP แยก artifact จาก report
 - Worker ดึง media ZIP แบบ streaming ผ่าน Access ไม่ส่ง signed GitHub URL ให้ frontend และไม่ buffer archive ทั้งก้อนใน Worker
 - GitHub Actions concurrency serialize การเขียน state. Worker's concurrent-dispatch single-flight อยู่ภายใน isolate เท่านั้นและเก็บ reservation 30 วินาที; ไม่ใช่ global/durable lock. ระบบไม่ได้อ้าง exactly-once เมื่อ dispatch แข่งข้าม isolates หรือปลายทางตอบ success แล้วการเขียน success checkpoint ล้มเหลว; ในกรณีหลัง report เตือน `dedupe_checkpoint_failed`, Dashboard failed-only retry ไม่เลือก target ที่รายงาน success แต่ full job ใหม่ที่ผู้ใช้สร้างเองอาจส่งซ้ำ
+- Job `persist-state` จะ stage/commit `state/dedupe.json` ที่รับมาจาก artifact **ก่อน** fetch/rebase `main` เพื่อไม่ให้ rebase เจอ working tree ที่ยังมีการแก้ไขค้างอยู่; จากนั้นจึง rebase state commit และ push. หากมี conflict จริง จะหยุดโดยไม่เขียนทับ state บน `main` และต้องตรวจสอบด้วยคน
 
 ## 7. Tests และ local checks
 
