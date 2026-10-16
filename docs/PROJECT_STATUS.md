@@ -73,6 +73,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - ระบบไม่อ้าง exactly-once เมื่อ destination รับไฟล์แล้ว response/checkpoint สูญหาย
 - P3 production limits: Worker single-flight reservation protects requests only within one isolate and for 30 seconds; no durable/global coordination exists across isolates or restarts. A narrow pre-visibility race remains; no exactly-once dispatch guarantee is claimed. Destination live retry was not tested because no new test target was explicitly approved.
 - P3 storage limit: if the destination confirms success but the durable dedupe checkpoint cannot be written, the report warns `dedupe_checkpoint_failed`; Dashboard's failed-only retry excludes that target, but a later new full-target job may resend it because the prior success was not persisted.
+- Operational review (2026-10-16): GitHub reports `main` is currently unprotected. ไม่เปิด branch protection อัตโนมัติในงานนี้ เพราะต้องออกแบบให้สอดคล้องกับ `persist-state` bot ที่เขียน dedupe commit เข้า `main`; ควรทำเป็น security change แยกพร้อมทดสอบ workflow และ rollback plan. ยังไม่มี Access session ของผู้ใช้รอง, real-mobile smoke test, หรือปลายทาง Telegram/Dropbox test ที่ได้รับอนุญาตสำหรับ live P3/P4.
 
 ## Priority 1 — X/source reliability release (deployed; historical failure URL passed post-fix source-only live check)
 
