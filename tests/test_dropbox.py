@@ -132,6 +132,25 @@ def test_expired_access_token_refreshes_once_without_exposing_secret():
         source.unlink(missing_ok=True)
 
 
+def test_upload_retry_rewinds_file_after_rate_limit(tmp_path):
+    bodies = []
+
+    def request(method, url, **kwargs):
+        if url.endswith("/files/upload"):
+            body = kwargs["data"]
+            bodies.append(body.read() if hasattr(body, "read") else body)
+            if len(bodies) == 1:
+                return Response(429, headers={"Retry-After": "0"})
+            return Response(payload={"path_display": "/X2Telegram/retry.mp4"})
+        raise AssertionError(url)
+
+    source = tmp_path / "retry.mp4"
+    source.write_bytes(b"retryable-file-content")
+    uploader = DropboxUploader(access_token="access", request=request, sleep=lambda _: None)
+    assert uploader.upload(source, "retry.mp4") == "/X2Telegram/retry.mp4"
+    assert bodies == [b"retryable-file-content", b"retryable-file-content"]
+
+
 def test_refresh_token_only_configuration_gets_access_token_before_upload(tmp_path):
     calls = []
 

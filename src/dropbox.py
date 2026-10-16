@@ -96,6 +96,12 @@ class DropboxUploader:
 
     def _call(self, method: str, url: str, *, headers: dict[str, str] | None = None, data=None, json_body: dict | None = None):
         refreshed = False
+        data_position = None
+        if json_body is None and hasattr(data, "tell") and hasattr(data, "seek"):
+            try:
+                data_position = data.tell()
+            except (OSError, ValueError):
+                data_position = None
         for attempt in range(self.max_retries + 1):
             # Refresh-token-only configuration is supported: obtain an access token
             # before building the Authorization header, rather than failing early.
@@ -108,6 +114,11 @@ class DropboxUploader:
                 body = json.dumps(json_body)
             else:
                 body = data
+                if attempt and data_position is not None:
+                    try:
+                        data.seek(data_position)
+                    except (OSError, ValueError):
+                        raise DestinationError("dropbox_upload_failed", "Dropbox could not retry the file upload safely.") from None
             try:
                 response = self.request(method, url, headers=request_headers, data=body, timeout=self.timeout_seconds)
             except requests.RequestException:

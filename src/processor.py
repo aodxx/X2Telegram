@@ -159,19 +159,20 @@ class PostProcessor:
             return size if size > 0 else None
 
         quality = lambda item: (
-            numeric(item.bitrate, -1.0), numeric(item.width) * numeric(item.height),
+            numeric(item.bitrate, -1.0),
+            numeric(item.width) * numeric(item.height),
+            numeric(item.height, -1.0),
+            numeric(item.width, -1.0),
         )
         sized = [(item, size_bytes(item)) for item in videos]
         safe = [item for item, size in sized if size is not None and size <= limit]
         unknown = [item for item, size in sized if size is None]
         oversized = [(item, size) for item, size in sized if size is not None and size > limit]
-        if safe:
-            ranked = sorted(safe, key=quality, reverse=True)
-            ranked.extend(sorted(unknown, key=quality, reverse=True))
-            ranked.extend(item for item, _ in sorted(oversized, key=lambda pair: pair[1]))
-            return ranked
-        if unknown:
-            ranked = sorted(unknown, key=quality, reverse=True)
+        if safe or unknown:
+            # A missing filesize is not evidence that a variant is low quality.
+            # Rank all variants that may fit by bitrate/resolution first, then
+            # keep oversized variants as bounded fallbacks for a lower-quality retry.
+            ranked = sorted(safe + unknown, key=quality, reverse=True)
             ranked.extend(item for item, _ in sorted(oversized, key=lambda pair: pair[1]))
             return ranked
         return [item for item, _ in sorted(oversized, key=lambda pair: pair[1])]

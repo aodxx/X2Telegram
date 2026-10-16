@@ -26,6 +26,8 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
 
 วิดีโอ/ภาพหลายรายการจากโพสต์เดียวกันจะถูกส่งออกเป็นหลายไฟล์ใน ZIP เดียว และใช้ชื่อไฟล์ที่สร้างจาก post ID/index/นามสกุล โดยไม่เก็บ username หรือข้อมูลโปรไฟล์ไว้ในชื่อไฟล์
 
+สำหรับวิดีโอ ระบบจัดอันดับ variant ตาม bitrate และความละเอียด แล้วดาวน์โหลดตัวที่คุณภาพสูงสุดก่อน. ถ้าขนาดไฟล์เกินเพดานของปลายทางหรือรูปแบบใช้ไม่ได้ จะ fallback ไปยัง variant ที่รองลงมาตามลำดับ; จะไม่ลดคุณภาพล่วงหน้าเพียงเพราะเลือก Dropbox, MEGA หรือ ZIP
+
 ### การดาวน์โหลดผ่านมือถือ
 
 Dashboard ใช้ browser download มาตรฐานผ่านลิงก์ `Content-Disposition: attachment` และ Worker ส่ง ZIP แบบ streaming โดยไม่ buffer ZIP ทั้งก้อนใน Worker. บน iOS/Android การบันทึกอาจแสดงแผง Downloads, Share หรือ Files ตาม browser/การตั้งค่าเครื่อง; GitHub Actions ไม่สามารถเขียนไฟล์ลงมือถือโดยตรงได้. หากไฟล์ใหญ่ ควรใช้ Wi‑Fi และพื้นที่ว่างเพียงพอ

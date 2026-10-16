@@ -256,6 +256,19 @@ def test_variant_ranking_handles_numeric_strings_and_missing_metadata():
     assert [item.index for item in ranked] == [0, 1, 2]
 
 
+def test_unknown_size_high_quality_variant_is_tried_before_lower_quality_known_size():
+    processor = PostProcessor(Config(max_file_size_mb=2000, destinations=("dropbox",)), None)
+    variants = [
+        MediaItem("video", "https://media.invalid/known-low.mp4", 0, bitrate=1_000_000, width=1280, height=720, size_bytes=10_000_000),
+        MediaItem("video", "https://media.invalid/unknown-high.mp4", 0, bitrate=2_500_000, width=1920, height=1080),
+    ]
+    try:
+        ranked = processor._video_candidates(variants)
+    finally:
+        processor.close()
+    assert ranked[0].url.endswith("unknown-high.mp4")
+
+
 def test_source_download_failure_keeps_actionable_stage_and_media_index(tmp_path):
     telegram = FakeTelegram()
     processor, _ = make_processor(tmp_path, ["telegram"], telegram=telegram)
