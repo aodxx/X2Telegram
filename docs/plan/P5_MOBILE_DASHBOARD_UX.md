@@ -1,7 +1,7 @@
 # Priority 5 — Mobile Dashboard UX and Operational Clarity
 
 **Parent plan:** [MANUS_EXECUTION_PLAN.md](../MANUS_EXECUTION_PLAN.md)  
-**Current status:** PARTIAL / VERIFY CURRENT DEPLOYED UI  
+**Current status:** PARTIAL — code-level mobile/accessibility improvements deployed; real-mobile smoke test remains BLOCKED/not run
 **Scope:** Mobile user flow, progress, per-URL results, safe retry, and Browser ZIP availability. Preserve Cloudflare Access and server-side idempotency.
 
 ## Required investigation
@@ -43,6 +43,13 @@
 ## Validation
 
 Use existing test tooling and targeted browser checks. Run relevant regression checks after modifying shared APIs or dispatch behavior. Do not repeat the same manual mobile smoke test unless the relevant UI or auth flow changed.
+
+## Latest implementation and evidence (2026-10-16)
+
+- Commit `f08c0aa` improves narrow screens: top-bar wrapping, two-column destination choices, full-width touch-friendly actions, and minimum 44px action height.
+- The submit button exposes `aria-busy`; the result list is announced through `aria-live="polite"`; existing bounded polling, lookup-only recovery, retry filtering, ZIP state messages, and stale-batch labeling remain unchanged.
+- Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) passed; Dashboard Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) passed. Python **148 passed** and Worker/Dashboard **45 passed** locally/CI.
+- Real-device/mobile-browser login, submit, polling, retry, and ZIP download has not been performed in this environment; keep that acceptance item **BLOCKED** rather than inferring it from desktop or mock coverage.
 
 ## Required handoff
 

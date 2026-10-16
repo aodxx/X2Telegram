@@ -112,6 +112,10 @@ python -m compileall -q src tests
 
 Tests ใช้ mocks/fakes สำหรับ MEGA/Telegram และ GitHub API; ไม่เปิดเผย credential และไม่แทน live verification ของ MEGA. อย่าทดสอบด้วย destination จริงโดยไม่ตรวจรายการและผลกระทบก่อน
 
+### State persistence ใน GitHub Actions
+
+Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่อน `fetch/rebase` แล้วจึง push พร้อม retry สูงสุด 3 ครั้ง. ห้ามย้าย `rebase` กลับไปก่อน commit เพราะ artifact ที่ดาวน์โหลดมาจะเป็น unstaged change และทำให้ job ล้มด้วย `cannot rebase: You have unstaged changes`. หาก rebase conflict ให้หยุดและปฏิเสธการเขียนทับ state เพื่อให้ตรวจสอบแบบ manual.
+
 ## 8. Error ที่พบบ่อย
 
 | Error/status | วิธีตรวจ |

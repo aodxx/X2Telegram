@@ -1,7 +1,7 @@
 # X2Telegram — Project Status
 
-**อัปเดต:** 2026-10-13
-**สถานะ:** P1/P2 ผ่านหลักฐานตามขอบเขตเดิม. P3 ถูก squash-merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) เป็น main commit `9e9e9f8`. Access second-email support อยู่ใน main จาก PR [#25](https://github.com/aodxx/X2Telegram/pull/25), commit `f5372e5`; Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่านด้วย version `649353cf-fd9a-498b-9415-14bae01de486`. Dashboard batch-status fix ถูก merge จาก PR [#27](https://github.com/aodxx/X2Telegram/pull/27) เป็น main commit `763bd9a`; CI [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120) ผ่าน (Python 147, Worker/Dashboard 45) และ Pages deploy [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) ผ่าน. ไม่มี Worker deploy ใหม่จาก PR #27. Access policy/Worker อนุญาตสอง exact email identities; ผู้ใช้รองยังไม่ได้ทำ OTP sign-in จึงยังไม่ยืนยัน session จริง. P3 คงสถานะ partial ด้วย cross-isolate race / success-checkpoint storage limitations; P4 ยังคง partial เพราะไม่มี live destination invocation ที่ได้รับอนุญาต.
+**อัปเดต:** 2026-10-16
+**สถานะ:** P1/P2 ผ่านหลักฐานตามขอบเขตเดิม. P3 ถูก squash-merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) เป็น main commit `9e9e9f8` และยัง partial ตามข้อจำกัด exactly-once. Access second-email support อยู่ใน main จาก PR [#25](https://github.com/aodxx/X2Telegram/pull/25), commit `f5372e5`; Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่านด้วย version `649353cf-fd9a-498b-9415-14bae01de486`. Dashboard batch-status fix ถูก merge จาก PR [#27](https://github.com/aodxx/X2Telegram/pull/27) และปรับ mobile/accessibility เพิ่มใน commit `f08c0aa`; Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages deploy [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. แก้ workflow persist-state ให้ commit state ก่อน rebase และเพิ่ม regression test แล้ว. ผู้ใช้รองยังไม่ได้ทำ OTP sign-in จึงยังไม่ยืนยัน session จริง. P4 ยังคง partial เพราะไม่มี live destination invocation ที่ได้รับอนุญาต และ P5 ยังรอ real-mobile smoke test.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
 
@@ -14,12 +14,12 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## Deployment ปัจจุบัน
 
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Dashboard application commit on main: `763bd9a` (batch-status fix / PR #27)
+- Dashboard application commit on main: `f08c0aa` (safe state persistence regression fix + mobile/accessibility UX; includes prior batch-status fix)
 - Current Worker version ID: `649353cf-fd9a-498b-9415-14bae01de486`
 - Deploy commit: `f5372e5e0656c300687b404f1f60e215c8d5962a` (Access second-email support / PR #25)
 - Deploy workflow: [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) — success; Worker tests, Wrangler dry-run และ deploy ผ่าน
 - `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
-- GitHub Pages deploy run [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) ผ่านบน main commit `763bd9a`; Dashboard includes lookup-only recovery, failed-target-only retry, and resilient polling/clear labeling between URL batches
+- GitHub Pages deploy run [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่านบน main commit `f08c0aa`; Dashboard includes lookup-only recovery, failed-target-only retry, resilient polling/clear labeling between URL batches, mobile full-width actions, and accessible busy/result announcements
 - Cloudflare Access policy ปัจจุบันมีสอง exact email rules; Worker `ACCESS_ADDITIONAL_EMAIL` ตั้งแล้ว ขณะที่ `ACCESS_ALLOWED_EMAIL` เดิมยังคงอยู่. ไม่มี `Everyone` หรือ domain-wide allow
 - Production smoke check หลัง deploy: unauthenticated `/` ตอบ HTTP 302 (Cloudflare Access redirect; ไม่ติดตามหรือบันทึก redirect URL); เนื้อหา API/Dashboard ต้องมี Access session จึงจะเปิดได้
 
@@ -56,6 +56,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - Access expansion release (2026-10-13): PR #25 merged as `f5372e5`; main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) and Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) succeeded; Worker version `649353cf-fd9a-498b-9415-14bae01de486`. Python 143 and Worker 42 tests passed. Two exact Access email rules are configured; no new OTP was sent and the secondary user's sign-in remains unverified.
 - P3 production release (2026-10-13): merged as `9e9e9f8` (PR #24); main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) succeeded; Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`. No live destination was invoked. Failure-injection demonstrates that a later manually-created full-target job may resend if success-checkpoint storage fails; cross-isolate dispatch remains non-durable.
 - Dashboard/P4 automated release (2026-10-13): PR #27 merged as `763bd9a`; CI [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120) passed with Python 147 and Worker/Dashboard 45; Pages [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) succeeded. Dashboard status polling now retries transient read failures and distinguishes the prior result from a newly pasted batch. Telegram 50 MB boundary/Local Bot API and Dropbox refresh/session regressions are mock-based only; both live tracks remain blocked pending authorized test destinations. Worker code was unchanged and no live destination upload occurred.
+- Latest repair release (2026-10-16): commit `f08c0aa` fixes the `persist-state` ordering bug that caused GitHub Actions to fail with `cannot rebase: You have unstaged changes`; state is now committed before fetch/rebase, with a contract regression test. Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) passed and Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) passed. Local validation: Python **148 passed**, Worker/Dashboard **45 passed**.
 
 ## การตั้งค่า MEGA
 
