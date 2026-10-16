@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "posts": {
     "2105840724075798807": {
       "message_ids": [
@@ -68,7 +68,15 @@
         "a8e53b4e29a3b46c13ed42df7376d2a41540e2433ef1939aee0c999ec0d77198": {
           "kind": "video",
           "message_id": 350,
-          "filename": "2096961897065336863_01.mp4"
+          "filename": "2096961897065336863_01.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2096961897065336863_01_a8e53b4e29a3b46c13ed42df7376d2a41540e2433ef1939aee0c999ec0d77198.mp4",
+              "dropbox_path": "/X2Telegram/2096961897065336863_01_a8e53b4e29a3b46c13ed42df7376d2a41540e2433ef1939aee0c999ec0d77198.mp4",
+              "already_exists": true
+            }
+          }
         }
       },
       "message_ids": [
@@ -768,6 +776,276 @@
               "status": "success",
               "filename": "2109238441615786400_01_374cf1ef9002961fb902d500d7467dc282ad44f5271780563fe30fb1f6ba99db.mp4",
               "dropbox_path": "/X2Telegram/2109238441615786400_01_374cf1ef9002961fb902d500d7467dc282ad44f5271780563fe30fb1f6ba99db.mp4"
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2098049856724168894": {
+      "media": {
+        "93b48a62e283cb4b1fe55bb0276a1f7d7b4ef795a884edff92baa4ac27377552": {
+          "kind": "video",
+          "filename": "2098049856724168894_01_93b48a62e283cb4b1fe55bb0276a1f7d7b4ef795a884edff92baa4ac27377552.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2098049856724168894_01_93b48a62e283cb4b1fe55bb0276a1f7d7b4ef795a884edff92baa4ac27377552.mp4",
+              "dropbox_path": "/X2Telegram/2098049856724168894_01_93b48a62e283cb4b1fe55bb0276a1f7d7b4ef795a884edff92baa4ac27377552.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2097654084685930670": {
+      "media": {
+        "74c4e8eada3a944c57b42a6da24c18c2b9413f0f9a493ad47cc9bb9299e3edfb": {
+          "kind": "video",
+          "filename": "2097654084685930670_01_74c4e8eada3a944c57b42a6da24c18c2b9413f0f9a493ad47cc9bb9299e3edfb.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2097654084685930670_01_74c4e8eada3a944c57b42a6da24c18c2b9413f0f9a493ad47cc9bb9299e3edfb.mp4",
+              "dropbox_path": "/X2Telegram/2097654084685930670_01_74c4e8eada3a944c57b42a6da24c18c2b9413f0f9a493ad47cc9bb9299e3edfb.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2096591913747177761": {
+      "media": {
+        "8b278360905561d1b576daedaef63079fb22b7dc13a2700108756e259d310e47": {
+          "kind": "video",
+          "filename": "2096591913747177761_01_8b278360905561d1b576daedaef63079fb22b7dc13a2700108756e259d310e47.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2096591913747177761_01_8b278360905561d1b576daedaef63079fb22b7dc13a2700108756e259d310e47.mp4",
+              "dropbox_path": "/X2Telegram/2096591913747177761_01_8b278360905561d1b576daedaef63079fb22b7dc13a2700108756e259d310e47.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2095834276759749110": {
+      "media": {
+        "811bdd77f7f6e304abd33bf6eadd2b747ee4e06dcefc4591e954826524e42b9b": {
+          "kind": "video",
+          "filename": "2095834276759749110_01_811bdd77f7f6e304abd33bf6eadd2b747ee4e06dcefc4591e954826524e42b9b.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2095834276759749110_01_811bdd77f7f6e304abd33bf6eadd2b747ee4e06dcefc4591e954826524e42b9b.mp4",
+              "dropbox_path": "/X2Telegram/2095834276759749110_01_811bdd77f7f6e304abd33bf6eadd2b747ee4e06dcefc4591e954826524e42b9b.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2095362373997785397": {
+      "media": {
+        "9737e0aff18b8cfb1247c0c2c66f01f082b0465318e5438122d79d420824d0db": {
+          "kind": "video",
+          "filename": "2095362373997785397_01_9737e0aff18b8cfb1247c0c2c66f01f082b0465318e5438122d79d420824d0db.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2095362373997785397_01_9737e0aff18b8cfb1247c0c2c66f01f082b0465318e5438122d79d420824d0db.mp4",
+              "dropbox_path": "/X2Telegram/2095362373997785397_01_9737e0aff18b8cfb1247c0c2c66f01f082b0465318e5438122d79d420824d0db.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2095168736840110272": {
+      "media": {
+        "47f92fef26baa59e3f585e4cc2dfa426dbddeaf1d8a5d8a5818cdbce34b6757a": {
+          "kind": "video",
+          "filename": "2095168736840110272_01_47f92fef26baa59e3f585e4cc2dfa426dbddeaf1d8a5d8a5818cdbce34b6757a.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2095168736840110272_01_47f92fef26baa59e3f585e4cc2dfa426dbddeaf1d8a5d8a5818cdbce34b6757a.mp4",
+              "dropbox_path": "/X2Telegram/2095168736840110272_01_47f92fef26baa59e3f585e4cc2dfa426dbddeaf1d8a5d8a5818cdbce34b6757a.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2094800372460376300": {
+      "media": {
+        "675f7d87b5a638c7e11cedd70288308ccf2973a7a76086a3a2c31db0cd673c78": {
+          "kind": "video",
+          "filename": "2094800372460376300_01_675f7d87b5a638c7e11cedd70288308ccf2973a7a76086a3a2c31db0cd673c78.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2094800372460376300_01_675f7d87b5a638c7e11cedd70288308ccf2973a7a76086a3a2c31db0cd673c78.mp4",
+              "dropbox_path": "/X2Telegram/2094800372460376300_01_675f7d87b5a638c7e11cedd70288308ccf2973a7a76086a3a2c31db0cd673c78.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2094429202401591361": {
+      "media": {
+        "cdde66ff41869a47eaeb471e2fff2579f97efc428676d8e9212a5865792ba17a": {
+          "kind": "video",
+          "filename": "2094429202401591361_01_cdde66ff41869a47eaeb471e2fff2579f97efc428676d8e9212a5865792ba17a.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2094429202401591361_01_cdde66ff41869a47eaeb471e2fff2579f97efc428676d8e9212a5865792ba17a.mp4",
+              "dropbox_path": "/X2Telegram/2094429202401591361_01_cdde66ff41869a47eaeb471e2fff2579f97efc428676d8e9212a5865792ba17a.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2093318063508852766": {
+      "media": {
+        "897e43b7bf7bdc74e29c3ad47b1ccfa39d430f5f29f0d0f8eb3ac1c2b5d79214": {
+          "kind": "video",
+          "filename": "2093318063508852766_01_897e43b7bf7bdc74e29c3ad47b1ccfa39d430f5f29f0d0f8eb3ac1c2b5d79214.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2093318063508852766_01_897e43b7bf7bdc74e29c3ad47b1ccfa39d430f5f29f0d0f8eb3ac1c2b5d79214.mp4",
+              "dropbox_path": "/X2Telegram/2093318063508852766_01_897e43b7bf7bdc74e29c3ad47b1ccfa39d430f5f29f0d0f8eb3ac1c2b5d79214.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2092967046829297944": {
+      "media": {
+        "9aa9fb6a3bc25b74a846004cd5983e4d2ba1f2a6a7a177456fb3be6349c1ee52": {
+          "kind": "video",
+          "filename": "2092967046829297944_01_9aa9fb6a3bc25b74a846004cd5983e4d2ba1f2a6a7a177456fb3be6349c1ee52.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2092967046829297944_01_9aa9fb6a3bc25b74a846004cd5983e4d2ba1f2a6a7a177456fb3be6349c1ee52.mp4",
+              "dropbox_path": "/X2Telegram/2092967046829297944_01_9aa9fb6a3bc25b74a846004cd5983e4d2ba1f2a6a7a177456fb3be6349c1ee52.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2092157978120204400": {
+      "media": {
+        "a08f113e675c385c87bcc19703f31a4ce9ed38f533f86cba4c9de3c030e4b735": {
+          "kind": "video",
+          "filename": "2092157978120204400_01_a08f113e675c385c87bcc19703f31a4ce9ed38f533f86cba4c9de3c030e4b735.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2092157978120204400_01_a08f113e675c385c87bcc19703f31a4ce9ed38f533f86cba4c9de3c030e4b735.mp4",
+              "dropbox_path": "/X2Telegram/2092157978120204400_01_a08f113e675c385c87bcc19703f31a4ce9ed38f533f86cba4c9de3c030e4b735.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2090080684920680649": {
+      "media": {
+        "a01b37be300d32e0b8c1b8759ac39e2bd2464b57695b89968d706b726a995ed3": {
+          "kind": "video",
+          "filename": "2090080684920680649_01_a01b37be300d32e0b8c1b8759ac39e2bd2464b57695b89968d706b726a995ed3.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2090080684920680649_01_a01b37be300d32e0b8c1b8759ac39e2bd2464b57695b89968d706b726a995ed3.mp4",
+              "dropbox_path": "/X2Telegram/2090080684920680649_01_a01b37be300d32e0b8c1b8759ac39e2bd2464b57695b89968d706b726a995ed3.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2089675850895724939": {
+      "media": {
+        "62825cbfdec1e79d2327e522faa4d8cdae2d992ff62ffc0cf4640a96a0459af5": {
+          "kind": "video",
+          "filename": "2089675850895724939_01_62825cbfdec1e79d2327e522faa4d8cdae2d992ff62ffc0cf4640a96a0459af5.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2089675850895724939_01_62825cbfdec1e79d2327e522faa4d8cdae2d992ff62ffc0cf4640a96a0459af5.mp4",
+              "dropbox_path": "/X2Telegram/2089675850895724939_01_62825cbfdec1e79d2327e522faa4d8cdae2d992ff62ffc0cf4640a96a0459af5.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2087885544051421668": {
+      "media": {
+        "138911c753420d21c1bb72fdc28a4bfabdf7d06382da57b955363f886313d73b": {
+          "kind": "video",
+          "filename": "2087885544051421668_01_138911c753420d21c1bb72fdc28a4bfabdf7d06382da57b955363f886313d73b.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2087885544051421668_01_138911c753420d21c1bb72fdc28a4bfabdf7d06382da57b955363f886313d73b.mp4",
+              "dropbox_path": "/X2Telegram/2087885544051421668_01_138911c753420d21c1bb72fdc28a4bfabdf7d06382da57b955363f886313d73b.mp4",
+              "already_exists": true
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "2086820583518683379": {
+      "media": {
+        "ec2895db790682fc86734c87c558fe5b68b93a57dcb614e7c476bf1c91659bf5": {
+          "kind": "video",
+          "filename": "2086820583518683379_01_ec2895db790682fc86734c87c558fe5b68b93a57dcb614e7c476bf1c91659bf5.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "2086820583518683379_01_ec2895db790682fc86734c87c558fe5b68b93a57dcb614e7c476bf1c91659bf5.mp4",
+              "dropbox_path": "/X2Telegram/2086820583518683379_01_ec2895db790682fc86734c87c558fe5b68b93a57dcb614e7c476bf1c91659bf5.mp4",
+              "already_exists": true
             }
           }
         }
