@@ -68,6 +68,17 @@ def test_dedupe_state_is_transferred_to_a_separate_write_job():
     assert "refusing to overwrite remote state" in persist_state
 
 
+def test_dedupe_state_is_committed_before_rebase_attempts():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    persist_state = text.split("  persist-state:", 1)[1]
+    add_at = persist_state.index("git add state/dedupe.json")
+    commit_at = persist_state.index('git commit -m "chore: persist X2Telegram delivery state [skip ci]"')
+    fetch_at = persist_state.index("git fetch origin main")
+    rebase_at = persist_state.index("git rebase origin/main")
+    push_at = persist_state.index("git push origin HEAD:main")
+    assert add_at < commit_at < fetch_at < rebase_at < push_at
+
+
 def test_production_workflow_pins_external_actions_and_runtime_artifacts():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" in text
