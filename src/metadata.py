@@ -114,6 +114,10 @@ def _classify_metadata_exception(exc: Exception) -> SourceRetrievalError:
         return SourceRetrievalError(
             "source_network_error", "A network error interrupted public media metadata retrieval from X.", "metadata", retryable=True,
         )
+    if re.search(r"no (?:video|media|photo).*found|does not contain.*media|not contain.*video", str(exc), re.IGNORECASE):
+        return SourceRetrievalError(
+            "no_supported_media", "The X post does not contain public photo or direct MP4 video media.", "metadata",
+        )
     return SourceRetrievalError(
         "source_metadata_unavailable",
         "Could not retrieve public media metadata from X or its public fallback providers. Verify that the post is public and try again.",
@@ -157,6 +161,7 @@ class YtDlpMetadataProvider(MetadataProvider):
                 "source_rate_limited": 0,
                 "source_access_denied": 1,
                 "source_media_unavailable": 2,
+                "no_supported_media": 3,
                 "source_timeout": 3,
                 "source_network_error": 4,
                 "unsupported_media_format": 5,

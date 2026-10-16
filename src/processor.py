@@ -269,6 +269,10 @@ class PostProcessor:
                 "attempts": exc.attempts,
             }})
             result.stage = exc.stage
+            if exc.code == "no_supported_media":
+                result.error_code = exc.code
+                result.error = str(exc)
+                return self._finish_no_media(result)
             failed = self._fail_all(result, exc.code, str(exc), exc.attempts)
             self._finalize_media_reconciliation(failed, "metadata_failed")
             return failed
@@ -305,6 +309,9 @@ class PostProcessor:
                 "media_index": media_index,
                 "source_index": item.index,
                 "kind": item.kind,
+                "bitrate": item.bitrate,
+                "width": item.width,
+                "height": item.height,
                 "download_status": "pending",
                 "size_bytes": None,
                 "sha256": None,

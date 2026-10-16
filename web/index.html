@@ -517,23 +517,45 @@
       if (destination) return `ส่งไป ${destination} ไม่สำเร็จ ลองใหม่อีกครั้ง`;
       return 'ระบบทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง';
     }
+    function formatBytes(value) {
+      const bytes = Number(value);
+      if (!Number.isFinite(bytes) || bytes < 0) return '';
+      if (bytes < 1024) return `${bytes} ไบต์`;
+      const units = ['KB', 'MB', 'GB'];
+      let size = bytes; let unit = -1;
+      do { size /= 1024; unit += 1; } while (size >= 1024 && unit < units.length - 1);
+      return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unit]}`;
+    }
+    function mediaQualityText(manifest) {
+      return (manifest || []).map((media) => {
+        const parts = [`สื่อ #${media.media_index}`];
+        if (media.kind === 'video' && media.width && media.height) parts.push(`${media.width}×${media.height} พิกเซล`);
+        if (media.kind === 'video' && media.bitrate) parts.push(`${Math.round(Number(media.bitrate) / 1000)} kbps`);
+        const bytes = formatBytes(media.size_bytes);
+        if (bytes) parts.push(bytes);
+        return parts.join(' · ');
+      }).join(' | ');
+    }
     function reportOutcome(report) {
       const summary = report.summary || {};
       const handled = Number(summary.sent || 0) + Number(summary.skipped_duplicate || 0);
       const failed = Number(summary.failed || 0);
+      const noMedia = Number(summary.no_media || 0);
+      const uncertain = Number(summary.outcome_unconfirmed || 0);
+      const attention = failed + noMedia + uncertain;
       if (!summary.total) return;
       let label = 'ตรวจผลเสร็จแล้ว';
       let description = 'ดูผลแยกตามลิงก์ได้ด้านล่าง';
       let badge = 'เสร็จสิ้น';
       let state = 'completed';
-      if (failed && handled) {
+      if (attention && handled) {
         label = 'เสร็จบางส่วน';
-        description = `จัดการแล้ว ${handled} รายการ แต่ยังมี ${failed} รายการที่ต้องตรวจสอบหรือลองใหม่`;
+        description = `จัดการแล้ว ${handled} รายการ แต่ยังมี ${attention} รายการที่ต้องตรวจสอบหรือลองใหม่`;
         badge = 'ต้องตรวจสอบบางรายการ';
         state = 'partial_success';
-      } else if (failed) {
+      } else if (attention) {
         label = 'มีรายการที่ต้องแก้ไข';
-        description = `มี ${failed} รายการที่ยังไม่สำเร็จ ดูสาเหตุด้านล่างแล้วลองใหม่เฉพาะรายการนั้น`;
+        description = `มี ${attention} รายการที่ต้องตรวจสอบ ดูสาเหตุด้านล่างแล้วลองใหม่เฉพาะรายการนั้น`;
         badge = 'ต้องตรวจสอบ';
         state = 'failed';
       } else if (summary.skipped_duplicate && !summary.sent) {
@@ -586,7 +608,8 @@
         const stageNames = { input: 'ตรวจลิงก์', metadata: 'อ่านข้อมูลโพสต์', download: 'ดาวน์โหลดสื่อ', processing: 'เตรียมไฟล์', completed: 'ส่งปลายทาง' };
         const stageText = item.stage ? `${stageNames[item.stage] || item.stage} · ` : '';
         const failureText = failures.length ? ` · ${failures.join(' · ')}` : item.error ? ` · ${humanError(item.error_code, item.error)}` : '';
-        const detail = stageText + (targetStates.length ? targetStates.join(' · ') + failureText : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} รายการ · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ'));
+        const qualityText = mediaQualityText(item.media_manifest);
+        const detail = stageText + (targetStates.length ? targetStates.join(' · ') + failureText : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} รายการ · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ')) + (qualityText ? ` · คุณภาพไฟล์: ${qualityText}` : '');
         const uncertain = item.status === 'outcome_unconfirmed' || Object.values(item.destinations || {}).some((destination) => destination.status === 'outcome_unconfirmed' || (destination.items || []).some((part) => part.status === 'outcome_unconfirmed'));
         return `<div class="result-row"><i class="status-dot ${good ? 'good' : uncertain ? 'uncertain' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : uncertain ? 'result-uncertain' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
       }).join('');
@@ -604,8 +627,9 @@
       const summary = report.summary || {};
       reportOutcome(report);
       const handled = Number(summary.sent || 0) + Number(summary.skipped_duplicate || 0);
-      const failedText = summary.failed ? ` · ต้องแก้ไข ${summary.failed}` : '';
-      showToast(`ตรวจเสร็จ: จัดการแล้ว ${handled} · ไฟล์เดิม ${summary.skipped_duplicate || 0}${failedText}`);
+      const attention = Number(summary.failed || 0) + Number(summary.no_media || 0) + Number(summary.outcome_unconfirmed || 0);
+      const attentionText = attention ? ` · ต้องตรวจสอบ ${attention}` : '';
+      showToast(`ตรวจเสร็จ: จัดการแล้ว ${handled} · ไฟล์เดิม ${summary.skipped_duplicate || 0}${attentionText}`);
     }
     function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations()) {
       const payload = { large_file_mode: Boolean(largeFileMode), request_id: requestId, destinations };

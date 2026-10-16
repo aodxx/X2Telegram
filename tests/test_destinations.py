@@ -188,6 +188,7 @@ def test_post_with_two_video_media_items_downloads_best_variant_for_each(tmp_pat
     assert [sha256(data).hexdigest() for data in exported] == [sha256(payloads[url]).hexdigest() for url in selected_urls]
     assert [entry["sha256"] for entry in result.media_manifest] == [sha256(data).hexdigest() for data in exported]
     assert [entry["size_bytes"] for entry in result.media_manifest] == [len(data) for data in exported]
+    assert [entry["bitrate"] for entry in result.media_manifest] == [200, 300]
     assert result.media_reconciliation["expected_items"] == 2
     assert result.media_reconciliation["downloaded_items"] == 2
     assert result.media_reconciliation["destinations"]["download"] == {

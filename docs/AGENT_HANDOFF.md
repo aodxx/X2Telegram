@@ -77,6 +77,13 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 ## 4. Backlog ตามลำดับความสำคัญ
 
+### Release ล่าสุด — ขั้นที่ 2–4 (2026-10-17)
+
+- เสร็จ: แยกกรณีโพสต์ไม่มีสื่อที่รองรับจาก metadata failure และเพิ่มคำแนะนำภาษาไทยบน Dashboard
+- เสร็จ: รายงาน bitrate/ความละเอียด/ขนาดไฟล์ของ media variant ที่เลือกและตรวจสอบแล้ว
+- เสร็จ: สถานะรวมแยก “เสร็จบางส่วน” และนับ `no_media`/ผลที่ยังยืนยันไม่ได้เป็นรายการที่ต้องตรวจสอบ
+- หลักฐาน: Python 156 tests และ Worker/Dashboard 45 tests ผ่าน; ไม่ทำ live upload ซ้ำ เพราะผู้ใช้ยืนยันว่าทดสอบขั้นที่ 1 แล้ว
+
 > หมายเหตุสำหรับ Manus: รายการย่อยใน handoff นี้เป็น operational backlog โดยเฉพาะ live-validation blockers และอาจใช้การจัดกลุ่ม P1/P2/P3 คนละแบบกับแผนพัฒนา 5 อันดับใน `docs/MANUS_EXECUTION_PLAN.md`. สำหรับลำดับ implementation ให้ยึด P1→P5 ใน `MANUS_EXECUTION_PLAN.md`; ใช้รายการด้านล่างเพื่อเลือกงานตรวจ live ที่ปลอดภัยเมื่อถึงจุดที่เกี่ยวข้องหรือเมื่อมี blocker ที่ระบุหลักฐานแล้ว.
 
 ### P1 — ต้องทำต่อเมื่อมีสภาพแวดล้อมพร้อม

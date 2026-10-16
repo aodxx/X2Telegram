@@ -6,7 +6,7 @@ import pytest
 import requests
 
 from src.errors import SourceRetrievalError
-from src.metadata import Metadata, YtDlpMetadataProvider
+from src.metadata import Metadata, YtDlpMetadataProvider, _classify_metadata_exception
 from src.models import MediaItem
 from src.urls import parse_x_url
 
@@ -65,6 +65,12 @@ def test_fxtwitter_extracts_high_quality_mp4_variants():
     assert [item.index for item in result.media] == [0, 0]
     assert result.media[-1].size_bytes == 80_000_000
     assert result.media[-1].url.endswith("?tag=12")
+
+
+def test_metadata_exception_for_missing_video_is_classified_as_no_supported_media():
+    error = _classify_metadata_exception(RuntimeError("No video could be found in this tweet"))
+    assert isinstance(error, SourceRetrievalError)
+    assert error.code == "no_supported_media"
 
 
 def test_syndication_assigns_one_media_index_to_each_video_and_its_variants():

@@ -1,9 +1,16 @@
 # X2Telegram — Project Status
 
-**อัปเดต:** 2026-10-16
+**อัปเดต:** 2026-10-17
 **สถานะ:** P1/P2 ผ่านหลักฐานตามขอบเขตเดิม. P3 ถูก squash-merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) เป็น main commit `9e9e9f8` และยัง partial ตามข้อจำกัด exactly-once. Access second-email support อยู่ใน main จาก PR [#25](https://github.com/aodxx/X2Telegram/pull/25), commit `f5372e5`; Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่านด้วย version `649353cf-fd9a-498b-9415-14bae01de486`. Dashboard batch-status fix ถูก merge จาก PR [#27](https://github.com/aodxx/X2Telegram/pull/27) และปรับ mobile/accessibility เพิ่มใน commit `f08c0aa`; Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages deploy [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. แก้ workflow persist-state ให้ commit state ก่อน rebase และเพิ่ม regression test แล้ว. ผู้ใช้รองยังไม่ได้ทำ OTP sign-in จึงยังไม่ยืนยัน session จริง. P4 ยังคง partial เพราะไม่มี live destination invocation ที่ได้รับอนุญาต และ P5 ยังรอ real-mobile smoke test.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
+
+### Release note — ขั้นที่ 2–4
+
+- แยก metadata error กรณีโพสต์ไม่มีวิดีโอ/สื่อที่รองรับออกจากระบบ metadata ล้มเหลว และ Dashboard แนะนำสาเหตุเป็นภาษาไทย
+- เพิ่ม `bitrate`, `width`, `height` และขนาดไฟล์ที่ตรวจสอบแล้วใน `media_manifest` เพื่อแสดงคุณภาพ variant ที่เลือกจริง
+- Dashboard นับ `no_media` และผลที่ยังยืนยันไม่ได้เป็นรายการที่ต้องตรวจสอบ พร้อมแสดง “เสร็จบางส่วน” เมื่อมีทั้งรายการที่จัดการแล้วและรายการที่ต้องแก้ไข
+- Validation ล่าสุด: Python **156 passed**, Worker/Dashboard **45 passed**; ยังไม่ได้ทำ live upload ซ้ำตามขอบเขตที่ผู้ใช้กำหนด
 
 ## ภาพรวม
 

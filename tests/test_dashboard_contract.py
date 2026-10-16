@@ -81,5 +81,12 @@ def test_dashboard_translates_actionable_source_errors_into_thai_guidance():
 def test_dashboard_distinguishes_partial_completion_from_total_failure():
     assert "function reportOutcome(report)" in HTML
     assert "เสร็จบางส่วน" in HTML
-    assert "จัดการแล้ว ${handled} รายการ แต่ยังมี ${failed} รายการ" in HTML
+    assert "จัดการแล้ว ${handled} รายการ แต่ยังมี ${attention} รายการ" in HTML
     assert "status-badge[data-state=\"partial_success\"]" in HTML
+
+
+def test_dashboard_shows_selected_media_quality_and_counts_no_media_as_attention():
+    assert "function mediaQualityText(manifest)" in HTML
+    assert "พิกเซล" in HTML and "kbps" in HTML and "คุณภาพไฟล์:" in HTML
+    assert "const noMedia = Number(summary.no_media || 0)" in HTML
+    assert "const attention = failed + noMedia + uncertain" in HTML

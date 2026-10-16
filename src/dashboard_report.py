@@ -170,6 +170,9 @@ def _safe_media_manifest(value: Any) -> list[dict[str, Any]]:
             "kind": kind,
             "download_status": download_status if download_status in _SAFE_MEDIA_DOWNLOAD_STATUSES else "failed",
         }
+        for key in ("bitrate", "width", "height"):
+            if item.get(key) is not None:
+                entry[key] = _safe_count(item.get(key))
         if item.get("size_bytes") is not None:
             entry["size_bytes"] = _safe_count(item.get("size_bytes"))
         digest = str(item.get("sha256") or "")
