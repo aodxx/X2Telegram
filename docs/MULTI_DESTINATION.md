@@ -13,7 +13,7 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
       └── Browser download ZIP
 ```
 
-เลือกได้หนึ่งปลายทางหรือหลายปลายทางพร้อมกันต่อหนึ่ง job; หนึ่ง job รองรับ X URL สูงสุด 50 รายการ และยังคงใช้ workflow หลักเพียง workflow เดียว
+เลือกได้หนึ่งหรือหลายปลายทางพร้อมกันต่อหนึ่งงาน; หนึ่งงานรองรับลิงก์ X สูงสุด 200 รายการ และยังคงใช้ workflow หลักเพียง workflow เดียว
 
 ## ตัวเลือกปลายทาง
 
@@ -57,13 +57,13 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 | `DROPBOX_APP_SECRET` | App secret ของ Dropbox App |
 | `DROPBOX_ACCESS_TOKEN` | (ไม่บังคับ) access token ชั่วคราว; ถ้ามี refresh token ระบบจะ refresh เมื่อได้ HTTP 401 |
 
-ตั้ง `DROPBOX_REMOTE_FOLDER` เป็น Repository variable ได้ เช่น `Archive/X2Telegram`; ค่าเริ่มต้นคือ `/X2Telegram`. ห้ามใส่ token ใน Dashboard, source code หรือ log. ระบบใช้ Dropbox `files/upload` สำหรับไฟล์ไม่เกิน 150 MB และ `upload_session/start`, `append_v2`, `finish` สำหรับไฟล์ใหญ่; HTTP 429 จะรอ `Retry-After` ก่อน retry.
+ตั้ง `DROPBOX_REMOTE_FOLDER` เป็น Repository variable ได้ เช่น `Archive/X2Telegram`; ค่าเริ่มต้นคือ `/X2Telegram`. ห้ามใส่ token ใน Dashboard, source code หรือ log. ระบบใช้ Dropbox `files/upload` สำหรับไฟล์ไม่เกิน 150 MB และ `upload_session/start`, `append_v2`, `finish` สำหรับไฟล์ใหญ่; HTTP 429 จะรอ `Retry-After` ก่อนลองใหม่. หาก Dropbox แจ้งว่า path ซ้ำ ระบบจะตรวจ metadata และ content hash ก่อนถือว่าไฟล์มีอยู่แล้ว และจะไม่เขียนทับไฟล์เดิมอัตโนมัติ.
 
 ขั้นตอนสร้าง Scoped App, ขอ `DROPBOX_REFRESH_TOKEN` ด้วย `token_access_type=offline`, เพิ่ม GitHub Secrets และทดสอบไฟล์ใหญ่ทีละขั้น อยู่ใน [คู่มือตั้งค่า Dropbox ภาษาไทย](DROPBOX_SETUP_TH.md). Connector ใช้ refresh token เป็นหลัก; `DROPBOX_ACCESS_TOKEN` เป็นค่าทางเลือกเท่านั้น.
 
 ## การส่งและสถานะ
 
-1. วาง URL หนึ่งรายการต่อบรรทัด (สูงสุด 50)
+1. วางลิงก์หนึ่งรายการต่อบรรทัด (สูงสุด 200 รายการ)
 2. เลือก Telegram, MEGA, Dropbox, Download ได้หนึ่งหรือหลายรายการ
 3. เปิด Large-file mode เฉพาะเมื่อต้องการส่ง Telegram ไฟล์เกิน 50 MB และตั้งค่าฝั่ง Telegram Local Bot API แล้ว
 4. กดเริ่มงานหนึ่งครั้ง; Dashboard dispatch หนึ่ง Actions run

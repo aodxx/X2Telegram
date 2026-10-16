@@ -12,7 +12,7 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
       └── private Actions artifact → Access-protected ZIP stream → Browser
 ```
 
-หนึ่ง job รองรับ X URL ได้สูงสุด 50 รายการ; workflow เดียวประมวลผล media แล้วใช้ local file เดียวกันกับทุก destination ที่เลือก. ผลลัพธ์แยก status ต่อ destination/media; failure ของ target หนึ่งไม่หยุด target อื่น. ปลายทาง default หากไม่ได้ระบุคือ Telegram เพื่อรักษาความเข้ากันได้
+หนึ่ง job รองรับ X URL ได้สูงสุด 200 รายการ; Worker จำกัด request body ที่ 64 KiB และ workflow เดียวประมวลผล media แล้วใช้ local file เดียวกันกับทุกปลายทางที่เลือก. ผลลัพธ์แยกสถานะต่อปลายทาง/สื่อ; ปัญหาของปลายทางหนึ่งไม่หยุดปลายทางอื่น. ปลายทางเริ่มต้นหากไม่ได้ระบุคือ Telegram เพื่อรักษาความเข้ากันได้
 
 | Target | ขนาดสูงสุดที่ระบบกำหนด | เก็บผลลัพธ์ |
 |---|---:|---|
@@ -71,7 +71,7 @@ npx wrangler deploy --config wrangler.toml
 ใช้ workflow เดียว `.github/workflows/x2telegram.yml`:
 
 - `url`: URL เดี่ยว (backward-compatible)
-- `urls`: batch 1–50 รายการ คั่นด้วย newline
+- `urls`: batch 1–200 รายการ คั่นด้วยบรรทัดใหม่
 - `destinations`: JSON array จาก `telegram`, `mega`, `dropbox`, `download`; ค่า default `['telegram']`
 - `large_file_mode`: เปิด Telegram Local Bot API เฉพาะเมื่อเลือก Telegram
 - `request_id`, `job_id`: tracking/idempotency
@@ -81,7 +81,7 @@ npx wrangler deploy --config wrangler.toml
 ## 5. ผู้ใช้รันงานอย่างไร
 
 1. เปิด [Dashboard](https://aodxx.github.io/X2Telegram/) และลงชื่อเข้าใช้ Cloudflare Access
-2. วาง URL หนึ่งรายการต่อบรรทัด ไม่เกิน 50
+2. วางลิงก์หนึ่งรายการต่อบรรทัด ไม่เกิน 200 รายการ
 3. เลือกหนึ่งหรือหลาย destination; ก่อนเลือก MEGA ตรวจว่าตั้ง Actions secrets แล้ว
 4. เปิด Large-file mode เฉพาะเมื่อส่ง Telegram >50 MB และ Local Bot API พร้อม
 5. กดเริ่มงานหนึ่งครั้ง แล้วติดตามผลแยกปลายทาง
@@ -127,6 +127,8 @@ Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่
 | `download_artifact_size_limit` | แบ่งรายการเป็นหลาย jobs; ZIP limit คือ 8 GiB/job |
 | `download_expired` | GitHub artifact มีอายุ 7 วัน; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่ |
 | `partial_success` | เปิดผลราย target แล้ว retry post เดิม; target ที่สำเร็จแล้วจะถูกข้ามตาม dedupe state |
+| `dropbox_path_conflict` | Dropbox มีไฟล์ชื่อเดียวกัน ระบบจะตรวจขนาด/ลายนิ้วมือเนื้อหา; ถ้าตรงกันจะถือว่าไฟล์มีอยู่แล้วและไม่ส่งซ้ำ |
+| `dropbox_hash_mismatch` | มีไฟล์ชื่อเดียวกันแต่เนื้อหาไม่ตรง ระบบไม่เขียนทับ ให้ตรวจไฟล์เดิมก่อนเริ่มงานใหม่ |
 | `metadata_error` / `no_media` | ตรวจว่า X post เป็นสาธารณะและยังมี media ที่ระบบรองรับ |
 
 ## 9. ขอบเขต/นโยบาย

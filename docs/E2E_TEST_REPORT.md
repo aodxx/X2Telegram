@@ -100,7 +100,7 @@
 | MEGA multi-media identity, changed version and duplicate | PASS (live synthetic integration on main) | Main run #38288698061: 2 initial items, 1 changed version, 1 true duplicate; 3 remote objects listed and downloaded back with matching bytes/SHA-256; isolated folder cleaned |
 | Dashboard Access/login same-origin | PASS (live) | Browser แสดง `Access ลงชื่อเข้าใช้แล้ว · พร้อมส่ง` |
 | Telegram normal path | PASS (live) | Run #37807253687, MP4 1 ไฟล์, message ID 347 |
-| Batch URL dispatch 1–50 | PASS (live 2 URLs) | Run #37816856323; completed posts ถูก dedupe ไม่ส่งซ้ำ |
+| Batch URL dispatch (ปัจจุบันสูงสุด 200) | PASS (live 2 URLs; regression รับ 200) | Run #37816856323; completed posts ถูก dedupe ไม่ส่งซ้ำ และ Worker/Dashboard tests ครอบคลุมเพดาน 200 |
 | Download-only, multiple URL job | PASS (live 2 URLs) | Run #37843359593; private artifact พร้อมและ report แสดง 2 files |
 | Worker protected ZIP streaming | PASS (live) | Browser ดาวน์โหลดจริงผ่าน Access route; ZIP CRC ผ่าน |
 | Telegram/MEGA/Dropbox/Download combinations | PASS สำหรับ media 1 รายการ (live); อีก URL ล้มก่อนถึง targets | Run #38037210973; all 4 destinations success/ready สำหรับรายการที่ดึงได้ |

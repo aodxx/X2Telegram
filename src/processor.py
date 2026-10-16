@@ -460,7 +460,7 @@ class PostProcessor:
                         self.logger.warning("destination_failed", extra={"event": "destination_failed", "context": {"post_id": post.post_id, "destination": destination, "error_code": code, "media_index": media_index}})
                         continue
 
-                    state = "ready" if destination == "download" else "success"
+                    state = "ready" if destination == "download" else "duplicate" if details.get("already_exists") else "success"
                     self._item(result, destination, destination_filename, state, media_index=media_index, **details)
                     if destination_filename not in result.filenames:
                         result.filenames.append(destination_filename)

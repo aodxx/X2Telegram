@@ -1,10 +1,10 @@
 import { unzipSync } from "fflate";
 
 const RUNS_LIMIT = 100;
-const BODY_LIMIT = 16 * 1024;
+const BODY_LIMIT = 64 * 1024;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 20;
-const MAX_BATCH_URLS = 50;
+const MAX_BATCH_URLS = 200;
 const attemptsByIdentity = new Map();
 const inFlightDispatches = new Map();
 let nextInFlightSweepAt = 0;

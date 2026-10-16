@@ -48,11 +48,11 @@ npx wrangler deploy --config wrangler.toml  # local/manual; production ใช้
 | `GET /` และ static assets | Cloudflare Access at edge + Worker JWT identity validation | เสิร์ฟ Dashboard จาก Worker origin; หน้าเว็บและ API ใช้ same-origin |
 | `GET /auth/check` | Access JWT + owner email | ให้ Dashboard ตรวจ session ก่อนเปิดปุ่ม submit |
 | `GET /health` | Worker route ไม่ต้องใช้ JWT; **production edge ยังถูก Cloudflare Access ครอบอยู่** | Liveness only; ไม่แสดง secret หรือยืนยัน upstream readiness. หากต้องการ public monitoring ต้องตั้ง Access bypass เฉพาะ path นี้ |
-| `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–50; validate และ dispatch `destinations` ไปยัง workflow |
+| `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–200; validate และ dispatch `destinations` ไปยัง workflow |
 | `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
 | `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |
 
-Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. `POST /jobs` ใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds ต่อ Access identity; binding error fail-closed เป็น `503 rate_limiter_unavailable`. Request body hard cap 16 KiB; destination values allowlist คือ `telegram`, `mega`, `dropbox`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
+Worker ตรวจ Access JWT signature RS256 กับ Cloudflare JWKS, issuer, audience, expiration, not-before และ email allowlist. `POST /jobs` ใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds ต่อ Access identity; binding error fail-closed เป็น `503 rate_limiter_unavailable`. Request body hard cap 64 KiB; destination values allowlist คือ `telegram`, `mega`, `dropbox`, `download`; URL ต้องเป็น HTTPS X/Twitter status URL. CORS จำกัด Dashboard origin เดียว; responses มี `Cache-Control: no-store`
 
 ## Dispatch และ idempotency
 

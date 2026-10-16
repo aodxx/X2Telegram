@@ -287,7 +287,8 @@ class DestinationDispatcher:
         if destination == "dropbox":
             if self.dropbox is None:
                 raise DestinationError("dropbox_configuration_error", "Dropbox destination is not configured.")
-            return {"dropbox_path": self.dropbox.upload(path, filename)}
+            dropbox_path = self.dropbox.upload(path, filename)
+            return {"dropbox_path": dropbox_path, "already_exists": getattr(self.dropbox, "last_outcome", "uploaded") == "already_exists"}
         if destination == "download":
             self.download.export(path, filename)
             return {}

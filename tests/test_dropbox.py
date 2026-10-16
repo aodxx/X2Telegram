@@ -74,6 +74,42 @@ def test_small_upload_uses_add_without_overwrite(tmp_path):
     assert calls[0][2]["headers"]["Authorization"] == "Bearer access"
 
 
+def test_path_conflict_with_matching_remote_hash_is_reported_as_existing(tmp_path):
+    calls = []
+    source = tmp_path / "same.mp4"
+    source.write_bytes(b"same-content")
+    expected_hash = DropboxUploader._content_hash(source)
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if url.endswith("/files/upload"):
+            return Response(409, payload={"error_summary": "path/conflict/file/..."})
+        if url.endswith("/files/get_metadata"):
+            return Response(payload={".tag": "file", "path_display": "/X2Telegram/same.mp4", "size": source.stat().st_size, "content_hash": expected_hash})
+        raise AssertionError(url)
+
+    uploader = DropboxUploader(access_token="access", request=request)
+    assert uploader.upload(source, "same.mp4") == "/X2Telegram/same.mp4"
+    assert uploader.last_outcome == "already_exists"
+    assert calls[0][1].endswith("/files/upload")
+    assert calls[1][1].endswith("/files/get_metadata")
+
+
+def test_path_conflict_with_different_remote_hash_is_not_called_success(tmp_path):
+    source = tmp_path / "different.mp4"
+    source.write_bytes(b"local-content")
+
+    def request(method, url, **kwargs):
+        if url.endswith("/files/upload"):
+            return Response(409, payload={"error_summary": "path/conflict/file/..."})
+        return Response(payload={".tag": "file", "content_hash": "0" * 64})
+
+    uploader = DropboxUploader(access_token="access", request=request)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(source, "different.mp4")
+    assert raised.value.code == "dropbox_hash_mismatch"
+
+
 def test_expired_access_token_refreshes_once_without_exposing_secret():
     calls = []
 

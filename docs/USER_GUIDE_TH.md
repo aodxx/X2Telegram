@@ -10,7 +10,7 @@
 
 ## 2. วาง URL และเลือกปลายทาง
 
-1. วาง URL สาธารณะของโพสต์ X **หนึ่ง URL ต่อหนึ่งบรรทัด**; หนึ่ง job รับได้สูงสุด 50 URL ตัวอย่าง:
+1. วางลิงก์สาธารณะของโพสต์ X **หนึ่งลิงก์ต่อหนึ่งบรรทัด**; หนึ่งงานรับได้สูงสุด 200 ลิงก์ ตัวอย่าง:
 
    ```text
    https://x.com/username/status/1234567890
@@ -23,7 +23,7 @@
    - **Dropbox** — อัปโหลดเข้าบัญชี Dropbox ผ่าน OAuth ที่ตั้งค่าใน GitHub Secrets; รองรับไฟล์ใหญ่และ retry โดยไม่เขียนทับไฟล์เดิม
    - **MEGA** — อัปโหลดไปบัญชี MEGA ที่ตั้งไว้ใน GitHub Actions Secrets; ต้องมี `MEGA_EMAIL` และ `MEGA_PASSWORD` (บัญชีเปิด TOTP ให้ตั้ง `MEGA_TOTP_SECRET` ด้วย)
    - **ดาวน์โหลด ZIP** — ให้ browser ดาวน์โหลดไฟล์ media ที่รวมเป็น ZIP; ไม่ต้องตั้ง secret เพิ่ม
-3. ตรวจ preview ว่า URL ทุกบรรทัดถูกต้องและไม่ซ้ำ; แก้รายการ invalid/duplicate และไม่เกิน 50 URLs
+3. ตรวจรายการว่าลิงก์ทุกบรรทัดถูกต้องและไม่ซ้ำ; แก้รายการที่ผิดหรือซ้ำ และไม่เกิน 200 ลิงก์
 4. เปิด **Large-file mode** เมื่อต้องการส่ง Telegram เกิน 50 MB และระบบถูกตั้งค่า Local Bot API แล้ว; ตัวเลือกนี้ไม่จำเป็นสำหรับ MEGA/Dropbox/Download และแต่ละปลายทางมีขีดจำกัดของตัวเอง
 5. กดปุ่มเริ่มงานหนึ่งครั้ง. Dashboard ส่ง URL และ destinations ไป Worker; หนึ่งชุดจะสร้างหนึ่ง GitHub Actions run
 
@@ -62,7 +62,7 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 
 - Job ล่าสุดเก็บใน local storage ของ browser เครื่องนี้; ใช้ **งานล่าสุด** เพื่อเรียกสถานะกลับหลัง refresh
 - **ยังไม่ได้ยืนยัน Access**: กด **ลงชื่อเข้าใช้**, ทำ OTP แล้วกลับมา Dashboard/refresh
-- **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ URL ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 50 และเลือกอย่างน้อยหนึ่งปลายทาง
+- **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ลิงก์ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 200 และเลือกอย่างน้อยหนึ่งปลายทาง
 - **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
 - **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
 - **ไฟล์เก่าถูกเขียนทับก่อนแก้ไข**: ใน MEGA ตรวจเมนูสามจุด → **Previous versions** (ไอคอนรูปนาฬิกา) หากเปิด File versioning ไว้; [คู่มือ MEGA เรื่อง file version history](https://help.mega.io/files-folders/data-restoration/file-version-history). การกู้คืนขึ้นกับการตั้งค่าและข้อมูลที่บัญชียังเก็บอยู่

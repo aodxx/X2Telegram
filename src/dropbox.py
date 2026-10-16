@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 from pathlib import Path
 import json
 import os
@@ -43,6 +44,7 @@ class DropboxUploader:
         self.request = request
         self.sleep = sleep
         self._refresh_attempted = False
+        self.last_outcome = "uploaded"
 
     @staticmethod
     def _clean_folder(value: str) -> str:
@@ -132,6 +134,22 @@ class DropboxUploader:
             return response
         raise DestinationError("dropbox_network_error", "Dropbox request failed after retries.")
 
+    @staticmethod
+    def _error_summary(response) -> str:
+        try:
+            payload = response.json() or {}
+        except (ValueError, AttributeError):
+            return ""
+        summary = payload.get("error_summary")
+        if isinstance(summary, str):
+            return summary.lower()
+        error = payload.get("error")
+        if isinstance(error, dict):
+            tag = error.get(".tag") or error.get("tag")
+            if isinstance(tag, str):
+                return tag.lower()
+        return ""
+
     def _ensure_success(self, response, operation: str) -> dict:
         if response.status_code >= 400:
             if response.status_code == 401:
@@ -139,10 +157,15 @@ class DropboxUploader:
             elif response.status_code == 429:
                 code = "dropbox_rate_limited"
             elif response.status_code == 409:
-                code = "dropbox_conflict"
+                summary = self._error_summary(response)
+                code = "dropbox_path_conflict" if "path/conflict" in summary else "dropbox_conflict"
             else:
                 code = "dropbox_api_error"
-            raise DestinationError(code, f"Dropbox {operation} failed (HTTP {response.status_code}).")
+            messages = {
+                "dropbox_path_conflict": "Dropbox already contains a file at this path.",
+                "dropbox_conflict": "Dropbox rejected the request because the remote state conflicts.",
+            }
+            raise DestinationError(code, messages.get(code, f"Dropbox {operation} failed (HTTP {response.status_code})."))
         try:
             return response.json() if response.content else {}
         except (ValueError, AttributeError) as exc:
@@ -155,6 +178,37 @@ class DropboxUploader:
             data=data,
         )
         return self._ensure_success(response, endpoint.rsplit("/", 1)[-1])
+
+    def _api_call(self, endpoint: str, body: dict) -> dict:
+        response = self._call("POST", f"{self.API_BASE}{endpoint}", json_body=body)
+        return self._ensure_success(response, endpoint.rsplit("/", 1)[-1])
+
+    @staticmethod
+    def _content_hash(path: Path) -> str:
+        block_hashes = []
+        with path.open("rb") as handle:
+            while True:
+                block = handle.read(4 * 1024 * 1024)
+                if not block:
+                    break
+                block_hashes.append(hashlib.sha256(block).digest())
+        return hashlib.sha256(b"".join(block_hashes)).hexdigest()
+
+    def _handle_existing_path(self, source: Path, target: str) -> str:
+        try:
+            metadata = self._api_call("/files/get_metadata", {"path": target})
+        except DestinationError as exc:
+            if exc.code == "dropbox_api_error":
+                raise DestinationError("dropbox_path_conflict", "Dropbox has a file with the same name, but it could not be checked safely.") from None
+            raise
+        remote_hash = metadata.get("content_hash") if isinstance(metadata, dict) else None
+        if remote_hash and remote_hash == self._content_hash(source):
+            self.last_outcome = "already_exists"
+            return target
+        raise DestinationError(
+            "dropbox_hash_mismatch",
+            "Dropbox has a file with the same name, but its contents do not match; the existing file was not overwritten.",
+        )
 
     def _upload_small(self, path: Path, target: str) -> dict:
         with path.open("rb") as handle:
@@ -183,11 +237,16 @@ class DropboxUploader:
         if not source.is_file():
             raise DestinationError("dropbox_upload_failed", "Dropbox source file is unavailable.")
         target = self._path(filename)
+        self.last_outcome = "uploaded"
         try:
             if source.stat().st_size <= self.SMALL_FILE_LIMIT:
                 self._upload_small(source, target)
             else:
                 self._upload_session(source, target)
+        except DestinationError as exc:
+            if exc.code == "dropbox_path_conflict":
+                return self._handle_existing_path(source, target)
+            raise
         except OSError as exc:
             raise DestinationError("dropbox_upload_failed", "Dropbox source file could not be read.") from exc
         return target

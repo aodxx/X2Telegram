@@ -2,7 +2,7 @@
 
 **อัปเดต:** 2026-10-16
 **จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge commit `9e9e9f8`; Access secondary-email support main commit `f5372e5` (PR #25); latest application commit `f08c0aa`; Cloudflare Worker version `649353cf-fd9a-498b-9415-14bae01de486`
-**สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว แต่ยังไม่อ้าง exactly-once. Access policy/Worker รองรับ primary และ optional secondary email แบบ exact หลัง PR [#25](https://github.com/aodxx/X2Telegram/pull/25). Commit `f08c0aa` แก้ state persistence ordering bug, เพิ่ม regression test และปรับ mobile/accessibility UX; Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. P4 ยัง PARTIAL: live Telegram/Dropbox tests รอปลายทางทดสอบที่ได้รับอนุญาต. ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง และ P5 ยังรอ real-mobile smoke test.
+**สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว แต่ยังไม่อ้าง exactly-once. Access policy/Worker รองรับ primary และ optional secondary email แบบ exact หลัง PR [#25](https://github.com/aodxx/X2Telegram/pull/25). Commit `f08c0aa` แก้ state persistence ordering bug, เพิ่ม regression test และปรับ mobile/accessibility UX; release ถัดมาแก้ Dropbox HTTP 409 path conflict ด้วย metadata/content-hash check, เพิ่มคำอธิบายภาษาไทย และเพิ่ม batch เป็น 200 ลิงก์. Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. P4 ยัง PARTIAL: live Telegram/Dropbox tests รอปลายทางทดสอบที่ได้รับอนุญาต. ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง และ P5 ยังรอ real-mobile smoke test.
 
 **P4 implementation update (2026-10-13):** PR [#27](https://github.com/aodxx/X2Telegram/pull/27) merged to main as `763bd9a` and Dashboard Pages deployment [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) succeeded. It fixes status polling/recovery across transient errors and clarifies that newly pasted URLs are a separate, unsent batch; mocked Telegram 50 MB boundary and Dropbox OAuth/session tests were added. P4 remains PARTIAL because no live destination test was run. Track A needs an authorized Telegram test chat; Track B needs a confirmed Dropbox test account/folder and cleanup policy before a real upload. No Worker deployment was needed. See [`plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md`](plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md).
 
@@ -25,7 +25,7 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 - ย้าย control plane จาก GAS มาเป็น Cloudflare Worker/Access ใน production path
 - Dashboard และ API ใช้ Worker origin เดียวกัน
-- รับ URL เดี่ยวหรือ batch สูงสุด 50 URLs
+- รับลิงก์เดี่ยวหรือ batch สูงสุด 200 ลิงก์ (request body สูงสุด 64 KiB)
 - เลือกปลายทาง `telegram`, `mega`, `dropbox`, `download`
 - มี request idempotency และ dedupe state แบบ privacy-minimized
 - มี partial success และ retry เฉพาะ target ที่ยังไม่สำเร็จ

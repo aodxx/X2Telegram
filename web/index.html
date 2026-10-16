@@ -175,7 +175,7 @@
 
     <section class="hero">
       <div><div class="eyebrow">ส่งและติดตามในหน้าเดียว</div><h1>ส่งสื่อจาก X<br>ไปยังปลายทางที่เลือก</h1><p>วางลิงก์ เลือกปลายทาง แล้วติดตามความคืบหน้าได้ที่นี่</p></div>
-      <div class="hero-meta">สูงสุด 50 ลิงก์ต่อหนึ่งงาน · เลือกได้หลายปลายทาง</div>
+      <div class="hero-meta">สูงสุด 200 ลิงก์ต่อหนึ่งงาน · เลือกได้หลายปลายทาง</div>
     </section>
 
     <section class="grid">
@@ -239,7 +239,7 @@
     const API_URL = String(window.X2TELEGRAM_CONFIG?.apiBase || '').replace(/\/+$/, '');
     const CURRENT_KEY = 'x2telegram.currentJob.v1';
     const RECENT_KEY = 'x2telegram.recentJobs.v1';
-    const MAX_BATCH_URLS = 50;
+    const MAX_BATCH_URLS = 200;
     let activeRun = null;
     let pollTimer = null;
     let backendReady = false;
@@ -267,7 +267,7 @@
       const button = $('runBtn');
       button.disabled = runBusy || !backendReady || !ready || destinations.length === 0;
       button.style.opacity = button.disabled ? '.6' : '1';
-      const targetLabel = destinations.length === 1 && destinations[0] === 'telegram' ? 'ส่งไป Telegram' : `ส่งไป ${destinations.length} ปลายทาง`;
+      const targetLabel = destinations.length === 1 && destinations[0] === 'telegram' ? 'ส่งไป Telegram' : `ส่งไปยัง ${destinations.length} ปลายทาง`;
       button.textContent = lastReview.validLines.length ? `เริ่มส่ง ${lastReview.validLines.length} ลิงก์ · ${targetLabel}` : 'เริ่มงาน';
     }
     function selectedDestinations() {
@@ -294,7 +294,7 @@
         return `<div class="url-row"><i class="status-dot ${good ? 'good' : 'bad'}"></i><div style="min-width:0;flex:1"><b>@${parsed ? parsed.user : 'ตรวจสอบไม่ได้'}</b><code title="${escapeHtml(line)}">${escapeHtml(line)}</code></div><span class="badge ${good ? 'good' : 'bad'}">${label}</span></div>`;
       }).join('') : '<div class="empty">วางลิงก์ทางซ้ายเพื่อตรวจสอบ</div>';
       $('reviewList').innerHTML = html; $('validCount').textContent = valid; $('invalidCount').textContent = invalid;
-      $('lineHint').textContent = lines.length ? `${lines.length}/${MAX_BATCH_URLS} ลิงก์ · พร้อมใช้ ${valid}` : `ยังไม่มีรายการ · สูงสุด ${MAX_BATCH_URLS} ลิงก์`;
+      $('lineHint').textContent = lines.length ? `${lines.length}/${MAX_BATCH_URLS} ลิงก์ · ใช้ได้ ${valid}` : `ยังไม่มีรายการ · วางได้สูงสุด ${MAX_BATCH_URLS} ลิงก์ต่อครั้ง`;
       $('reviewState').textContent = overLimit ? `เกินขีดจำกัด ${MAX_BATCH_URLS} ลิงก์` : lines.length ? (valid && !invalid ? `ตรวจแล้ว · ${valid} พร้อมใช้` : 'ตรวจแล้ว · แก้ลิงก์ผิดหรือซ้ำก่อนส่ง') : 'พร้อมตรวจสอบ';
       if (!activeRun) {
         $('progressText').textContent = 'พร้อมเริ่ม';
@@ -345,26 +345,32 @@
         const messages = {
           unauthorized: 'ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access หรือ session หมดอายุ',
           forbidden: 'บัญชีนี้ไม่ได้รับอนุญาตให้ใช้ Dashboard',
-          invalid_url: 'กรุณาใช้ HTTPS X post URL ที่ถูกต้อง',
-          invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง',
-          invalid_url_list: 'ใส่ X URL อย่างน้อย 1 รายการ',
+          invalid_url: 'กรุณาใช้ลิงก์โพสต์ X ที่ถูกต้องและขึ้นต้นด้วย HTTPS',
+          invalid_json: 'ข้อมูลคำขอไม่ถูกต้อง กรุณาลองใหม่',
+          invalid_url_list: 'กรุณาใส่ลิงก์โพสต์ X อย่างน้อย 1 รายการ',
           duplicate_url: 'มีโพสต์ซ้ำในชุดนี้ กรุณาลบ URL ที่ซ้ำ',
-          too_many_urls: `หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} URLs`,
-          invalid_request_id: 'ไม่พบ Request ID ที่ถูกต้อง',
+          too_many_urls: `ใส่ลิงก์ได้สูงสุด ${MAX_BATCH_URLS} รายการต่อครั้ง หากมีมากกว่านี้ให้แบ่งเป็นงานถัดไป`,
+          invalid_request_id: 'ไม่พบรหัสงานที่ถูกต้อง กรุณาเริ่มงานใหม่',
           invalid_destinations: 'เลือกปลายทางอย่างน้อยหนึ่งรายการ',
-          idempotency_conflict: 'Request ID นี้ถูกใช้กับข้อมูลอื่นแล้ว กรุณาเริ่มรายการใหม่',
-          rate_limited: 'ส่งคำขอเร็วเกินไป กรุณารอสักครู่',
-          job_not_found: 'ยังไม่พบงานเดิมใน GitHub Actions; ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ',
-          github_dispatch_failed: 'GitHub Actions รับงานไม่ได้ กรุณาตรวจสถานะระบบ',
-          backend_not_configured: 'Cloudflare Worker ยังตั้งค่าไม่ครบ',
+          idempotency_conflict: 'รหัสงานนี้ถูกใช้กับข้อมูลอื่นแล้ว กรุณาเริ่มงานใหม่',
+          rate_limited: 'ส่งคำขอถี่เกินไป กรุณารอสักครู่แล้วลองใหม่',
+          job_not_found: 'ยังไม่พบงานเดิม ระบบจะไม่เริ่มงานซ้ำอัตโนมัติ',
+          github_dispatch_failed: 'ระบบรับงานไม่ได้ชั่วคราว กรุณาลองใหม่ภายหลัง',
+          backend_not_configured: 'ระบบควบคุมยังตั้งค่าไม่ครบ กรุณาติดต่อผู้ดูแล',
+          dropbox_path_conflict: 'Dropbox มีไฟล์ชื่อเดียวกันอยู่แล้ว ระบบกำลังตรวจว่าเป็นไฟล์เดียวกันหรือไม่',
+          dropbox_hash_mismatch: 'Dropbox มีไฟล์ชื่อเดียวกัน แต่เนื้อหาไม่ตรงกัน ระบบไม่เขียนทับไฟล์เดิม',
+          dropbox_conflict: 'Dropbox ปฏิเสธคำขอเพราะข้อมูลปลายทางขัดแย้งกัน กรุณาตรวจไฟล์ก่อนลองใหม่',
+          dropbox_duplicate: 'Dropbox มีไฟล์นี้อยู่แล้ว จึงไม่ส่งซ้ำ',
+          dropbox_rate_limited: 'Dropbox จำกัดความถี่การส่งชั่วคราว กรุณารอสักครู่แล้วลองเฉพาะรายการที่ล้มเหลว',
+          dropbox_authentication_failed: 'การเชื่อมต่อ Dropbox หมดอายุหรือถูกยกเลิก กรุณาให้ผู้ดูแลตรวจการเชื่อมต่อ',
           download_not_ready: 'ไฟล์ยังไม่พร้อมดาวน์โหลด กรุณารอสักครู่',
           download_unavailable: 'งานนี้ไม่มีไฟล์ ZIP สำหรับดาวน์โหลด',
-          download_expired: 'ไฟล์ ZIP หมดอายุแล้ว; หากต้องการให้สร้างใหม่ ให้ retry เฉพาะปลายทางดาวน์โหลด',
-          download_artifact_missing: 'ไม่พบ ZIP artifact; หากต้องการให้สร้างใหม่ ให้ retry เฉพาะปลายทางดาวน์โหลด',
-          report_expired: 'รายงานหมดอายุ; สถานะ workflow ยังตรวจได้ แต่ผลรายปลายทางเรียกคืนไม่ได้',
-          report_artifact_missing: 'ไม่พบรายงานของงานเดิม; ระบบจะไม่ dispatch งานใหม่ให้เอง',
-          report_unavailable: 'ดึงรายงานไม่สำเร็จ; ตรวจสถานะอีกครั้งได้โดยไม่ส่งงานใหม่',
-          artifact_download_failed: 'ดึง ZIP จาก GitHub ไม่สำเร็จ',
+          download_expired: 'ไฟล์ ZIP หมดอายุแล้ว หากต้องการสร้างใหม่ให้ลองเฉพาะปลายทางดาวน์โหลด',
+          download_artifact_missing: 'ไม่พบไฟล์ ZIP ของงานเดิม ระบบจะไม่เริ่มงานใหม่เอง',
+          report_expired: 'รายงานหมดอายุแล้ว แต่ยังตรวจสถานะงานได้; ผลแยกรายการอาจเรียกคืนไม่ได้',
+          report_artifact_missing: 'ไม่พบรายงานของงานเดิม ระบบจะไม่เริ่มงานใหม่เอง',
+          report_unavailable: 'อ่านรายงานไม่สำเร็จ กรุณากดตรวจรายงานอีกครั้งโดยไม่เริ่มงานใหม่',
+          artifact_download_failed: 'ดาวน์โหลดไฟล์ ZIP ไม่สำเร็จ กรุณาลองใหม่ภายหลัง',
         };
         const error = new Error(messages[data.error?.code] || data.error?.message || 'เรียก Control Worker ไม่สำเร็จ');
         error.status = response.status; error.code = data.error?.code;
@@ -440,11 +446,11 @@
       const destinationText = (data.destinations || activeRun.destinations || []).map((name) => destinationNames[name] || name).join(' + ');
       const downloadUrl = typeof data.download?.url === 'string' && /^\/jobs\/job-[a-f0-9]{32}\/download$/.test(data.download.url) ? data.download.url : '';
       const downloadLink = downloadUrl ? `<a href="${escapeHtml(downloadUrl)}" download>ดาวน์โหลดไฟล์ ZIP (${Number(data.download.file_count || 0)} ไฟล์) ↓</a>` : '';
-      const downloadStatus = data.download?.status === 'expired' ? '<span>ไฟล์ ZIP หมดอายุแล้ว · retry เฉพาะปลายทางดาวน์โหลดได้</span>' : data.download?.status === 'unavailable' ? '<span>ไฟล์ ZIP ไม่พร้อมใช้งาน · ตรวจผลปลายทางด้านล่าง</span>' : data.download?.status === 'checking' ? '<span>กำลังตรวจไฟล์ ZIP...</span>' : '';
+      const downloadStatus = data.download?.status === 'expired' ? '<span>ไฟล์ ZIP หมดอายุแล้ว · ลองใหม่เฉพาะการดาวน์โหลดได้</span>' : data.download?.status === 'unavailable' ? '<span>ไฟล์ ZIP ไม่พร้อมใช้งาน · ตรวจผลปลายทางด้านล่าง</span>' : data.download?.status === 'checking' ? '<span>กำลังตรวจไฟล์ ZIP...</span>' : '';
       const reportMessages = {
         missing: 'ไม่พบรายงานของงานเดิม; ระบบไม่ส่งงานซ้ำให้อัตโนมัติ',
         expired: 'รายงานหมดอายุแล้ว; สถานะงานยังแสดงได้ แต่ผลรายปลายทางเรียกคืนไม่ได้',
-        unavailable: 'ดึงรายงานไม่ได้ชั่วคราว; ลองตรวจอีกครั้งได้โดยไม่ dispatch งานใหม่'
+        unavailable: 'อ่านรายงานไม่ได้ชั่วคราว; กดตรวจอีกครั้งได้โดยไม่เริ่มงานใหม่'
       };
       const reportStatus = data.report_availability?.status;
       const reportNotice = reportMessages[reportStatus] ? `<span class="result-uncertain">${reportMessages[reportStatus]}</span>` : '';
@@ -452,8 +458,8 @@
       const retryTargets = retryableFailedTargets(data.result);
       $('retryFailuresBtn').dataset.targets = retryTargets.join(',');
       $('retryActions').hidden = retryTargets.length === 0;
-      const labels = { accepted: 'รับงานแล้ว', duplicate: 'กำลังติดตามงานเดิม', processing: 'กำลังประมวลผล', completed: 'งานเสร็จแล้ว', failed: 'งานไม่สำเร็จ', outcome_unconfirmed: 'ผลปลายทางยังไม่ยืนยัน' };
-      const descriptions = { accepted: 'งานอยู่ในคิวและจะเริ่มทำงานโดยอัตโนมัติ', duplicate: 'พบคำขอเดิม กำลังติดตามงานเดิมโดยไม่ส่งซ้ำ', processing: 'กำลังประมวลผลและส่งรายการไปยังปลายทางที่เลือก', completed: 'ตรวจดูผลแยกรายลิงก์ได้ด้านล่าง', failed: data.error?.message || 'ตรวจดูผลลัพธ์ด้านล่าง แล้วลองใหม่เฉพาะปลายทางที่ยืนยันว่าล้มเหลว', outcome_unconfirmed: 'ปลายทางอาจรับไฟล์แล้ว แต่ระบบไม่ได้รับคำยืนยัน; ตรวจปลายทางก่อน retry' };
+      const labels = { accepted: 'รับงานแล้ว', duplicate: 'กำลังติดตามงานเดิม', processing: 'กำลังทำงาน', completed: 'งานเสร็จแล้ว', failed: 'มีบางรายการไม่สำเร็จ', outcome_unconfirmed: 'ผลปลายทางยังยืนยันไม่ได้' };
+      const descriptions = { accepted: 'งานอยู่ในคิวและจะเริ่มทำงานโดยอัตโนมัติ', duplicate: 'พบงานเดิม ระบบกำลังดูผลเดิมโดยไม่ส่งซ้ำ', processing: 'กำลังดาวน์โหลดและส่งรายการไปยังปลายทางที่เลือก', completed: 'ดูผลแยกตามลิงก์ได้ด้านล่าง', failed: data.error?.message || 'ดูผลลัพธ์ด้านล่าง แล้วลองใหม่เฉพาะรายการที่ยืนยันว่าล้มเหลว', outcome_unconfirmed: 'ปลายทางอาจรับไฟล์แล้ว แต่ระบบยังยืนยันไม่ได้ กรุณาตรวจปลายทางก่อนลองใหม่' };
       const badgeLabels = { accepted: 'อยู่ในคิว', duplicate: 'งานเดิม', processing: 'กำลังทำงาน', completed: 'เสร็จสิ้น', failed: 'ต้องตรวจสอบ', outcome_unconfirmed: 'ยังไม่ยืนยัน' };
       $('progressText').textContent = labels[status] || 'กำลังอัปเดตสถานะ';
       $('runDescription').textContent = descriptions[status] || 'ระบบกำลังตรวจสอบสถานะล่าสุด';
@@ -477,10 +483,10 @@
     }
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
-        const good = ['sent', 'success', 'skipped_duplicate'].includes(item.status);
+        const good = ['sent', 'success', 'duplicate', 'skipped_duplicate'].includes(item.status);
         const labels = {
           accepted: 'อยู่ในคิว', queued: 'อยู่ในคิว', processing: 'กำลังทำงาน', success: 'สำเร็จ', sent: 'ส่งแล้ว', ready: 'พร้อมดาวน์โหลด',
-          duplicate: 'รายการซ้ำ', skipped_duplicate: 'ส่งแล้ว · ข้ามรายการซ้ำ', partial_success: 'สำเร็จบางส่วน', failed: 'ไม่สำเร็จ',
+          duplicate: 'มีไฟล์อยู่แล้ว · ไม่ส่งซ้ำ', skipped_duplicate: 'ส่งแล้ว · ข้ามรายการซ้ำ', partial_success: 'สำเร็จบางส่วน', failed: 'ไม่สำเร็จ',
           no_media: 'ไม่พบสื่อ', unavailable: 'เปิดโพสต์ไม่ได้', download_error: 'ดาวน์โหลดสื่อไม่ได้', metadata_error: 'อ่านข้อมูลโพสต์ไม่ได้',
           telegram_error: 'ส่ง Telegram ไม่ได้', invalid_url: 'ลิงก์ไม่ถูกต้อง', source_rate_limited: 'แหล่งต้นทางจำกัดคำขอ',
           source_access_denied: 'แหล่งต้นทางปฏิเสธการเข้าถึง', source_media_unavailable: 'ไม่พบไฟล์ต้นทาง',
@@ -493,10 +499,15 @@
           media_too_large: 'ไฟล์ใหญ่เกินกำหนด', invalid_media_response: 'ไฟล์ต้นทางไม่สมบูรณ์',
           unsupported_media_url: 'ลิงก์ไฟล์ต้นทางไม่รองรับ', invalid_media_url: 'ลิงก์ไฟล์ต้นทางไม่ถูกต้อง',
           no_supported_media: 'ไม่พบรูปหรือวิดีโอที่รองรับ', outcome_unconfirmed: 'ผลปลายทางยังไม่ยืนยัน',
-          telegram_outcome_unconfirmed: 'Telegram อาจรับไฟล์แล้ว · ตรวจแชตก่อน retry',
-          mega_outcome_unconfirmed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อน retry',
-          mega_upload_verification_failed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อน retry',
-          dropbox_outcome_unconfirmed: 'Dropbox อาจรับไฟล์แล้ว · ตรวจไฟล์ก่อน retry'
+          telegram_outcome_unconfirmed: 'Telegram อาจรับไฟล์แล้ว · ตรวจแชตก่อนลองใหม่',
+          mega_outcome_unconfirmed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อนลองใหม่',
+          mega_upload_verification_failed: 'MEGA อาจรับไฟล์แล้ว · ตรวจโฟลเดอร์ก่อนลองใหม่',
+          dropbox_outcome_unconfirmed: 'Dropbox อาจรับไฟล์แล้ว · ตรวจไฟล์ก่อนลองใหม่',
+          dropbox_path_conflict: 'Dropbox มีไฟล์ชื่อเดียวกัน · กำลังตรวจไฟล์เดิม',
+          dropbox_hash_mismatch: 'มีไฟล์ชื่อเดียวกันแต่เนื้อหาไม่ตรง · ไม่เขียนทับ',
+          dropbox_conflict: 'Dropbox พบความขัดแย้งของไฟล์ · ตรวจไฟล์ก่อนลองใหม่',
+          dropbox_rate_limited: 'Dropbox จำกัดความถี่ชั่วคราว · รอสักครู่แล้วลองใหม่',
+          dropbox_authentication_failed: 'การเชื่อมต่อ Dropbox มีปัญหา · ให้ผู้ดูแลตรวจการเชื่อมต่อ'
         };
         const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
         const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}${destination.attempts > 1 ? ` · ลอง ${destination.attempts} ครั้ง` : ''}`);
@@ -669,7 +680,7 @@
       const r = review();
       if (recoveryUnconfirmed) { showToast('ตรวจสถานะหรือล้างการติดตามงานก่อนหน้าก่อนเริ่มชุดใหม่'); return; }
       if (!backendReady) { showToast('ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access — กดลิงก์ด้านบนแล้วกลับมาตรวจอีกครั้ง'); checkBackend(); return; }
-      if (r.overLimit) { showToast(`หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} URLs`); return; }
+      if (r.overLimit) { showToast(`หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} ลิงก์`); return; }
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
       if (r.invalid) { showToast('แก้หรือลบ URL ที่ผิดหรือซ้ำก่อนเริ่มส่ง'); return; }
       if (!selectedDestinations().length) { showToast('เลือกปลายทางอย่างน้อยหนึ่งรายการ'); return; }
@@ -696,7 +707,7 @@
       catch (error) { showRecoveryUnconfirmed(saved, error); }
     }
     urls.addEventListener('input', review);
-    $('reviewBtn').addEventListener('click', () => { const r = review(); $('reviewBtn').textContent = r.valid && !r.invalid && !r.overLimit ? `ตรวจแล้ว · ${r.valid} รายการ` : 'ตรวจสอบรายการ'; showToast(r.overLimit ? `เกินขีดจำกัด ${MAX_BATCH_URLS} URLs` : r.invalid ? 'แก้หรือลบ URL ที่ผิดหรือซ้ำก่อนส่ง' : r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มี URL ที่พร้อมใช้'); });
+    $('reviewBtn').addEventListener('click', () => { const r = review(); $('reviewBtn').textContent = r.valid && !r.invalid && !r.overLimit ? `ตรวจแล้ว · ${r.valid} รายการ` : 'ตรวจสอบรายการ'; showToast(r.overLimit ? `เกินขีดจำกัด ${MAX_BATCH_URLS} ลิงก์` : r.invalid ? 'แก้หรือลบลิงก์ที่ผิดหรือซ้ำก่อนส่ง' : r.valid ? `ตรวจแล้ว: ${r.valid} รายการพร้อมใช้` : 'ยังไม่มีลิงก์ที่พร้อมใช้'); });
     $('clearBtn').addEventListener('click', () => { urls.value = ''; $('reviewBtn').textContent = 'ตรวจสอบรายการ'; review(); urls.focus(); });
     $('recentJobs').addEventListener('click', async (event) => {
       const button = event.target.closest('[data-job-id]'); if (!button) return;

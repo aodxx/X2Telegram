@@ -193,7 +193,7 @@ test("malformed JSON is rejected with a bounded error", async () => {
 
 test("oversized declared body is rejected before reading or dispatch", async () => {
   const req = request("/jobs", {
-    method: "POST", body: "{}", headers: { "Content-Length": "17000" },
+    method: "POST", body: "{}", headers: { "Content-Length": "70000" },
   });
   const response = await worker.fetch(req, ENV);
   assert.equal(response.status, 413);
@@ -206,7 +206,7 @@ test("oversized streamed body without Content-Length is cancelled before dispatc
   ENV.ACCESS_ALLOWED_EMAIL = email;
   const stream = new ReadableStream({
     start(controller) {
-      controller.enqueue(new TextEncoder().encode("x".repeat(17000)));
+      controller.enqueue(new TextEncoder().encode("x".repeat(70000)));
       controller.close();
     },
   });
@@ -342,7 +342,7 @@ test("empty, duplicate, or unsupported destinations are rejected before dispatch
   assert.equal(dispatches.length, 0);
 });
 
-test("batch request dispatches up to 50 URLs in one workflow run", async () => {
+test("batch request dispatches URLs in one workflow run", async () => {
   const body = { urls: ["https://x.com/person/status/123", "https://twitter.com/other/status/456?s=20"], request_id: "batch-submit-1" };
   const response = await worker.fetch(request("/jobs", { method: "POST", body }), ENV);
   const data = await response.json();
@@ -353,15 +353,19 @@ test("batch request dispatches up to 50 URLs in one workflow run", async () => {
   assert.equal(Object.hasOwn(dispatches[0].inputs, "url"), false);
 });
 
-test("batches above 50 URLs and duplicate posts are rejected before dispatch", async () => {
-  const tooMany = Array.from({ length: 51 }, (_, index) => `https://x.com/u/status/${index + 1}`);
+test("batches above 200 URLs and duplicate posts are rejected before dispatch", async () => {
+  const acceptedBatch = Array.from({ length: 200 }, (_, index) => `https://x.com/u/status/${index + 1}`);
+  const acceptedResponse = await worker.fetch(request("/jobs", { method: "POST", body: { urls: acceptedBatch, request_id: "batch-200" } }), ENV);
+  assert.equal(acceptedResponse.status, 202);
+  assert.equal(dispatches.length, 1);
+  const tooMany = Array.from({ length: 201 }, (_, index) => `https://x.com/u/status/${index + 1}`);
   const tooManyResponse = await worker.fetch(request("/jobs", { method: "POST", body: { urls: tooMany, request_id: "batch-too-many" } }), ENV);
   assert.equal(tooManyResponse.status, 400);
   assert.equal((await tooManyResponse.json()).error.code, "too_many_urls");
   const duplicateResponse = await worker.fetch(request("/jobs", { method: "POST", body: { urls: ["https://x.com/u/status/1", "https://twitter.com/other/status/1"], request_id: "batch-duplicate" } }), ENV);
   assert.equal(duplicateResponse.status, 400);
   assert.equal((await duplicateResponse.json()).error.code, "duplicate_url");
-  assert.equal(dispatches.length, 0);
+  assert.equal(dispatches.length, 1);
 });
 
 test("same request and changed payload return idempotency conflict", async () => {

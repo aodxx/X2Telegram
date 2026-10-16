@@ -11,7 +11,7 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 
 ## URL และ destination flow
 
-- วาง X URL หนึ่งรายการต่อบรรทัด; 1–50 URL ต่อ job
+- วางลิงก์ X หนึ่งรายการต่อหนึ่งบรรทัด; 1–200 ลิงก์ต่องาน
 - Frontend preview บอก valid/invalid/duplicate; Worker ตรวจ URL และ duplicate post ID ซ้ำอีกครั้ง
 - URL เดี่ยวถูกส่งเป็น workflow input `url`; batch ถูกส่งเป็น `urls` newline-separated; หนึ่ง job คือหนึ่ง GitHub Actions run
 - เลือกได้หนึ่งหรือหลาย targets จาก `telegram`, `mega`, `dropbox`, `download`; ถ้าไม่ระบุโดย manual Actions จะ default Telegram
@@ -40,7 +40,7 @@ Dashboard assets และ API อยู่ Worker origin เดียวกั�
 
 ## ข้อจำกัด
 
-- Batch เกิน 50 URLs ต้องแบ่งหลาย jobs
+- Batch เกิน 200 ลิงก์ต้องแบ่งเป็นหลายงาน
 - MEGA-only upload และ combined Telegram+MEGA live send ผ่านแล้วสำหรับ media ที่ดึงได้หนึ่งรายการ; ไม่ใช่ full-pass หาก URL อื่นล้มที่ source download
 - Large-file mode และมือถือยังไม่ได้ live-test รอบนี้
 - Network timeout หลัง Telegram/MEGA/Dropbox รับไฟล์แล้วแต่ก่อน dedupe checkpoint อาจต้องตรวจ report ก่อน retry

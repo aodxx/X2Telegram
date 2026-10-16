@@ -17,8 +17,8 @@ def test_dashboard_checks_authenticated_access_session_before_enabling_submit():
     assert "window.addEventListener('focus'" in HTML
 
 
-def test_dashboard_accepts_batches_with_a_50_url_ceiling():
-    assert "const MAX_BATCH_URLS = 50" in HTML
+def test_dashboard_accepts_batches_with_a_200_url_ceiling():
+    assert "const MAX_BATCH_URLS = 200" in HTML
     assert "function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations())" in HTML
     assert "if (urlList.length === 1) payload.url = urlList[0]" in HTML
     assert "else payload.urls = urlList" in HTML
@@ -49,7 +49,7 @@ def test_dashboard_shows_clear_job_progress_and_human_readable_statuses():
     assert 'id="progressTrack" role="progressbar"' in HTML
     assert 'id="runDescription"' in HTML
     assert "รับงานแล้ว" in HTML
-    assert "กำลังประมวลผล" in HTML
+    assert "กำลังทำงาน" in HTML
     assert "งานเสร็จแล้ว" in HTML
     assert "aria-valuenow" in HTML
 

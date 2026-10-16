@@ -9,7 +9,7 @@ GitHub Pages redirect → Cloudflare Access + Worker-hosted Dashboard/API
   → GitHub Actions → Python processor → selected destination(s)
 ```
 
-- Dashboard ส่ง X post URL ได้ 1–50 รายการต่อหนึ่ง job
+- Dashboard ส่งลิงก์โพสต์ X ได้ 1–200 รายการต่อหนึ่งงาน
 - เลือก destination ได้หนึ่งหรือหลายรายการจาก `telegram`, `mega`, `dropbox`, `download`; เมื่อ field ไม่มีให้ใช้ Telegram เพื่อ backward compatibility
 - Actions ยังคงเป็น execution plane; Python worker download/validate media ครั้งเดียวก่อน dispatch ไปยัง targets
 - ไม่เพิ่ม database, Redis, queue หรือ Google Drive integration
@@ -38,12 +38,12 @@ Request JSON:
 | Field | Required | Validation |
 |---|---:|---|
 | `url` | เลือก `url` หรือ `urls` อย่างใดอย่างหนึ่ง | URL เดี่ยว HTTPS ของ X/Twitter post; backward-compatible |
-| `urls` | เลือก `url` หรือ `urls` อย่างใดอย่างหนึ่ง | JSON array 1–50 URLs; validate/normalize ทุก URL; reject post ID ซ้ำใน batch |
+| `urls` | เลือก `url` หรือ `urls` อย่างใดอย่างหนึ่ง | JSON array 1–200 URLs; validate/normalize ทุก URL; reject post ID ซ้ำใน batch |
 | `destinations` | no | array 1–4 รายการจาก `telegram`, `mega`, `dropbox`, `download`; empty, unknown หรือ duplicate target ถูกปฏิเสธ; เมื่อไม่ส่งให้ default `telegram` |
 | `large_file_mode` | no | Boolean; default `false` |
 | `request_id` | yes | `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`; retry logical request เดิมต้องใช้ค่าเดิม |
 
-Request body จำกัด 16 KiB; ไม่รับ arbitrary workflow input, chat ID, secret หรือ GitHub ref จาก client
+Request body จำกัด 64 KiB; ไม่รับ arbitrary workflow input, chat ID, secret หรือ GitHub ref จาก client
 
 ### POST response
 
@@ -98,7 +98,7 @@ Destination status ใน manifest หมายถึง adapter outcome (`succe
 2. Worker ตรวจ `Cf-Access-Jwt-Assertion` ด้วย Cloudflare Access JWKS, issuer, audience, `exp`/`nbf` และอีเมลที่ตรงกับ `ACCESS_ALLOWED_EMAIL` หรือ optional `ACCESS_ADDITIONAL_EMAIL`
 3. GitHub credential อยู่ใน Worker secret; Telegram, MEGA และ Dropbox credentials อยู่ใน GitHub Actions Secrets เท่านั้น
 4. Browser ไม่ส่ง credential, chat ID หรือ raw workflow configuration
-5. Worker จำกัด request body 16 KiB, exact Dashboard origin และ response cache `no-store`
+5. Worker จำกัด request body 64 KiB, exact Dashboard origin และ response cache `no-store`
 6. Download route คืนไฟล์เฉพาะ artifact name/run ID ที่ตรงกับ job และยังไม่หมดอายุ
 
 ## Idempotency และ retry

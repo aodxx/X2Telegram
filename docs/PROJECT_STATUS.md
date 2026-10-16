@@ -9,7 +9,7 @@
 
 ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA, Dropbox และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path
 
-Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) และเสิร์ฟ static assets/API จาก Worker origin เดียวกัน. เลือกได้สูงสุด 50 URLs ต่อ job และหนึ่งหรือหลาย destinations
+Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) และเสิร์ฟ static assets/API จาก Worker origin เดียวกัน. เลือกได้สูงสุด 200 ลิงก์ต่องาน (request body ไม่เกิน 64 KiB) และหนึ่งหรือหลาย destinations
 
 ## Deployment ปัจจุบัน
 
@@ -57,6 +57,7 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 - P3 production release (2026-10-13): merged as `9e9e9f8` (PR #24); main CI [#38293276028](https://github.com/aodxx/X2Telegram/actions/runs/38293276028), Pages [#38293276008](https://github.com/aodxx/X2Telegram/actions/runs/38293276008), and Worker deploy [#38293345118](https://github.com/aodxx/X2Telegram/actions/runs/38293345118) succeeded; Worker version `f2e1afaf-db8e-4356-be75-215f60eb53e5`. No live destination was invoked. Failure-injection demonstrates that a later manually-created full-target job may resend if success-checkpoint storage fails; cross-isolate dispatch remains non-durable.
 - Dashboard/P4 automated release (2026-10-13): PR #27 merged as `763bd9a`; CI [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120) passed with Python 147 and Worker/Dashboard 45; Pages [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) succeeded. Dashboard status polling now retries transient read failures and distinguishes the prior result from a newly pasted batch. Telegram 50 MB boundary/Local Bot API and Dropbox refresh/session regressions are mock-based only; both live tracks remain blocked pending authorized test destinations. Worker code was unchanged and no live destination upload occurred.
 - Latest repair release (2026-10-16): commit `f08c0aa` fixes the `persist-state` ordering bug that caused GitHub Actions to fail with `cannot rebase: You have unstaged changes`; state is now committed before fetch/rebase, with a contract regression test. Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) passed and Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) passed. Local validation: Python **148 passed**, Worker/Dashboard **45 passed**.
+- Dropbox/batch usability release (2026-10-16): แก้ Dropbox HTTP 409 path conflict โดยตรวจ metadata และ Dropbox content hash ก่อนถือว่าเป็นไฟล์เดิม; ถ้า hash ไม่ตรงจะไม่เขียนทับและรายงานภาษาไทยที่อธิบายสาเหตุ. เพิ่มเพดาน Dashboard/Worker จาก 50 เป็น **200 ลิงก์ต่องาน** และ request body จาก 16 เป็น **64 KiB** พร้อม regression tests. Local validation หลังแก้: Python **150 passed**, Worker/Dashboard **45 passed**.
 
 ## การตั้งค่า MEGA
 
