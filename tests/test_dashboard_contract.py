@@ -68,3 +68,18 @@ def test_dashboard_explains_source_error_stage_and_input_duplicates_without_raw_
     assert "report.input_summary" in HTML
     assert "normalized_duplicate" in HTML
     assert "ประมวลผลโพสต์นี้ครั้งเดียว" in HTML
+
+
+def test_dashboard_translates_actionable_source_errors_into_thai_guidance():
+    assert "function humanError(code, raw, destination = '')" in HTML
+    assert "โพสต์อาจถูกลบ ตั้งเป็นส่วนตัว หรือ X ไม่ส่งข้อมูลชั่วคราว" in HTML
+    assert "โพสต์นี้ไม่มีรูปหรือวิดีโอที่ระบบรองรับ" in HTML
+    assert "ตรวจว่าโพสต์เป็นสาธารณะแล้วลองใหม่" in HTML
+    assert "ส่งไป Dropbox ไม่สำเร็จ ลองใหม่อีกครั้ง" in HTML
+
+
+def test_dashboard_distinguishes_partial_completion_from_total_failure():
+    assert "function reportOutcome(report)" in HTML
+    assert "เสร็จบางส่วน" in HTML
+    assert "จัดการแล้ว ${handled} รายการ แต่ยังมี ${failed} รายการ" in HTML
+    assert "status-badge[data-state=\"partial_success\"]" in HTML

@@ -103,6 +103,7 @@
     .status-badge[data-state="processing"], .status-badge[data-state="accepted"], .status-badge[data-state="duplicate"] { color: var(--blue); border-color: rgba(105,184,255,.35); }
     .status-badge[data-state="completed"] { color: var(--green); border-color: rgba(98,212,155,.35); }
     .status-badge[data-state="failed"] { color: var(--red); border-color: rgba(255,140,155,.4); }
+    .status-badge[data-state="partial_success"] { color: var(--amber); border-color: rgba(255,198,109,.45); }
     .status-badge[data-state="uncertain"], .status-badge[data-state="outcome_unconfirmed"] { color: var(--amber); border-color: rgba(255,198,109,.45); }
     .stepper { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 22px 0 18px; padding: 0; list-style: none; }
     .stepper li { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; color: #7189a3; font-size: 12px; }
@@ -486,6 +487,71 @@
       });
       $('runMeta').innerHTML = `<details class="run-details"><summary>รายละเอียดงาน</summary><div class="run-details-content"><span>${urlCount ? `${urlCount} ลิงก์` : ''}${destinationText ? `${urlCount ? ' · ' : ''}ส่งไปยัง ${escapeHtml(destinationText)}` : ''}</span><span><strong>รหัสงาน:</strong> ${escapeHtml(data.job_id || activeRun.job_id || 'กำลังลงทะเบียน')}</span>${data.run_id ? `<span><strong>รอบการทำงาน:</strong> ${escapeHtml(data.run_id)}</span>` : ''}${reportNotice}${downloadLink}${downloadStatus}${data.html_url ? `<a href="${escapeHtml(data.html_url)}" target="_blank" rel="noreferrer">ดูรายละเอียดเพิ่มเติม</a>` : ''}</div></details>`;
     }
+    function humanError(code, raw, destination = '') {
+      const messages = {
+        invalid_x_url: 'ลิงก์นี้ไม่ใช่โพสต์ X ที่รองรับ กรุณาตรวจลิงก์แล้วลองใหม่',
+        source_metadata_unavailable: 'อ่านข้อมูลโพสต์ไม่ได้ — โพสต์อาจถูกลบ ตั้งเป็นส่วนตัว หรือ X ไม่ส่งข้อมูลชั่วคราว ลองเปิดโพสต์ให้ดูได้แล้วลองใหม่',
+        source_metadata_invalid: 'ข้อมูลโพสต์จาก X ไม่สมบูรณ์ ลองเปิดโพสต์ให้ดูได้แล้วลองใหม่',
+        no_supported_media: 'โพสต์นี้ไม่มีรูปหรือวิดีโอที่ระบบรองรับ',
+        source_media_unavailable: 'ไม่พบไฟล์รูปหรือวิดีโอจากโพสต์นี้ โพสต์อาจไม่มีสื่อหรือสื่อถูกลบแล้ว',
+        source_access_denied: 'X ไม่อนุญาตให้เข้าถึงโพสต์นี้ ตรวจว่าโพสต์เป็นสาธารณะแล้วลองใหม่',
+        source_rate_limited: 'แหล่งต้นทางจำกัดจำนวนคำขอชั่วคราว รอสักครู่แล้วลองใหม่',
+        source_timeout: 'รอข้อมูลจาก X นานเกินไป ตรวจการเชื่อมต่อแล้วลองใหม่',
+        source_network_error: 'เชื่อมต่อ X ไม่ได้ชั่วคราว ลองใหม่อีกครั้ง',
+        source_server_error: 'เซิร์ฟเวอร์ของ X ขัดข้องชั่วคราว รอสักครู่แล้วลองใหม่',
+        source_download_failed: 'ดาวน์โหลดสื่อจาก X ไม่สำเร็จ ลองใหม่อีกครั้ง',
+        media_too_large: 'ไฟล์ใหญ่เกินขนาดที่ระบบรองรับ ระบบจะลองคุณภาพรองลงมาถ้ามี',
+        unsupported_media_format: 'รูปแบบไฟล์วิดีโอนี้ยังไม่รองรับ',
+        invalid_media_response: 'ไฟล์ที่ได้จาก X ไม่สมบูรณ์ ลองใหม่อีกครั้ง',
+        dropbox_authentication_failed: 'การเชื่อมต่อ Dropbox หมดอายุหรือมีปัญหา ให้ผู้ดูแลตรวจการตั้งค่า Dropbox',
+        dropbox_rate_limited: 'Dropbox จำกัดความถี่ชั่วคราว ระบบจะลองใหม่ได้ภายหลัง',
+        dropbox_path_conflict: 'Dropbox มีไฟล์ชื่อเดียวกัน ระบบกำลังตรวจว่าเป็นไฟล์เดิมหรือไม่',
+        dropbox_hash_mismatch: 'มีไฟล์ชื่อเดียวกันแต่เนื้อหาไม่ตรง ระบบจะไม่เขียนทับไฟล์เดิม',
+        dropbox_conflict: 'Dropbox พบความขัดแย้งของไฟล์ ตรวจไฟล์เดิมก่อนลองใหม่',
+        dropbox_outcome_unconfirmed: 'ยังยืนยันผล Dropbox ไม่ได้ อาจส่งไฟล์สำเร็จแล้ว ตรวจ Dropbox ก่อนลองใหม่',
+        telegram_outcome_unconfirmed: 'ยังยืนยันผล Telegram ไม่ได้ ตรวจแชตก่อนลองใหม่',
+        mega_outcome_unconfirmed: 'ยังยืนยันผล MEGA ไม่ได้ ตรวจโฟลเดอร์ก่อนลองใหม่'
+      };
+      if (messages[code]) return messages[code];
+      if (destination === 'dropbox') return 'ส่งไป Dropbox ไม่สำเร็จ ลองใหม่อีกครั้ง หากยังไม่สำเร็จให้ตรวจการเชื่อมต่อ Dropbox';
+      if (destination) return `ส่งไป ${destination} ไม่สำเร็จ ลองใหม่อีกครั้ง`;
+      return 'ระบบทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง';
+    }
+    function reportOutcome(report) {
+      const summary = report.summary || {};
+      const handled = Number(summary.sent || 0) + Number(summary.skipped_duplicate || 0);
+      const failed = Number(summary.failed || 0);
+      if (!summary.total) return;
+      let label = 'ตรวจผลเสร็จแล้ว';
+      let description = 'ดูผลแยกตามลิงก์ได้ด้านล่าง';
+      let badge = 'เสร็จสิ้น';
+      let state = 'completed';
+      if (failed && handled) {
+        label = 'เสร็จบางส่วน';
+        description = `จัดการแล้ว ${handled} รายการ แต่ยังมี ${failed} รายการที่ต้องตรวจสอบหรือลองใหม่`;
+        badge = 'ต้องตรวจสอบบางรายการ';
+        state = 'partial_success';
+      } else if (failed) {
+        label = 'มีรายการที่ต้องแก้ไข';
+        description = `มี ${failed} รายการที่ยังไม่สำเร็จ ดูสาเหตุด้านล่างแล้วลองใหม่เฉพาะรายการนั้น`;
+        badge = 'ต้องตรวจสอบ';
+        state = 'failed';
+      } else if (summary.skipped_duplicate && !summary.sent) {
+        label = 'ตรวจเสร็จแล้ว · ไฟล์มีอยู่แล้ว';
+        description = `พบไฟล์เดิม ${summary.skipped_duplicate} รายการ จึงไม่ส่งซ้ำ`;
+      }
+      $('progressText').textContent = label;
+      $('runDescription').textContent = description;
+      $('runStateBadge').textContent = badge;
+      $('runStateBadge').dataset.state = state;
+      if (state === 'partial_success') $('runStateBadge').classList.add('partial');
+      else $('runStateBadge').classList.remove('partial');
+      if (state === 'partial_success') {
+        const finalStep = document.querySelector('#jobStepper li[data-stage="4"]');
+        finalStep?.classList.remove('is-error');
+        finalStep?.classList.add('is-uncertain');
+      }
+    }
     function renderReport(report) {
       const rows = (report.results || []).map((item) => {
         const good = ['sent', 'success', 'duplicate', 'skipped_duplicate'].includes(item.status);
@@ -512,14 +578,14 @@
           dropbox_hash_mismatch: 'มีไฟล์ชื่อเดียวกันแต่เนื้อหาไม่ตรง · ไม่เขียนทับ',
           dropbox_conflict: 'Dropbox พบความขัดแย้งของไฟล์ · ตรวจไฟล์ก่อนลองใหม่',
           dropbox_rate_limited: 'Dropbox จำกัดความถี่ชั่วคราว · รอสักครู่แล้วลองใหม่',
-          dropbox_authentication_failed: 'การเชื่อมต่อ Dropbox มีปัญหา · ให้ผู้ดูแลตรวจการเชื่อมต่อ'
+          dropbox_authentication_failed: 'การเชื่อมต่อ Dropbox หมดอายุหรือมีปัญหา · ให้ผู้ดูแลตรวจการตั้งค่า'
         };
         const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
         const targetStates = Object.entries(item.destinations || {}).map(([name, destination]) => `${destinationNames[name] || name}: ${labels[destination.status] || destination.status}${destination.attempts > 1 ? ` · ลอง ${destination.attempts} ครั้ง` : ''}`);
-        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => ['failed', 'outcome_unconfirmed'].includes(part.status)).map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.media_index ? ` · สื่อ #${part.media_index}` : ''}${part.status === 'outcome_unconfirmed' ? ' · ผลยังไม่ยืนยัน' : ''}${part.attempts > 1 ? ` · ลอง ${part.attempts} ครั้ง` : ''}${part.variant_attempts > 1 ? ` · ลองวิดีโอ ${part.variant_attempts} แบบ` : ''}${part.error ? ` — ${part.error}` : ''}`));
+        const failures = Object.entries(item.destinations || {}).flatMap(([name, destination]) => (destination.items || []).filter((part) => ['failed', 'outcome_unconfirmed'].includes(part.status)).map((part) => `${destinationNames[name] || name} ${part.filename || ''}${part.media_index ? ` · สื่อ #${part.media_index}` : ''}${part.attempts > 1 ? ` · ลอง ${part.attempts} ครั้ง` : ''}${part.variant_attempts > 1 ? ` · ลองวิดีโอ ${part.variant_attempts} แบบ` : ''} — ${humanError(part.error_code, part.error, destinationNames[name] || name)}`));
         const stageNames = { input: 'ตรวจลิงก์', metadata: 'อ่านข้อมูลโพสต์', download: 'ดาวน์โหลดสื่อ', processing: 'เตรียมไฟล์', completed: 'ส่งปลายทาง' };
         const stageText = item.stage ? `${stageNames[item.stage] || item.stage} · ` : '';
-        const failureText = failures.length ? ` · ${failures.join(' · ')}` : item.error ? ` · ${item.error}` : '';
+        const failureText = failures.length ? ` · ${failures.join(' · ')}` : item.error ? ` · ${humanError(item.error_code, item.error)}` : '';
         const detail = stageText + (targetStates.length ? targetStates.join(' · ') + failureText : item.status === 'sent' ? `ส่งสำเร็จ · ${item.media_count || 0} รายการ · Message ID ${(item.message_ids || []).join(', ') || '—'}` : item.status === 'skipped_duplicate' ? 'ข้ามรายการซ้ำ' : (labels[item.status] || labels[item.error_code] || item.error_code || item.status || 'ไม่ทราบสถานะ'));
         const uncertain = item.status === 'outcome_unconfirmed' || Object.values(item.destinations || {}).some((destination) => destination.status === 'outcome_unconfirmed' || (destination.items || []).some((part) => part.status === 'outcome_unconfirmed'));
         return `<div class="result-row"><i class="status-dot ${good ? 'good' : uncertain ? 'uncertain' : 'bad'}"></i><div><b>@${escapeHtml(item.username || 'unknown')} · ${escapeHtml(item.post_id || '')}</b><span class="${good ? 'result-ok' : uncertain ? 'result-uncertain' : 'result-bad'}">${escapeHtml(detail)}</span></div></div>`;
@@ -536,7 +602,10 @@
       }).join('');
       $('resultList').innerHTML = `${rows || '<div class="empty">ยังไม่มีผลลัพธ์รายโพสต์</div>'}${inputOverview}${inputIssues}`;
       const summary = report.summary || {};
-      showToast(`เสร็จสิ้น: ส่ง ${summary.sent || 0} · ซ้ำ ${summary.skipped_duplicate || 0} · ล้มเหลว ${summary.failed || 0} · ยังไม่ยืนยัน ${summary.outcome_unconfirmed || 0}`);
+      reportOutcome(report);
+      const handled = Number(summary.sent || 0) + Number(summary.skipped_duplicate || 0);
+      const failedText = summary.failed ? ` · ต้องแก้ไข ${summary.failed}` : '';
+      showToast(`ตรวจเสร็จ: จัดการแล้ว ${handled} · ไฟล์เดิม ${summary.skipped_duplicate || 0}${failedText}`);
     }
     function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations()) {
       const payload = { large_file_mode: Boolean(largeFileMode), request_id: requestId, destinations };
