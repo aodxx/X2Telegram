@@ -1,7 +1,7 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
-**อัปเดต:** 2026-10-16
-**จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge commit `9e9e9f8`; Access secondary-email support main commit `f5372e5` (PR #25); latest application commit `f08c0aa`; Cloudflare Worker version `649353cf-fd9a-498b-9415-14bae01de486`
+**อัปเดต:** 2026-10-22
+**จุดอ้างอิง:** P2 merge commit `a5711e1`; P3 merge commit `9e9e9f8`; Access secondary-email support main commit `f5372e5` (PR #25); latest application code commit `4bd1abf`; Cloudflare Worker version `649353cf-fd9a-498b-9415-14bae01de486`
 **สถานะสั้น:** P1/P2 ผ่าน acceptance ตามเอกสารเดิม. P3 ถูก merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) และ deploy แล้ว แต่ยังไม่อ้าง exactly-once. Access policy/Worker รองรับ primary และ optional secondary email แบบ exact หลัง PR [#25](https://github.com/aodxx/X2Telegram/pull/25). Commit `f08c0aa` แก้ state persistence ordering bug, เพิ่ม regression test และปรับ mobile/accessibility UX; release ถัดมาแก้ Dropbox HTTP 409 path conflict ด้วย metadata/content-hash check, เพิ่มคำอธิบายภาษาไทย และเพิ่ม batch เป็น 200 ลิงก์. Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. P4 ยัง PARTIAL: live Telegram/Dropbox tests รอปลายทางทดสอบที่ได้รับอนุญาต. ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง และ P5 ยังรอ real-mobile smoke test.
 
 **P4 implementation update (2026-10-13):** PR [#27](https://github.com/aodxx/X2Telegram/pull/27) merged to main as `763bd9a` and Dashboard Pages deployment [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) succeeded. It fixes status polling/recovery across transient errors and clarifies that newly pasted URLs are a separate, unsent batch; mocked Telegram 50 MB boundary and Dropbox OAuth/session tests were added. P4 remains PARTIAL because no live destination test was run. Track A needs an authorized Telegram test chat; Track B needs a confirmed Dropbox test account/folder and cleanup policy before a real upload. No Worker deployment was needed. See [`plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md`](plan/P4_LARGE_FILE_TELEGRAM_AND_DROPBOX.md).
@@ -43,14 +43,14 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Branch | `main` |
 | P2 merge commit in main | `a5711e1` (media manifest/identity) |
 | P3 merge commit in main | `9e9e9f8` (safe retry/job recovery; PR #24) |
-| Latest application commit in main | `763bd9a` (Dashboard batch tracking; PR #27) |
-| Dashboard Pages deploy | [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) — success on `763bd9a` |
+| Latest application code commit in main | `4bd1abf` (metadata diagnostics/media quality; state-only commits follow) |
+| Dashboard Pages deploy | [#38968970271](https://github.com/aodxx/X2Telegram/actions/runs/38968970271) — success on `4bd1abf` |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
 | Worker version | `649353cf-fd9a-498b-9415-14bae01de486` |
 | Deploy commit | `f5372e5e0656c300687b404f1f60e215c8d5962a` |
 | Deploy run | [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) — success |
-| Python tests | 147 passed (main CI [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120)) |
+| Python tests | 156 passed (local validation; main CI application run [#38968970038](https://github.com/aodxx/X2Telegram/actions/runs/38968970038) succeeded) |
 | Worker/Dashboard tests | 45 passed (main CI [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120)) |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
 | Access | Cloudflare Access allows two exact email identities; no `Everyone`/domain-wide rule; unauthenticated `GET /` returns HTTP 302 |

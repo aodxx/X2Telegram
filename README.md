@@ -16,7 +16,7 @@
 ## ใช้งาน
 
 1. เปิด [X2Telegram Dashboard](https://aodxx.github.io/X2Telegram/) แล้วลงชื่อเข้าใช้ Cloudflare Access ด้วยอีเมลที่ได้รับอนุญาต
-2. วาง X URL หนึ่งรายการต่อบรรทัด (สูงสุด 50 URL ต่อ job)
+2. วาง X URL หนึ่งรายการต่อบรรทัด (สูงสุด 200 URL ต่อ job; request body ไม่เกิน 64 KiB)
 3. เลือก Telegram, MEGA, Dropbox และ/หรือดาวน์โหลด ZIP
 4. กดเริ่มงานหนึ่งครั้ง แล้วติดตามสถานะรายปลายทางใน Dashboard
 

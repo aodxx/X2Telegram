@@ -3,7 +3,7 @@
 ## ภาพรวมปัจจุบัน
 
 ```text
-Dashboard (static, Worker origin)
+Dashboard (static, Worker origin; batch สูงสุด 200 URL / request body 64 KiB)
   → Cloudflare Access + Control Worker
   → GitHub Actions workflow เดียว
   → Python worker
@@ -11,6 +11,7 @@ Dashboard (static, Worker origin)
   → Destination dispatcher
       ├── Telegram
       ├── MEGA ผ่าน MEGAcmd
+      ├── Dropbox ผ่าน Dropbox API v2
       └── private Actions artifact → Worker streaming → Browser ZIP
 ```
 
@@ -26,12 +27,12 @@ GitHub Pages entry URL redirect ไปยัง Dashboard ที่เสิร�
 
 ## Retry และ state
 
-`state/dedupe.json` ใช้ SHA-256 media fingerprint และสถานะ destination แยกกัน (state v3); รุ่นเดิมอ่านต่อได้. การเขียน state ใหม่เก็บเฉพาะข้อมูล dedupe ที่จำเป็น ไม่เก็บ username, source URL หรือ timestamps; metadata จาก state รุ่นเก่าจะถูก scrub เมื่อมีการเขียนครั้งถัดไป. Target ที่สำเร็จแล้วไม่ถูกส่งซ้ำเมื่อ retry post เดิม ขณะที่ target ที่ล้มเหลวยังลองใหม่ได้. Download ZIP เป็น artifact เฉพาะ job ไม่ใช่ dedupe-persistent destination; เริ่ม job ใหม่เพื่อสร้าง artifact อีกครั้ง. GitHub Actions concurrency ป้องกันการเขียน state พร้อมกัน
+`state/dedupe.json` ใช้ SHA-256 media fingerprint และสถานะ destination แยกกัน (state v4); รุ่นเดิมอ่านต่อได้. การเขียน state ใหม่เก็บเฉพาะข้อมูล dedupe ที่จำเป็น ไม่เก็บ username, source URL หรือ timestamps; metadata จาก state รุ่นเก่าจะถูก scrub เมื่อมีการเขียนครั้งถัดไป. Target ที่สำเร็จแล้วไม่ถูกส่งซ้ำเมื่อ retry post เดิม ขณะที่ target ที่ล้มเหลวยังลองใหม่ได้. Download ZIP เป็น artifact เฉพาะ job ไม่ใช่ dedupe-persistent destination; เริ่ม job ใหม่เพื่อสร้าง artifact อีกครั้ง. GitHub Actions concurrency ป้องกันการเขียน state พร้อมกัน
 
 ไม่ใช้ database/Redis/queue. Idempotency ของ Worker ป้องกัน dispatch ซ้ำเมื่อใช้ request ID เดิม แต่ระบบไม่รับประกัน exactly-once หากบริการปลายทางรับไฟล์แล้ว response/checkpoint หายก่อนบันทึก state
 
 ## Contract และ deployment
-Production Worker version ล่าสุดคือ `c44298fb-47f9-4798-a3db-9cd6946018fb` จาก commit `fe3170fb`; deploy ผ่าน manual GitHub Actions workflow และมี 20 requests/60 seconds edge rate limit ต่อ Access identity.
+Production Worker version ที่บันทึกไว้ล่าสุดคือ `649353cf-fd9a-498b-9415-14bae01de486` จาก deploy commit `f5372e5`; deploy ผ่าน manual GitHub Actions workflow และมี 20 requests/60 seconds edge rate limit ต่อ Access identity. Main branch มีการปรับ Python/Dashboard ต่อจาก Worker deploy โดยไม่เปลี่ยน Worker production code.
 
 - API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md)
 - Worker deployment/Access: [`CLOUDFLARE_WORKER.md`](CLOUDFLARE_WORKER.md), [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md)

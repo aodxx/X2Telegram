@@ -241,6 +241,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
+      - name: Validate state-writer scope
+        run: |
+          test "$GITHUB_REPOSITORY" = "aodxx/X2Telegram"
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$GITHUB_EVENT_NAME" = "workflow_dispatch"
+
       - name: Download dedupe state
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
@@ -250,6 +256,12 @@ jobs:
 
       - name: Persist duplicate prevention state
         run: |
+          unexpected_files="$(git status --porcelain=v1 --untracked-files=all | awk '{print substr($0, 4)}' | grep -v '^state/dedupe\.json$' || true)"
+          if [ -n "$unexpected_files" ]; then
+            echo "::error::State writer found unexpected changed files:"
+            printf '%s\n' "$unexpected_files"
+            exit 1
+          fi
           if [ ! -f state/dedupe.json ] || [ -z "$(git status --porcelain -- state/dedupe.json)" ]; then
             exit 0
           fi
