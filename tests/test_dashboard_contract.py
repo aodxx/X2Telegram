@@ -36,6 +36,13 @@ def test_dashboard_supports_multiple_destinations_and_browser_zip_download():
     assert "ดาวน์โหลด ZIP" in HTML
 
 
+def test_dashboard_explains_when_mega_connection_is_checked():
+    assert 'id="megaConnectionHint"' in HTML
+    assert "สถานะ MEGA:" in HTML
+    assert "ตรวจการเข้าสู่ระบบเมื่อเริ่มงาน" in HTML
+    assert "จะแจ้งสาเหตุในผลลัพธ์ด้านล่าง" in HTML
+
+
 def test_dashboard_supports_dropbox_destination():
     assert 'id="destDropbox" type="checkbox"' in HTML
     assert "['dropbox', 'destDropbox']" in HTML

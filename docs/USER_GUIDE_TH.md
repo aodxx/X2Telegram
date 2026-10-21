@@ -21,11 +21,11 @@
 2. เลือกปลายทางได้หนึ่งหรือหลายรายการ:
    - **Telegram** — ส่งเข้า Telegram Supergroup ที่กำหนดไว้ (ไม่สามารถเปลี่ยน target จาก Dashboard)
    - **Dropbox** — อัปโหลดเข้าบัญชี Dropbox ผ่าน OAuth ที่ตั้งค่าใน GitHub Secrets; รองรับไฟล์ใหญ่และ retry โดยไม่เขียนทับไฟล์เดิม
-   - **MEGA** — อัปโหลดไปบัญชี MEGA ที่ตั้งไว้ใน GitHub Actions Secrets; ต้องมี `MEGA_EMAIL` และ `MEGA_PASSWORD` (บัญชีเปิด TOTP ให้ตั้ง `MEGA_TOTP_SECRET` ด้วย)
+   - **MEGA** — อัปโหลดไปบัญชี MEGA ที่ตั้งไว้ใน GitHub Actions Secrets; Dashboard จะแจ้งว่า **ระบบจะตรวจการเข้าสู่ระบบเมื่อเริ่มงาน** ไม่ได้ตรวจ credential ล่วงหน้า (ใช้ `MEGA_EMAIL`/`MEGA_PASSWORD` หรือ `MEGA_SESSION`; บัญชีเปิด TOTP ให้ตั้ง `MEGA_TOTP_SECRET` ด้วย)
    - **ดาวน์โหลด ZIP** — ให้ browser ดาวน์โหลดไฟล์ media ที่รวมเป็น ZIP; ไม่ต้องตั้ง secret เพิ่ม
 3. ตรวจรายการว่าลิงก์ทุกบรรทัดถูกต้องและไม่ซ้ำ; แก้รายการที่ผิดหรือซ้ำ และไม่เกิน 200 ลิงก์
 4. เปิด **Large-file mode** เมื่อต้องการส่ง Telegram เกิน 50 MB และระบบถูกตั้งค่า Local Bot API แล้ว; ตัวเลือกนี้ไม่จำเป็นสำหรับ MEGA/Dropbox/Download และแต่ละปลายทางมีขีดจำกัดของตัวเอง
-5. กดปุ่มเริ่มงานหนึ่งครั้ง. Dashboard ส่ง URL และ destinations ไป Worker; หนึ่งชุดจะสร้างหนึ่ง GitHub Actions run
+5. กดปุ่มเริ่มงานหนึ่งครั้ง. Dashboard ส่ง URL และ destinations ไป Worker; หนึ่งชุดจะสร้างหนึ่ง GitHub Actions run. หากเลือก MEGA ระบบจะตรวจการเข้าสู่ระบบในขั้นเริ่มงานและแสดงผลแยกด้านล่าง
 
 ระบบจะเลือกวิดีโอที่มี **ความละเอียดสูงสุดก่อน แล้วใช้ bitrate เป็นตัวตัดสินรอง** จาก variant direct MP4 ที่ต้นทางเปิดให้ดาวน์โหลด. หากไฟล์คุณภาพสูงเกินขนาดที่ระบบรับได้ ระบบจะลอง variant ที่ต่ำลงตามลำดับสูงสุด 5 ระดับ. งานหลายปลายทางใช้เพดานไฟล์ของ job สูงสุด 2,000 MB เพื่อไม่ให้ข้อจำกัด Telegram ไปบังคับลดคุณภาพของ Dropbox/MEGA/ZIP; Telegram จะแสดงผลแยกเป็น `telegram_file_too_large` หากไฟล์เกิน 50 MB และยังไม่ได้เปิด Large-file mode
 
@@ -45,7 +45,8 @@ Dashboard แสดงสถานะแยกตามโพสต์, media �
 2. กด **New repository secret** และเพิ่ม `MEGA_EMAIL` เป็นอีเมลบัญชี MEGA
 3. เพิ่ม `MEGA_PASSWORD` เป็นรหัสผ่านบัญชี MEGA
 4. หากบัญชีใช้ MFA/TOTP ให้เพิ่ม `MEGA_TOTP_SECRET` เป็น seed สำหรับ authenticator; หากไม่ได้ใช้ MFA ให้ไม่ต้องสร้าง secret นี้
-5. กลับ Dashboard แล้วเลือก MEGA
+5. หาก password login ถูกปฏิเสธ ให้ใช้ `MEGA_SESSION` แทน email/password ตามคู่มือผู้ดูแล
+6. กลับ Dashboard แล้วเลือก MEGA
 
 **อย่าวาง MEGA password หรือ TOTP seed ใน Dashboard, source code, log, issue หรือข้อความแชต**. ค่าเหล่านี้ใช้เฉพาะภายใน runner และไม่แสดงใน report. โฟลเดอร์เริ่มต้นใน MEGA คือ `X2Telegram/YYYY-MM-DD`; ชื่อไฟล์ MEGA ต่อท้ายด้วย SHA-256 ของเนื้อหาเพื่อเก็บ media คนละเวอร์ชันเป็นคนละไฟล์ ไม่ทับชื่อเดิม. หากต้องการเปลี่ยน root ให้เพิ่ม repository variable `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`)
 
@@ -66,7 +67,8 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 - **ยังไม่ได้ยืนยัน Access**: กด **ลงชื่อเข้าใช้**, ทำ OTP แล้วกลับมา Dashboard/refresh
 - **ปุ่มเริ่มยังใช้ไม่ได้**: แก้ลิงก์ที่ผิด/ซ้ำ ตรวจจำนวนไม่เกิน 200 และเลือกอย่างน้อยหนึ่งปลายทาง
 - **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
-- **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
+- **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน หรือใช้ `MEGA_SESSION`; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
+- **MEGA `mega_mfa_required`**: บัญชีเปิด MFA แต่ยังไม่มี TOTP/session ที่ใช้ได้ ให้ตั้ง `MEGA_TOTP_SECRET` หรือ `MEGA_SESSION`
 - **ไฟล์เก่าถูกเขียนทับก่อนแก้ไข**: ใน MEGA ตรวจเมนูสามจุด → **Previous versions** (ไอคอนรูปนาฬิกา) หากเปิด File versioning ไว้; [คู่มือ MEGA เรื่อง file version history](https://help.mega.io/files-folders/data-restoration/file-version-history). การกู้คืนขึ้นกับการตั้งค่าและข้อมูลที่บัญชียังเก็บอยู่
 - **Download `download_expired`**: artifact หมดอายุหลัง 7 วัน ให้เริ่ม job ใหม่
 - **Download `download_artifact_size_limit`**: รวมไฟล์เกิน 8 GiB ต่อ job; แบ่ง URL เป็นหลายชุด
