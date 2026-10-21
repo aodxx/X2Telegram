@@ -29,7 +29,7 @@ def _media_hashes(path: str | Path, kind: str) -> tuple[str, str]:
     return fingerprint.hexdigest(), content_hash.hexdigest()
 
 
-MAX_VIDEO_VARIANT_ATTEMPTS = 3
+MAX_VIDEO_VARIANT_ATTEMPTS = 5
 
 
 class PostProcessor:
@@ -134,11 +134,19 @@ class PostProcessor:
         }
 
     def _video_candidates(self, videos: list) -> list:
-        """Rank direct variants and keep a bounded fallback when sizes are unknown."""
+        """Rank direct variants and keep bounded fallbacks when sizes are unknown.
+
+        Telegram's standard 50 MB limit applies to a Telegram-only job.  For a
+        multi-destination job, the same downloaded file is delivered to every
+        destination; applying Telegram's smaller limit there would silently
+        downgrade Dropbox/MEGA/Download even though those destinations support
+        larger files.  Telegram then reports its own per-destination size
+        failure while the larger-file destinations can still succeed.
+        """
         if not videos:
             return []
         limit = self.downloader.max_bytes
-        if "telegram" in self.config.destinations:
+        if self.config.destinations == ("telegram",):
             local_api = (
                 self.config.large_file_mode
                 and self.config.telegram_api_base_url.rstrip("/") != "https://api.telegram.org"
@@ -159,10 +167,10 @@ class PostProcessor:
             return size if size > 0 else None
 
         quality = lambda item: (
-            numeric(item.bitrate, -1.0),
             numeric(item.width) * numeric(item.height),
-            numeric(item.height, -1.0),
             numeric(item.width, -1.0),
+            numeric(item.height, -1.0),
+            numeric(item.bitrate, -1.0),
         )
         sized = [(item, size_bytes(item)) for item in videos]
         safe = [item for item, size in sized if size is not None and size <= limit]

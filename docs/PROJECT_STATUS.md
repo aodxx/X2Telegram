@@ -9,6 +9,7 @@
 
 - แยก metadata error กรณีโพสต์ไม่มีวิดีโอ/สื่อที่รองรับออกจากระบบ metadata ล้มเหลว และ Dashboard แนะนำสาเหตุเป็นภาษาไทย
 - เพิ่ม `bitrate`, `width`, `height` และขนาดไฟล์ที่ตรวจสอบแล้วใน `media_manifest` เพื่อแสดงคุณภาพ variant ที่เลือกจริง
+- ปรับการเลือกวิดีโอให้เรียงความละเอียดก่อน bitrate, เพิ่ม fallback สูงสุด 5 variants และไม่ใช้ Telegram 50 MB ลดคุณภาพร่วมกับ Dropbox/MEGA/Download ในงานหลายปลายทาง; เพิ่ม regression tests ครบแล้ว
 - Dashboard นับ `no_media` และผลที่ยังยืนยันไม่ได้เป็นรายการที่ต้องตรวจสอบ พร้อมแสดง “เสร็จบางส่วน” เมื่อมีทั้งรายการที่จัดการแล้วและรายการที่ต้องแก้ไข
 - PR #29 merged เป็น `359041e` พร้อม guard ของ state-writer: ตรวจ repository/ref/event และยอมให้ state writer เปลี่ยนเฉพาะ `state/dedupe.json`
 - ตรวจ GitHub repository ruleset แล้ว; การสร้าง ruleset ที่ bypass GitHub Actions integration ถูก GitHub API ปฏิเสธสำหรับ repository owner แบบ user จึงยังไม่เปิด protection ที่จะบล็อกการ persist state

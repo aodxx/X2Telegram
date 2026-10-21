@@ -208,6 +208,35 @@ def test_telegram_selects_highest_variant_within_50mb_limit(tmp_path):
     assert download.call_args.args[0] == "https://media.invalid/low.mp4"
 
 
+def test_multi_destination_job_does_not_apply_telegram_50mb_cap_to_shared_download():
+    processor = PostProcessor(
+        Config(max_file_size_mb=2000, destinations=("telegram", "dropbox")),
+        None,
+    )
+    variants = [
+        MediaItem("video", "https://media.invalid/high.mp4", 0, bitrate=4_000_000, width=1920, height=1080, size_bytes=80 * 1024 * 1024),
+        MediaItem("video", "https://media.invalid/low.mp4", 0, bitrate=1_000_000, width=1280, height=720, size_bytes=20 * 1024 * 1024),
+    ]
+    try:
+        ranked = processor._video_candidates(variants)
+    finally:
+        processor.close()
+    assert ranked[0].url.endswith("high.mp4")
+
+
+def test_video_quality_prefers_higher_resolution_before_bitrate():
+    processor = PostProcessor(Config(destinations=("download",)), None)
+    variants = [
+        MediaItem("video", "https://media.invalid/720p-high-bitrate.mp4", 0, bitrate=3_000_000, width=1280, height=720, size_bytes=20 * 1024 * 1024),
+        MediaItem("video", "https://media.invalid/1080p.mp4", 0, bitrate=2_000_000, width=1920, height=1080, size_bytes=30 * 1024 * 1024),
+    ]
+    try:
+        ranked = processor._video_candidates(variants)
+    finally:
+        processor.close()
+    assert ranked[0].url.endswith("1080p.mp4")
+
+
 def test_telegram_falls_back_to_lower_video_variant_when_size_is_unknown(tmp_path):
     class VariantMetadata:
         def get(self, post):

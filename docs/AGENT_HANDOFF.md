@@ -81,6 +81,7 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 
 - เสร็จ: แยกกรณีโพสต์ไม่มีสื่อที่รองรับจาก metadata failure และเพิ่มคำแนะนำภาษาไทยบน Dashboard
 - เสร็จ: รายงาน bitrate/ความละเอียด/ขนาดไฟล์ของ media variant ที่เลือกและตรวจสอบแล้ว
+- เสร็จ: quality-selection hardening ให้เรียง resolution ก่อน bitrate, fallback สูงสุด 5 variants และแยก Telegram 50 MB ออกจากเพดานร่วมของงานหลายปลายทาง; Python suite ล่าสุด 158 tests ผ่าน
 - เสร็จ: สถานะรวมแยก “เสร็จบางส่วน” และนับ `no_media`/ผลที่ยังยืนยันไม่ได้เป็นรายการที่ต้องตรวจสอบ
 - หลักฐาน: Python 156 tests และ Worker/Dashboard 45 tests ผ่าน; ไม่ทำ live upload ซ้ำ เพราะผู้ใช้ยืนยันว่าทดสอบขั้นที่ 1 แล้ว
 
