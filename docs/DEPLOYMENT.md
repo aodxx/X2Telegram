@@ -122,6 +122,8 @@ Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่
 
 ก่อนเปิด ruleset เป็น Active ให้ทดสอบใน Evaluate mode แล้วตรวจว่า state commit ผ่าน, ไม่มีไฟล์อื่นถูกเขียน, ไม่เกิด CI loop จาก `[skip ci]` และ concurrent state runs ทำ rebase/retry ได้. หาก `persist-state` ล้ม ให้เก็บ state artifact จาก run, ห้าม force-push, แก้ ruleset/permission เฉพาะจุด และใช้ manual reconciliation เมื่อเกิด conflict. รายละเอียด policy ปัจจุบันต้องตรวจจาก GitHub repository rulesets ก่อน deploy ทุกครั้ง.
 
+ณ 2026-10-22 PR #29 ถูก merge เป็น `359041e` และ guard ของ state-writer ผ่าน CI แล้ว แต่การสร้าง ruleset ถูก GitHub API ปฏิเสธด้วยข้อกำหนดว่า GitHub Actions integration ต้องเป็นส่วนหนึ่งของ ruleset source หรือ owner organization. Repository นี้อยู่ใต้ user owner จึงยังไม่มี active protection ที่ปลอดภัยสำหรับ workflow ปัจจุบัน; ห้ามสร้าง ruleset ที่ไม่มี bypass ของ integration เพราะจะบล็อกการ persist `state/dedupe.json`. ทางแก้ที่ต้องพิจารณาแยกคือย้าย repository เข้า organization ที่รองรับ integration bypass หรือเปลี่ยน state-writer ให้ใช้ PR/กลไกอื่นก่อนเปิด protection.
+
 ## 8. Error ที่พบบ่อย
 
 | Error/status | วิธีตรวจ |

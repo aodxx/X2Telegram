@@ -1,7 +1,7 @@
 # X2Telegram — E2E Test Report
 
-**วันที่:** 2026-10-13
-**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. Access second-email support ถูก merge เป็น main commit `f5372e5` (PR [#25](https://github.com/aodxx/X2Telegram/pull/25)); main CI [#38295563125](https://github.com/aodxx/X2Telegram/actions/runs/38295563125) และ Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่าน; production Worker version `649353cf-fd9a-498b-9415-14bae01de486`. Access policy/Worker configuration อนุญาตสอง exact email identities; ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง. P3 remains partial: no live destination retry was invoked; cross-isolate and checkpoint-storage limitations remain.
+**วันที่:** 2026-10-22
+**สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox ต่างมีหลักฐาน live success อย่างน้อยหนึ่ง media; combined run เลือกครบ 4 destinations และส่ง media สำเร็จทั้ง 4 สำหรับ media ที่ดึงได้. Access second-email support ถูก merge เป็น main commit `f5372e5` (PR [#25](https://github.com/aodxx/X2Telegram/pull/25)); PR [#29](https://github.com/aodxx/X2Telegram/pull/29) ถูก squash-merge เป็น `359041e` พร้อม guard ของ state-writer; main CI [#39618902135](https://github.com/aodxx/X2Telegram/actions/runs/39618902135) ผ่านด้วย Python 156 และ Worker/Dashboard 45 tests. Access policy/Worker configuration อนุญาตสอง exact email identities; ผู้ใช้รองยังไม่ได้ sign in ด้วย OTP จึงยังไม่มีหลักฐาน session จริง. P3 remains partial: no live destination retry was invoked; cross-isolate and checkpoint-storage limitations remain. Ruleset protection ยังไม่ active เพราะ GitHub API ไม่อนุญาตให้ repository owner แบบ user เพิ่ม GitHub Actions integration เป็น bypass actor และการเปิด ruleset โดยไม่มี bypass จะบล็อก state-writer.
 
 ## Dashboard and P4 update (automated/deployment evidence only)
 
