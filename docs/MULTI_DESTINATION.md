@@ -10,6 +10,7 @@ Dashboard → Cloudflare Access/Worker → GitHub Actions → Python worker
   → Destination dispatcher
       ├── Telegram
       ├── MEGA
+      ├── Dropbox
       └── Browser download ZIP
 ```
 
@@ -76,7 +77,7 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 ## Retry และ duplicate prevention
 
 - Python ดาวน์โหลดและตรวจ media ก่อน จากนั้นส่งไฟล์ local เดิมไปยังแต่ละปลายทางที่เลือก; ไม่ดาวน์โหลดจาก X ซ้ำเพียงเพราะเลือกหลายปลายทาง
-- Dedupe state v3 บันทึกผลสำเร็จแยกตาม media และปลายทางที่เป็นการส่งซ้ำได้ (Telegram/MEGA/Dropbox). เมื่อ retry post เดิม ระบบข้าม destination ที่สำเร็จแล้วและลองเฉพาะ target ที่ยังไม่สำเร็จ
+- Dedupe state v4 บันทึกผลสำเร็จและผลลัพธ์ที่ยังไม่ยืนยันแยกตาม media และปลายทางที่เป็นการส่งซ้ำได้ (Telegram/MEGA/Dropbox). เมื่อ retry post เดิม ระบบข้าม destination ที่สำเร็จแล้ว ไม่ replay ผลที่ยังไม่ยืนยันโดยอัตโนมัติ และลองเฉพาะ target ที่ล้มเหลวแบบยืนยันแล้ว
 - Browser download เป็น artifact ของ job นั้น ไม่ใช่สำเนาถาวรใน dedupe state; เริ่ม job ใหม่เพื่อสร้าง ZIP ใหม่ได้
 - GitHub Actions concurrency ยัง serialize งานที่แก้ไข dedupe state. State เก็บเฉพาะ media fingerprint, destination checkpoint และ Telegram message IDs ที่จำเป็นต่อ retry; username, source URL และ timestamps จะไม่ถูกเขียนลง state ใหม่. ไม่รับประกัน exactly-once หากบริการปลายทางรับไฟล์แล้ว response/checkpoint สูญหายก่อน state ถูกบันทึก
 

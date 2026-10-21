@@ -55,7 +55,7 @@ Dashboard static assets และ API ใช้ Worker origin เดียวก
 
 Worker รับ `POST /jobs` ที่มี URL เดี่ยวหรือ batch, `destinations`, `large_file_mode`, `request_id`; ตรวจ Access JWT/allowlist, payload, destination allowlist, idempotency และ body cap ก่อน dispatch. `POST /jobs/recover` เป็น lookup-only สำหรับคำขอเดิม; ถ้าไม่พบ workflow run ที่ตรงกันจะคืน not-found โดยไม่ dispatch งานใหม่. Worker ไม่รับ Telegram/MEGA/Dropbox credentials จาก Dashboard
 
-Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. Snapshot ล่าสุด: main commit `f5372e5e0656c300687b404f1f60e215c8d5962a`, deploy run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200), Worker version `649353cf-fd9a-498b-9415-14bae01de486`. ตรวจ `docs/AGENT_HANDOFF.md` และ `docs/PROJECT_STATUS.md` ก่อน deploy ครั้งถัดไป.
+Production deploy ใช้ workflow แบบ manual: `.github/workflows/deploy-worker.yml` ที่ GitHub Actions → Run workflow โดยต้องมี GitHub Environment `production` secrets `CLOUDFLARE_API_TOKEN` และ `CLOUDFLARE_ACCOUNT_ID`. Workflow จะรัน Worker tests, Wrangler dry-run และ deploy ตามลำดับ. Worker snapshot ที่บันทึกไว้ล่าสุดคือ deploy commit `f5372e5`, run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200), Worker version `649353cf-fd9a-498b-9415-14bae01de486`; main branch หลังจากนั้นมีการปรับ Python/Dashboard และ state persistence โดยไม่เปลี่ยน Worker production code. ตรวจ `docs/AGENT_HANDOFF.md` และ `docs/PROJECT_STATUS.md` ก่อน deploy ครั้งถัดไป.
 
 หากเผยแพร่ source ใหม่จาก `control-worker/` แบบ local/manual:
 
@@ -115,6 +115,12 @@ Tests ใช้ mocks/fakes สำหรับ MEGA/Telegram และ GitHub AP
 ### State persistence ใน GitHub Actions
 
 Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่อน `fetch/rebase` แล้วจึง push พร้อม retry สูงสุด 3 ครั้ง. ห้ามย้าย `rebase` กลับไปก่อน commit เพราะ artifact ที่ดาวน์โหลดมาจะเป็น unstaged change และทำให้ job ล้มด้วย `cannot rebase: You have unstaged changes`. หาก rebase conflict ให้หยุดและปฏิเสธการเขียนทับ state เพื่อให้ตรวจสอบแบบ manual.
+
+### Branch protection สำหรับ state writer
+
+`main` ควรใช้ repository ruleset ที่บังคับ Pull Request, review อย่างน้อย 1 ครั้ง, required checks ของ `Automated Tests` และปิด force-push/branch deletion. ข้อยกเว้น direct push ให้เฉพาะ GitHub Actions integration ที่ใช้โดย `persist-state` (GitHub App ID `15368`) และต้องเปิด bypass เท่าที่จำเป็น เพราะ workflow มี guard ตรวจ repository, `refs/heads/main`, `workflow_dispatch` และยอมให้มีไฟล์เปลี่ยนเฉพาะ `state/dedupe.json` เท่านั้น. ห้ามใช้ personal PAT หรือเปิด bypass ให้ administrator เป็นทางลัด.
+
+ก่อนเปิด ruleset เป็น Active ให้ทดสอบใน Evaluate mode แล้วตรวจว่า state commit ผ่าน, ไม่มีไฟล์อื่นถูกเขียน, ไม่เกิด CI loop จาก `[skip ci]` และ concurrent state runs ทำ rebase/retry ได้. หาก `persist-state` ล้ม ให้เก็บ state artifact จาก run, ห้าม force-push, แก้ ruleset/permission เฉพาะจุด และใช้ manual reconciliation เมื่อเกิด conflict. รายละเอียด policy ปัจจุบันต้องตรวจจาก GitHub repository rulesets ก่อน deploy ทุกครั้ง.
 
 ## 8. Error ที่พบบ่อย
 

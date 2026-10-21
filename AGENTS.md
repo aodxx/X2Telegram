@@ -31,13 +31,13 @@
 - Current Worker version: `649353cf-fd9a-498b-9415-14bae01de486`
 - P2 merge commit included in `main`: `a5711e1` (media identity/manifest; PR #23)
 - P3 merge commit included in `main`: `9e9e9f8` (safe retry/job recovery; PR #24)
-- Latest Dashboard code commit on main: `763bd9a` (consecutive-batch tracking; PR #27)
+- Latest application code commit on main: `4bd1abf` (metadata diagnostics/media quality; later commits only persist delivery state)
 - Production Worker deployment commit: `f5372e5` (Access secondary-email support; PR #25)
 - Deploy workflow: `.github/workflows/deploy-worker.yml`
 - Deploy ล่าสุด: GitHub Actions run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) — success; Wrangler dry-run and deploy passed
-- Dashboard Pages: run [#38300619373](https://github.com/aodxx/X2Telegram/actions/runs/38300619373) — success on main commit `763bd9a`; PR #27 changed the Dashboard only
-- Main CI: run [#38300530120](https://github.com/aodxx/X2Telegram/actions/runs/38300530120) — success; Python **147** and Worker/Dashboard **45** tests
-- Python tests: **147 passed**; Worker tests: **45 passed**
+- Dashboard Pages: run [#38968970271](https://github.com/aodxx/X2Telegram/actions/runs/38968970271) — success on application commit `4bd1abf`
+- Main CI: run [#38968970038](https://github.com/aodxx/X2Telegram/actions/runs/38968970038) — success; Python **156** and Worker/Dashboard **45** tests
+- Python tests: **156 passed**; Worker tests: **45 passed**
 - Edge rate limit: `JOB_DISPATCH_RATE_LIMITER`, 20 requests/60 seconds ต่อ Access identity
 - Cloudflare Access อนุญาตอีเมลที่ระบุแบบ exact สองรายการ (primary + optional secondary); Worker secret หลักยังคงอยู่ และไม่มี `Everyone`/domain-wide rule
 - Production ถูกป้องกันด้วย Cloudflare Access; smoke check แบบไม่ส่ง credentials พบ unauthenticated `GET /` ตอบ HTTP 302 (Access redirect) เมื่อ 2026-10-13

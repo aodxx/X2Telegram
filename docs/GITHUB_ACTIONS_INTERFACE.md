@@ -42,7 +42,7 @@
 3. ติดตั้ง MEGAcmd เมื่อเลือก MEGA; เริ่ม Local Bot API เฉพาะเมื่อเปิด Large-file mode+เลือก Telegram
 4. Normalize `url`/`urls`, ส่ง input ไป Python CLI พร้อม `DESTINATIONS_JSON`
 5. ประมวลผล media; download/validate หนึ่งครั้งและ dispatch local file ไปทุก target ที่เลือก
-6. Persist dedupe state v3; target ที่สำเร็จแล้วถูกข้ามในการ retry
+6. Persist dedupe state v4; target ที่สำเร็จแล้วถูกข้ามในการ retry และผลลัพธ์ที่ยังไม่ยืนยันไม่ถูก replay อัตโนมัติ
 7. สร้าง sanitized report; upload private dashboard report และ optional media ZIP artifact; ปิด destination sessions
 
 ## Permissions and evidence

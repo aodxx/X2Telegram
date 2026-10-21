@@ -1,11 +1,11 @@
 # Cloudflare Control Worker
 
-## สถานะ live (2026-10-12)
+## สถานะ live (อัปเดต 2026-10-22)
 
 - Worker `x2telegram-control-plane` ใช้งานที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
-- Version ID ปัจจุบัน: `c44298fb-47f9-4798-a3db-9cd6946018fb`
-- Source: `main`, commit `fe3170fb3fc23cf06ee8a9a838866e38d207480c`
-- Deploy ผ่าน GitHub Actions run [#38171587335](https://github.com/aodxx/X2Telegram/actions/runs/38171587335) และใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds
+- Version ID ที่บันทึกไว้ล่าสุด: `649353cf-fd9a-498b-9415-14bae01de486`
+- Source ที่ deploy: `main`, commit `f5372e5` (Access secondary-email support)
+- Deploy ผ่าน GitHub Actions run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) และใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds; Worker production code ไม่เปลี่ยนใน dashboard/Python releases หลังจากนั้น
 - Cloudflare Access จำกัด hostname นี้ตาม email owner policy; Dashboard static assets และ API อยู่ origin เดียวกัน
 - Worker-hosted Dashboard แสดง Access session ผ่าน browser จริงและมี destination selectors
 - Live Download-only run #37843359593 ประมวลผล 2 URLs และ browser ดาวน์โหลด ZIP จริงผ่าน protected endpoint; report มี Download 2 files พร้อม ZIP CRC check ผ่าน
@@ -48,7 +48,7 @@ npx wrangler deploy --config wrangler.toml  # local/manual; production ใช้
 | `GET /` และ static assets | Cloudflare Access at edge + Worker JWT identity validation | เสิร์ฟ Dashboard จาก Worker origin; หน้าเว็บและ API ใช้ same-origin |
 | `GET /auth/check` | Access JWT + owner email | ให้ Dashboard ตรวจ session ก่อนเปิดปุ่ม submit |
 | `GET /health` | Worker route ไม่ต้องใช้ JWT; **production edge ยังถูก Cloudflare Access ครอบอยู่** | Liveness only; ไม่แสดง secret หรือยืนยัน upstream readiness. หากต้องการ public monitoring ต้องตั้ง Access bypass เฉพาะ path นี้ |
-| `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–200; validate และ dispatch `destinations` ไปยัง workflow |
+| `POST /jobs` | Access JWT + owner email | รับ URL เดี่ยวหรือ batch 1–200; request body ไม่เกิน 64 KiB; validate และ dispatch `destinations` ไปยัง workflow |
 | `GET /jobs/<job_id>` | Access JWT + owner email | คืนสถานะและ sanitized report ต่อ destination/media |
 | `GET /jobs/<job_id>/download` | Access JWT + owner email | ตรวจ run/artifact job-match/retention แล้ว stream private media ZIP ไป browser |
 
@@ -68,9 +68,9 @@ Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, 
 
 ## Tests และ live coverage
 
-- Worker: `npm test --prefix control-worker` — **27 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, rate limiter binding/fail-closed, partial success, ZIP streaming และ missing artifact
-- Python: `python3 -m pytest -q` — **95 passed**, ครอบ per-destination retry/dedupe, privacy-minimized state, MEGA/Dropbox/Download fakes, size limits และ sanitization
+- Worker: `npm test --prefix control-worker` — **45 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, rate limiter binding/fail-closed, partial success, ZIP streaming และ missing artifact
+- Python: `python3 -m pytest -q` — **156 passed**, ครอบ per-destination retry/dedupe, privacy-minimized state, MEGA/Dropbox/Download fakes, size limits, media manifest และ sanitization
 - Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download และ MEGA-only upload ผ่าน
-- Combined Telegram+MEGA live run, Local Bot API large-file และ mobile browser ยังไม่ได้ live-test; การทดสอบปลายทางรวมมี automated coverage. Production deploy ล่าสุดผ่านแล้ว แต่ไม่ได้สร้างงานส่ง media ใหม่
+- Combined Telegram+MEGA/Dropbox/Download live run ผ่านสำหรับ media ที่ดาวน์โหลดได้หนึ่งรายการ; Local Bot API large-file, Dropbox refresh/large-file session และ mobile browser ยังไม่ได้ live-test. Production Worker deploy ล่าสุดผ่านแล้ว แต่การเปลี่ยนแปลง Python/Dashboard หลังจากนั้นไม่ได้ต้อง deploy Worker ใหม่
 
 รายละเอียด API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); Access policy: [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md); ผลทดสอบ: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)
