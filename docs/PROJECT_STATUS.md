@@ -15,6 +15,12 @@
 - ตรวจ GitHub repository ruleset แล้ว; การสร้าง ruleset ที่ bypass GitHub Actions integration ถูก GitHub API ปฏิเสธสำหรับ repository owner แบบ user จึงยังไม่เปิด protection ที่จะบล็อกการ persist state
 - Validation ล่าสุด: Python **156 passed**, Worker/Dashboard **45 passed**; ยังไม่ได้ทำ live upload ซ้ำตามขอบเขตที่ผู้ใช้กำหนด
 
+### MEGA incident review — 2026-10-22
+
+- Run ล่าสุด `39651933138` ติดตั้ง MEGAcmd สำเร็จและตรวจ checksum ผ่าน แต่ทุก media จบด้วย `mega_authentication_failed` ที่ขั้น `mega-login`; จึงไม่ใช่ปัญหาการดาวน์โหลดหรือ `mega-put`
+- เพิ่มทางเลือก `MEGA_SESSION` แบบ GitHub Actions Secret เพื่อ resume session โดยไม่ต้องส่ง email/password และเพิ่มการแยกกรณีบัญชีเปิด MFA แต่ไม่มี TOTP/session เป็น `mega_mfa_required`
+- หากยังใช้ email/password ให้ตรวจหรือบันทึก `MEGA_EMAIL`, `MEGA_PASSWORD` ใหม่ใน GitHub Actions Secrets; ระบบไม่สามารถอ่านหรือแก้ค่า secret ที่ซ่อนอยู่ได้
+
 ## ภาพรวม
 
 ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA, Dropbox และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path

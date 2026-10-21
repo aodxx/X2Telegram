@@ -87,8 +87,9 @@ jobs:
         env:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
+          MEGA_SESSION: ${{ secrets.MEGA_SESSION }}
         run: |
-          if [ -z "$MEGA_EMAIL" ] || [ -z "$MEGA_PASSWORD" ]; then
+          if [ -z "$MEGA_SESSION" ] && { [ -z "$MEGA_EMAIL" ] || [ -z "$MEGA_PASSWORD" ]; }; then
             echo "MEGA credentials are not configured; the MEGA destination will report its own failure."
             exit 0
           fi
@@ -152,6 +153,7 @@ jobs:
           MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
           MEGA_TOTP_SECRET: ${{ secrets.MEGA_TOTP_SECRET }}
+          MEGA_SESSION: ${{ secrets.MEGA_SESSION }}
           MEGA_REMOTE_FOLDER: ${{ vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}

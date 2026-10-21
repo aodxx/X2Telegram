@@ -27,6 +27,8 @@ def test_workflow_keeps_megacredentials_server_side_and_uploads_download_artifac
     assert "MEGA_EMAIL: ${{ secrets.MEGA_EMAIL }}" in text
     assert "MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}" in text
     assert "MEGA_TOTP_SECRET: ${{ secrets.MEGA_TOTP_SECRET }}" in text
+    assert "MEGA_SESSION: ${{ secrets.MEGA_SESSION }}" in text
+    assert 'if [ -z "$MEGA_SESSION" ] && { [ -z "$MEGA_EMAIL" ] || [ -z "$MEGA_PASSWORD" ]; }; then' in text
     assert "MEGA_REMOTE_FOLDER: ${{ vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}" in text
     assert "DESTINATIONS_JSON: ${{ inputs.destinations" in text
     assert "name: x2telegram-media-${{ github.run_id }}" in text

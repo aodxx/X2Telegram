@@ -42,12 +42,13 @@ Dashboard ใช้ browser download มาตรฐานผ่านลิง�
 | `MEGA_EMAIL` | อีเมลบัญชี MEGA ที่จะรับไฟล์ |
 | `MEGA_PASSWORD` | รหัสผ่านบัญชี MEGA |
 | `MEGA_TOTP_SECRET` | (ไม่บังคับ) MFA/TOTP seed สำหรับบัญชีที่เปิด two-factor authentication; ให้เว้นว่างหากไม่ได้ใช้ TOTP |
+| `MEGA_SESSION` | (ไม่บังคับ) session ID จาก MEGAcmd; ใช้แทน email/password ได้เมื่อ password login ถูกปฏิเสธ |
 
-ใส่ค่าเฉพาะใน GitHub Secrets; **อย่าวาง credential ใน Dashboard, source code, issue หรือข้อความแชต**. MEGAcmd จะถูกติดตั้งเฉพาะเมื่อเลือก MEGA; หาก secret ไม่มี/การติดตั้งหรือ login ล้มเหลว จะรายงานความล้มเหลวของ MEGA แยกจาก Telegram/Download และไม่พิมพ์ output ของคำสั่ง login ลง report
+ใส่ค่าเฉพาะใน GitHub Secrets; **อย่าวาง credential ใน Dashboard, source code, issue หรือข้อความแชต**. MEGAcmd จะถูกติดตั้งเฉพาะเมื่อเลือก MEGA; หากมี `MEGA_SESSION` ระบบจะใช้ session ก่อน email/password. หาก secret ไม่มี/การติดตั้งหรือ login ล้มเหลว จะรายงานความล้มเหลวของ MEGA แยกจาก Telegram/Download และไม่พิมพ์ output ของคำสั่ง login ลง report
 
 หากต้องการเปลี่ยนโฟลเดอร์ราก ให้ตั้ง **Repository variable** `MEGA_REMOTE_FOLDER` ที่ Settings → Secrets and variables → Actions → Variables (เช่น `Archive/X2Telegram`). ถ้าไม่ตั้ง ระบบใช้ `X2Telegram`; ทุก job จะเก็บไฟล์ใต้โฟลเดอร์วันที่ `YYYY-MM-DD`. ชื่อไฟล์สำหรับ MEGA/Dropbox มี SHA-256 เต็มของ media ต่อท้าย basename; media ที่เนื้อหาต่างกันจึงได้ชื่อคนละชื่อ แม้ username/post ID/index เดิม และ dedupe จะข้ามไฟล์เนื้อหาเดิมเมื่อมี checkpoint สำเร็จ. ระบบปฏิเสธ root path ที่มี `.`/`..` หรืออักขระที่ไม่อนุญาต
 
-เอกสารคำสั่ง login/MFA ของผู้พัฒนา MEGAcmd: [MEGAcmd login](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). ระบบใช้ `mega-login --auth-code=... email password` เมื่อกำหนด TOTP secret และเรียก `mega-logout` หลังประมวลผล
+เอกสารคำสั่ง login/MFA ของผู้พัฒนา MEGAcmd: [MEGAcmd login](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). ระบบใช้ `mega-login session` เมื่อกำหนด `MEGA_SESSION`; มิฉะนั้นใช้ `mega-login --auth-code=... email password` เมื่อกำหนด TOTP secret และเรียก `mega-logout` หลังประมวลผล
 
 ### การตั้งค่า Dropbox
 

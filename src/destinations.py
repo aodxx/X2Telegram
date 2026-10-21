@@ -54,6 +54,7 @@ class MegaUploader:
         email: str | None = None,
         password: str | None = None,
         totp_secret: str | None = None,
+        session: str | None = None,
         remote_folder: str | None = None,
         timeout_seconds: int = 3600,
         runner: Callable = subprocess.run,
@@ -62,6 +63,7 @@ class MegaUploader:
         self.email = (email if email is not None else os.getenv("MEGA_EMAIL", "")).strip()
         self.password = password if password is not None else os.getenv("MEGA_PASSWORD", "")
         self.totp_secret = (totp_secret if totp_secret is not None else os.getenv("MEGA_TOTP_SECRET", "")).strip()
+        self.session = (session if session is not None else os.getenv("MEGA_SESSION", "")).strip()
         self.remote_folder = remote_folder or os.getenv("MEGA_REMOTE_FOLDER", "X2Telegram")
         self.timeout_seconds = max(1, int(timeout_seconds))
         self.runner = runner
@@ -98,7 +100,7 @@ class MegaUploader:
             return
         if self._login_error:
             raise self._login_error
-        if not self.email or not self.password:
+        if not self.session and (not self.email or not self.password):
             self._login_error = DestinationError(
                 "mega_credentials_missing", "MEGA credentials are not configured in GitHub Actions Secrets."
             )
@@ -108,15 +110,21 @@ class MegaUploader:
                 "mega_client_unavailable", "MEGA upload client is unavailable on this runner."
             )
             raise self._login_error
-        args = ["mega-login"]
-        if self.totp_secret:
-            args.append(f"--auth-code={totp_code(self.totp_secret)}")
-        args.extend([self.email, self.password])
+        if self.session:
+            args = ["mega-login", self.session]
+        else:
+            args = ["mega-login"]
+            if self.totp_secret:
+                args.append(f"--auth-code={totp_code(self.totp_secret)}")
+            args.extend([self.email, self.password])
         result = self._run(args, timeout=90)
         if result.returncode != 0:
             # Never surface MEGAcmd output; it can contain account or session details.
+            output = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+            code = "mega_mfa_required" if ("two-factor" in output or "2fa" in output or "mfa" in output) and not self.totp_secret and not self.session else "mega_authentication_failed"
             self._login_error = DestinationError(
-                "mega_authentication_failed", "MEGA login failed. Check MEGA_EMAIL, MEGA_PASSWORD, and optional MEGA_TOTP_SECRET."
+                code,
+                "MEGA login failed. Check the MEGA credentials, MFA setting, or use a valid MEGA_SESSION."
             )
             raise self._login_error
         self._logged_in = True

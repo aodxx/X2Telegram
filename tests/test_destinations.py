@@ -567,6 +567,38 @@ def test_mega_login_failure_discards_client_output(tmp_path):
     assert "private" not in str(raised.value)
 
 
+def test_mega_session_login_avoids_password_and_email(tmp_path):
+    calls = []
+
+    def runner(args, **kwargs):
+        calls.append(args)
+        if args[0] == "mega-login":
+            assert args == ["mega-login", "session-reference"]
+        if args[0] == "mega-ls":
+            return SimpleNamespace(returncode=0, stdout="safe_name.mp4", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    media_path = tmp_path / "safe_name.mp4"
+    media_path.write_bytes(b"video")
+    uploader = MegaUploader(
+        email="unused@example.com", password="unused", session="session-reference",
+        runner=runner, which=lambda _name: True,
+    )
+    assert uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc)) == "/X2Telegram/2026-10-09"
+    assert calls[0] == ["mega-login", "session-reference"]
+
+
+def test_mega_login_reports_missing_mfa_without_exposing_client_output(tmp_path):
+    def runner(args, **kwargs):
+        return SimpleNamespace(returncode=1, stdout="", stderr="Two-factor authentication required")
+
+    uploader = MegaUploader(email="owner@example.com", password="p", runner=runner, which=lambda _name: True)
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+    assert raised.value.code == "mega_mfa_required"
+    assert "Two-factor" not in str(raised.value)
+
+
 def test_totp_uses_rfc6238_six_digit_vector():
     # RFC 6238 test secret; the six-digit truncation of the 8-digit reference is 287082 at t=59.
     assert totp_code("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", timestamp=59) == "287082"

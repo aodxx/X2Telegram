@@ -33,13 +33,14 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 | `MEGA_EMAIL` | เลือก MEGA | อีเมล MEGA account |
 | `MEGA_PASSWORD` | เลือก MEGA | รหัสผ่าน MEGA account |
 | `MEGA_TOTP_SECRET` | MEGA account เปิด MFA/TOTP | seed/secret สำหรับสร้าง TOTP; ไม่ต้องตั้งถ้าบัญชีไม่ใช้ MFA |
+| `MEGA_SESSION` | ทางเลือกแทน email/password | session ID จาก MEGAcmd สำหรับ resume login; ใช้เมื่อ password login ถูกปฏิเสธหรือบัญชีมี MFA |
 | `DROPBOX_REFRESH_TOKEN` | เลือก Dropbox | OAuth refresh token จาก Dropbox App ที่ authorize แบบ offline |
 | `DROPBOX_APP_KEY` | เลือก Dropbox | Dropbox App key |
 | `DROPBOX_APP_SECRET` | เลือก Dropbox | Dropbox App secret |
 | `DROPBOX_ACCESS_TOKEN` | ไม่บังคับ | short-lived access token; ใช้ร่วมกับ refresh token เพื่อรองรับการ refresh |
 | `ALERT_WEBHOOK_URL` | แจ้งเตือนเสริม | HTTPS webhook; optional |
 
-`TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**
+`TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**. หากใช้ `MEGA_SESSION` ระบบจะใช้ session ก่อน email/password และไม่ส่ง password ไปกับคำสั่ง login.
 
 MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
 
@@ -129,7 +130,8 @@ Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่
 | Error/status | วิธีตรวจ |
 |---|---|
 | `mega_credentials_missing` | เพิ่ม `MEGA_EMAIL`, `MEGA_PASSWORD` ใน repository Actions Secrets |
-| `mega_authentication_failed` | ตรวจข้อมูล MEGA/TOTP ใน Secrets; report ไม่แสดงรหัสผ่าน/command output |
+| `mega_authentication_failed` | ตรวจข้อมูล MEGA/TOTP ใน Secrets; หาก password login ถูกปฏิเสธ ให้ใช้ `MEGA_SESSION`; report ไม่แสดงรหัสผ่าน/command output |
+| `mega_mfa_required` | บัญชีเปิด MFA แต่ไม่มี TOTP/session ที่ใช้ได้ ให้ตั้ง `MEGA_TOTP_SECRET` หรือ `MEGA_SESSION` |
 | `mega_client_unavailable` | ตรวจขั้นติดตั้ง MEGAcmd ใน Actions log; target อื่นยังทำงานต่อได้ |
 | `telegram_file_too_large` | ใช้ Telegram Large-file mode ที่ตั้งค่า Local Bot API แล้ว หรือเลือก MEGA/Dropbox/Download เพิ่ม |
 | `download_artifact_size_limit` | แบ่งรายการเป็นหลาย jobs; ZIP limit คือ 8 GiB/job |
