@@ -7090,6 +7090,60 @@
       },
       "message_ids": [],
       "completed": true
+    },
+    "1991735383974113655": {
+      "media": {
+        "938cbc0594435e9db7eebb1b116c5dfc03c725ca9ce711c6121a7c567ff06572": {
+          "kind": "video",
+          "filename": "1991735383974113655_01_938cbc0594435e9db7eebb1b116c5dfc03c725ca9ce711c6121a7c567ff06572.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "1991735383974113655_01_938cbc0594435e9db7eebb1b116c5dfc03c725ca9ce711c6121a7c567ff06572.mp4",
+              "dropbox_path": "/X2Telegram/1991735383974113655_01_938cbc0594435e9db7eebb1b116c5dfc03c725ca9ce711c6121a7c567ff06572.mp4",
+              "already_exists": false
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "1942119635341754538": {
+      "media": {
+        "d2ef949b51e6ca0d2cfedb9e0bd7f2845be93759662704be44efa687669e44d3": {
+          "kind": "photo",
+          "filename": "1942119635341754538_01_d2ef949b51e6ca0d2cfedb9e0bd7f2845be93759662704be44efa687669e44d3.jpg",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "1942119635341754538_01_d2ef949b51e6ca0d2cfedb9e0bd7f2845be93759662704be44efa687669e44d3.jpg",
+              "dropbox_path": "/X2Telegram/1942119635341754538_01_d2ef949b51e6ca0d2cfedb9e0bd7f2845be93759662704be44efa687669e44d3.jpg",
+              "already_exists": false
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
+    },
+    "1876503555739415034": {
+      "media": {
+        "f6ba5d2582c9da9f29b58698c63c849fd51b1f9337c97bd2815b36755e2f39d1": {
+          "kind": "video",
+          "filename": "1876503555739415034_01_f6ba5d2582c9da9f29b58698c63c849fd51b1f9337c97bd2815b36755e2f39d1.mp4",
+          "destinations": {
+            "dropbox": {
+              "status": "success",
+              "filename": "1876503555739415034_01_f6ba5d2582c9da9f29b58698c63c849fd51b1f9337c97bd2815b36755e2f39d1.mp4",
+              "dropbox_path": "/X2Telegram/1876503555739415034_01_f6ba5d2582c9da9f29b58698c63c849fd51b1f9337c97bd2815b36755e2f39d1.mp4",
+              "already_exists": false
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
     }
   }
 }
