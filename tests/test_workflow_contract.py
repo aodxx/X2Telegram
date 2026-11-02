@@ -37,6 +37,16 @@ def test_workflow_keeps_megacredentials_server_side_and_uploads_download_artifac
     assert "retention-days: 7" in text
 
 
+def test_megacmd_package_is_pinned_and_signature_verified_before_install():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "fbaa233f4507fdf7e80d672558c5254540d9a9bf1a9da44aa73ff479b7797610" in text
+    assert "https://mega.nz/keys/MEGA_signing.key" in text
+    assert "B01C811880480C854C73EC7E1A664B787094A482" in text
+    verify = "gpgv --keyring /tmp/mega-signing.gpg /tmp/megacmd.deb"
+    assert verify in text
+    assert text.index(verify) < text.index("sudo apt-get install -y /tmp/megacmd.deb")
+
+
 def test_workflow_keeps_dropbox_oauth_credentials_server_side():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}" in text

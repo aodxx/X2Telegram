@@ -104,12 +104,38 @@ jobs:
             echo "MEGAcmd package download failed; other destinations will continue."
             exit 0
           fi
-          if ! echo "56828022459124f8ffe0276e5218718c1eda78f0299aded4eb5a159e9b8037b9  /tmp/megacmd.deb" | sha256sum --check --strict; then
+          if ! echo "fbaa233f4507fdf7e80d672558c5254540d9a9bf1a9da44aa73ff479b7797610  /tmp/megacmd.deb" | sha256sum --check --strict; then
             echo "MEGAcmd checksum verification failed; refusing to install the package."
+            exit 0
+          fi
+          if ! curl --fail --location --silent --show-error --retry 3 \
+            "https://mega.nz/keys/MEGA_signing.key" --output /tmp/MEGA_signing.key; then
+            echo "MEGA signing key download failed; refusing to install the package."
+            exit 0
+          fi
+          if ! gpg --batch --dearmor --yes --output /tmp/mega-signing.gpg /tmp/MEGA_signing.key; then
+            echo "MEGA signing key conversion failed; refusing to install the package."
+            exit 0
+          fi
+          fingerprint="$(gpg --batch --show-keys --with-colons /tmp/mega-signing.gpg | awk -F: '$1 == "fpr" { print $10; exit }')"
+          if [ "$fingerprint" != "B01C811880480C854C73EC7E1A664B787094A482" ]; then
+            echo "MEGA signing key fingerprint mismatch; refusing to install the package."
+            exit 0
+          fi
+          if ! gpgv --keyring /tmp/mega-signing.gpg /tmp/megacmd.deb; then
+            echo "MEGAcmd package signature verification failed; refusing to install the package."
             exit 0
           fi
           if ! sudo apt-get update -y || ! sudo apt-get install -y /tmp/megacmd.deb; then
             echo "MEGAcmd could not be installed; other destinations will continue."
+            exit 0
+          fi
+          for command_name in mega-login mega-put mega-ls; do
+            if ! command -v "$command_name" >/dev/null 2>&1; then
+              echo "MEGAcmd installation did not provide $command_name; other destinations will continue."
+              exit 0
+            fi
+          done
           fi
 
       - name: Start Telegram Local Bot API Server

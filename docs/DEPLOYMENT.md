@@ -42,7 +42,7 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 
 `TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**. หากใช้ `MEGA_SESSION` ระบบจะใช้ session ก่อน email/password และไม่ส่ง password ไปกับคำสั่ง login.
 
-MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
+MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; workflow pin SHA-256 ของ package และตรวจ GPG signature ด้วย MEGA signing-key fingerprint ที่ pin ไว้ก่อนติดตั้ง. Login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
 
 โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. สำหรับ manual GitHub Actions run สามารถระบุ input `mega_remote_folder` เพื่อ override โฟลเดอร์เฉพาะ run ได้; ลำดับคือ input ของ run → repository variable → `X2Telegram`. Input นี้ไม่เปลี่ยนการ dispatch จาก Dashboard. ใช้ path แบบ `Archive/X2Telegram` ได้; uploader จะเพิ่ม subfolder วันที่ UTC `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload. Python ต่อ SHA-256 เต็มของเนื้อหาเข้ากับ basename สำหรับ MEGA/Dropbox; media ต่างเวอร์ชันจึงไม่ชนชื่อเดิม และ uploader ตรวจไฟล์ remote หลังอัปโหลด.
 
