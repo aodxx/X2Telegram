@@ -136,7 +136,6 @@ jobs:
               exit 0
             fi
           done
-          fi
 
       - name: Start Telegram Local Bot API Server
         id: local-api

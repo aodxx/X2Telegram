@@ -1,4 +1,6 @@
 from pathlib import Path
+import subprocess
+import textwrap
 
 
 WORKFLOW = Path(__file__).resolve().parents[1] / ".github/workflows/x2telegram.yml"
@@ -45,6 +47,15 @@ def test_megacmd_package_is_pinned_and_signature_verified_before_install():
     verify = "gpgv --keyring /tmp/mega-signing.gpg /tmp/megacmd.deb"
     assert verify in text
     assert text.index(verify) < text.index("sudo apt-get install -y /tmp/megacmd.deb")
+
+
+def test_megacmd_install_script_passes_bash_syntax_check():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    step = text.split("      - name: Install MEGAcmd when selected\n", 1)[1]
+    step = step.split("\n      - name: Start Telegram Local Bot API Server", 1)[0]
+    script = textwrap.dedent(step.split("        run: |\n", 1)[1])
+    result = subprocess.run(["bash", "-n"], input=script, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
 
 
 def test_workflow_keeps_dropbox_oauth_credentials_server_side():
