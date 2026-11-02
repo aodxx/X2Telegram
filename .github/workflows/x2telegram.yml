@@ -35,6 +35,11 @@ on:
         required: false
         default: ""
         type: string
+      mega_remote_folder:
+        description: "Optional MEGA root folder override for this run"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -154,7 +159,7 @@ jobs:
           MEGA_PASSWORD: ${{ secrets.MEGA_PASSWORD }}
           MEGA_TOTP_SECRET: ${{ secrets.MEGA_TOTP_SECRET }}
           MEGA_SESSION: ${{ secrets.MEGA_SESSION }}
-          MEGA_REMOTE_FOLDER: ${{ vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}
+          MEGA_REMOTE_FOLDER: ${{ inputs.mega_remote_folder || vars.MEGA_REMOTE_FOLDER || 'X2Telegram' }}
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}

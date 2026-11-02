@@ -44,7 +44,7 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 
 MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
 
-โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. ใช้ path แบบ `Archive/X2Telegram` ได้; worker จะเพิ่ม subfolder วันที่ `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload. Python ต่อ SHA-256 เต็มของเนื้อหาเข้ากับ basename สำหรับ MEGA/Dropbox; media ต่างเวอร์ชันจึงไม่ชนชื่อเดิม และ uploader ตรวจไฟล์ remote หลังอัปโหลด
+โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. สำหรับ manual GitHub Actions run สามารถระบุ input `mega_remote_folder` เพื่อ override โฟลเดอร์เฉพาะ run ได้; ลำดับคือ input ของ run → repository variable → `X2Telegram`. Input นี้ไม่เปลี่ยนการ dispatch จาก Dashboard. ใช้ path แบบ `Archive/X2Telegram` ได้; uploader จะเพิ่ม subfolder วันที่ UTC `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload. Python ต่อ SHA-256 เต็มของเนื้อหาเข้ากับ basename สำหรับ MEGA/Dropbox; media ต่างเวอร์ชันจึงไม่ชนชื่อเดิม และ uploader ตรวจไฟล์ remote หลังอัปโหลด.
 
 เอกสารการใช้งาน MEGAcmd: [คำสั่ง login/MFA ทางการ](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). คำแนะนำการใช้งานผู้ใช้: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
 
