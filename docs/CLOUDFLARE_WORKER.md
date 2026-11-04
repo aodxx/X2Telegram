@@ -1,11 +1,11 @@
 # Cloudflare Control Worker
 
-## สถานะ live (อัปเดต 2026-10-22)
+## สถานะ live (อัปเดต 2026-11-05)
 
 - Worker `x2telegram-control-plane` ใช้งานที่ <https://x2telegram-control-plane.pantipa3826.workers.dev>
-- Version ID ที่บันทึกไว้ล่าสุด: `649353cf-fd9a-498b-9415-14bae01de486`
-- Source ที่ deploy: `main`, commit `f5372e5` (Access secondary-email support)
-- Deploy ผ่าน GitHub Actions run [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) และใช้ `JOB_DISPATCH_RATE_LIMITER` 20 requests/60 seconds; Worker production code ไม่เปลี่ยนใน dashboard/Python releases หลังจากนั้น
+- Version ID ที่บันทึกไว้ล่าสุด: `d07ab6a9-b130-4ada-a510-97aa3e8989e3`
+- Source ที่ deploy: `main`, commit `8fae5ac` (Dashboard status recovery หลัง network/Access interruption)
+- Deploy ผ่าน GitHub Actions run [#41919996688](https://github.com/aodxx/X2Telegram/actions/runs/41919996688); Worker tests, Wrangler validation และ deploy ผ่าน. `JOB_DISPATCH_RATE_LIMITER` ยังคง 20 requests/60 seconds
 - Cloudflare Access จำกัด hostname นี้ตาม email owner policy; Dashboard static assets และ API อยู่ origin เดียวกัน
 - Worker-hosted Dashboard แสดง Access session ผ่าน browser จริงและมี destination selectors
 - Live Download-only run #37843359593 ประมวลผล 2 URLs และ browser ดาวน์โหลด ZIP จริงผ่าน protected endpoint; report มี Download 2 files พร้อม ZIP CRC check ผ่าน
@@ -68,9 +68,9 @@ Actions artifact ชื่อ `x2telegram-media-<run-id>` เป็น private, 
 
 ## Tests และ live coverage
 
-- Worker: `npm test --prefix control-worker` — **45 passed**, ครอบ Access/auth-check, static asset gate, destination validation/dispatch, idempotency, rate limiter binding/fail-closed, partial success, ZIP streaming และ missing artifact
-- Python: `python3 -m pytest -q` — **156 passed**, ครอบ per-destination retry/dedupe, privacy-minimized state, MEGA/Dropbox/Download fakes, size limits, media manifest และ sanitization
+- Worker: `npm test --prefix control-worker` — **47 passed**, ครอบ Access/auth-check, Dashboard status recovery, static asset gate, destination validation/dispatch, idempotency, rate limiter binding/fail-closed, partial success, ZIP streaming และ missing artifact
+- Python: `python3 -m pytest -q` — **164 passed**, ครอบ per-destination retry/dedupe, privacy-minimized state, MEGA/Dropbox/Download fakes, size limits, media manifest และ sanitization
 - Live: Telegram normal path, 2-URL duplicate/no-resend batch, Download-only 2-URL + browser ZIP download และ MEGA-only upload ผ่าน
-- Combined Telegram+MEGA/Dropbox/Download live run ผ่านสำหรับ media ที่ดาวน์โหลดได้หนึ่งรายการ; Local Bot API large-file, Dropbox refresh/large-file session และ mobile browser ยังไม่ได้ live-test. Production Worker deploy ล่าสุดผ่านแล้ว แต่การเปลี่ยนแปลง Python/Dashboard หลังจากนั้นไม่ได้ต้อง deploy Worker ใหม่
+- Combined Telegram+MEGA/Dropbox/Download live run ผ่านสำหรับ media ที่ดาวน์โหลดได้หนึ่งรายการ; Local Bot API large-file, Dropbox refresh/large-file session และ mobile browser ยังไม่ได้ live-test. Dashboard recovery release #41919996688 deploy แล้ว; unauthenticated `/` และ `/health` ตอบ HTTP 302 ตาม Access policy แต่ยังไม่มี authenticated visual smoke test สำหรับ release นี้
 
 รายละเอียด API contract: [`CONTROL_PLANE_CONTRACT.md`](CONTROL_PLANE_CONTRACT.md); Access policy: [`CLOUDFLARE_ACCESS.md`](CLOUDFLARE_ACCESS.md); ผลทดสอบ: [`E2E_TEST_REPORT.md`](E2E_TEST_REPORT.md)

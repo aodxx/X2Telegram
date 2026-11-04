@@ -56,5 +56,5 @@
 - [x] รัน focused recovery test
 - [x] ติดตั้ง dependencies ตาม lockfiles ใน worktree แล้วรัน test suites ที่มีอยู่
 - [x] รัน `node --check` กับ inline dashboard script และ `git diff --check`
-- [ ] ตรวจ diff ว่าไม่มี URL ที่ผู้ใช้เคยส่ง, secrets หรือ runtime dispatch
-- [ ] Commit แยกหนึ่ง logical change; เปิด PR และ deploy Worker ผ่าน workflow ที่ทดสอบ/validate ก่อน deploy
+- [x] ตรวจ diff ว่าไม่มี URL ที่ผู้ใช้เคยส่ง, secrets หรือ runtime dispatch
+- [x] Commit แยกหนึ่ง logical change; PR #31 merged และ Worker deploy #41919996688 ผ่าน tests/Wrangler validation ก่อน publish
