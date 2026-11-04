@@ -45211,6 +45211,12 @@
               "filename": "2117645669028794575_01_424e954476a95480e09b5eeb56e68ffc647ad90231a4457d0eaff814abd6d114.mp4",
               "dropbox_path": "/X2Telegram/2117645669028794575_01_424e954476a95480e09b5eeb56e68ffc647ad90231a4457d0eaff814abd6d114.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "outcome_unconfirmed",
+              "filename": "2117645669028794575_01.mp4",
+              "error_code": "telegram_outcome_unconfirmed",
+              "error": "Telegram may have accepted the media, but no response was confirmed; inspect the chat before retrying."
             }
           }
         }
@@ -45222,7 +45228,7 @@
       "media": {
         "3f08941d0ed17c6811e1730a4d938d40a94a96e0a8b394e85709d10f284fc828": {
           "kind": "video",
-          "filename": "2117214078708162857_01_3f08941d0ed17c6811e1730a4d938d40a94a96e0a8b394e85709d10f284fc828.mp4",
+          "filename": "2117214078708162857_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45234,18 +45240,26 @@
               "filename": "2117214078708162857_01_3f08941d0ed17c6811e1730a4d938d40a94a96e0a8b394e85709d10f284fc828.mp4",
               "dropbox_path": "/X2Telegram/2117214078708162857_01_3f08941d0ed17c6811e1730a4d938d40a94a96e0a8b394e85709d10f284fc828.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2117214078708162857_01.mp4",
+              "message_id": 483
             }
-          }
+          },
+          "message_id": 483
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        483
+      ],
+      "completed": true
     },
     "2112495799699640577": {
       "media": {
         "ce72114bbee21524def74be8dc2c9de8b22c886564cf78783651ffc00ddd09ff": {
           "kind": "video",
-          "filename": "2112495799699640577_01_ce72114bbee21524def74be8dc2c9de8b22c886564cf78783651ffc00ddd09ff.mp4",
+          "filename": "2112495799699640577_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45257,12 +45271,20 @@
               "filename": "2112495799699640577_01_ce72114bbee21524def74be8dc2c9de8b22c886564cf78783651ffc00ddd09ff.mp4",
               "dropbox_path": "/X2Telegram/2112495799699640577_01_ce72114bbee21524def74be8dc2c9de8b22c886564cf78783651ffc00ddd09ff.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2112495799699640577_01.mp4",
+              "message_id": 484
             }
-          }
+          },
+          "message_id": 484
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        484
+      ],
+      "completed": true
     },
     "2112453639495434748": {
       "media": {
@@ -45299,7 +45321,7 @@
       "media": {
         "0bd128dc6949c29b43110995e90614746d23c71f51f245ca7174a4fcb58b8dde": {
           "kind": "video",
-          "filename": "2110175370997842324_01_0bd128dc6949c29b43110995e90614746d23c71f51f245ca7174a4fcb58b8dde.mp4",
+          "filename": "2110175370997842324_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45311,18 +45333,26 @@
               "filename": "2110175370997842324_01_0bd128dc6949c29b43110995e90614746d23c71f51f245ca7174a4fcb58b8dde.mp4",
               "dropbox_path": "/X2Telegram/2110175370997842324_01_0bd128dc6949c29b43110995e90614746d23c71f51f245ca7174a4fcb58b8dde.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2110175370997842324_01.mp4",
+              "message_id": 485
             }
-          }
+          },
+          "message_id": 485
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        485
+      ],
+      "completed": true
     },
     "2110041635757473945": {
       "media": {
         "407eeb58b3d864a838476357b62ff6949b224998e62a2a33cd4130897792d9f4": {
           "kind": "video",
-          "filename": "2110041635757473945_01_407eeb58b3d864a838476357b62ff6949b224998e62a2a33cd4130897792d9f4.mp4",
+          "filename": "2110041635757473945_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45334,18 +45364,26 @@
               "filename": "2110041635757473945_01_407eeb58b3d864a838476357b62ff6949b224998e62a2a33cd4130897792d9f4.mp4",
               "dropbox_path": "/X2Telegram/2110041635757473945_01_407eeb58b3d864a838476357b62ff6949b224998e62a2a33cd4130897792d9f4.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2110041635757473945_01.mp4",
+              "message_id": 486
             }
-          }
+          },
+          "message_id": 486
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        486
+      ],
+      "completed": true
     },
     "2109601124496146683": {
       "media": {
         "d77e6960d61e65a63e3b9a5937f2982adb50a72e5b209742d73c3b48a2131d3c": {
           "kind": "video",
-          "filename": "2109601124496146683_01_d77e6960d61e65a63e3b9a5937f2982adb50a72e5b209742d73c3b48a2131d3c.mp4",
+          "filename": "2109601124496146683_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45357,12 +45395,20 @@
               "filename": "2109601124496146683_01_d77e6960d61e65a63e3b9a5937f2982adb50a72e5b209742d73c3b48a2131d3c.mp4",
               "dropbox_path": "/X2Telegram/2109601124496146683_01_d77e6960d61e65a63e3b9a5937f2982adb50a72e5b209742d73c3b48a2131d3c.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2109601124496146683_01.mp4",
+              "message_id": 487
             }
-          }
+          },
+          "message_id": 487
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        487
+      ],
+      "completed": true
     },
     "2109583390496407839": {
       "media": {
@@ -45430,7 +45476,7 @@
       "media": {
         "695a2049cd968e97b59cd2f7590a6c67d23bb6b1fa05ec34fa9cc98a6acd05bf": {
           "kind": "video",
-          "filename": "2107833157047488586_01_695a2049cd968e97b59cd2f7590a6c67d23bb6b1fa05ec34fa9cc98a6acd05bf.mp4",
+          "filename": "2107833157047488586_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45442,18 +45488,26 @@
               "filename": "2107833157047488586_01_695a2049cd968e97b59cd2f7590a6c67d23bb6b1fa05ec34fa9cc98a6acd05bf.mp4",
               "dropbox_path": "/X2Telegram/2107833157047488586_01_695a2049cd968e97b59cd2f7590a6c67d23bb6b1fa05ec34fa9cc98a6acd05bf.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2107833157047488586_01.mp4",
+              "message_id": 488
             }
-          }
+          },
+          "message_id": 488
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        488
+      ],
+      "completed": true
     },
     "2107793424355373213": {
       "media": {
         "97d60e92ef7346af15832745577bed7dfbf40f6ca3ac0c414573da086caafc6f": {
           "kind": "video",
-          "filename": "2107793424355373213_01_97d60e92ef7346af15832745577bed7dfbf40f6ca3ac0c414573da086caafc6f.mp4",
+          "filename": "2107793424355373213_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45465,12 +45519,20 @@
               "filename": "2107793424355373213_01_97d60e92ef7346af15832745577bed7dfbf40f6ca3ac0c414573da086caafc6f.mp4",
               "dropbox_path": "/X2Telegram/2107793424355373213_01_97d60e92ef7346af15832745577bed7dfbf40f6ca3ac0c414573da086caafc6f.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2107793424355373213_01.mp4",
+              "message_id": 489
             }
-          }
+          },
+          "message_id": 489
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        489
+      ],
+      "completed": true
     },
     "2107756323463197107": {
       "media": {
@@ -45538,7 +45600,7 @@
       "media": {
         "627c88f9e926061ce097ddae4c956583a2d648ba1d7416669b139b3021e794a1": {
           "kind": "video",
-          "filename": "2105939216073166883_01_627c88f9e926061ce097ddae4c956583a2d648ba1d7416669b139b3021e794a1.mp4",
+          "filename": "2105939216073166883_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45550,18 +45612,26 @@
               "filename": "2105939216073166883_01_627c88f9e926061ce097ddae4c956583a2d648ba1d7416669b139b3021e794a1.mp4",
               "dropbox_path": "/X2Telegram/2105939216073166883_01_627c88f9e926061ce097ddae4c956583a2d648ba1d7416669b139b3021e794a1.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2105939216073166883_01.mp4",
+              "message_id": 490
             }
-          }
+          },
+          "message_id": 490
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        490
+      ],
+      "completed": true
     },
     "2105542112053989517": {
       "media": {
         "cf3807e033f22510ededf2443748723e7d686d8d98f3e111bd91096a1ccc0fdc": {
           "kind": "video",
-          "filename": "2105542112053989517_01_cf3807e033f22510ededf2443748723e7d686d8d98f3e111bd91096a1ccc0fdc.mp4",
+          "filename": "2105542112053989517_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45573,18 +45643,26 @@
               "filename": "2105542112053989517_01_cf3807e033f22510ededf2443748723e7d686d8d98f3e111bd91096a1ccc0fdc.mp4",
               "dropbox_path": "/X2Telegram/2105542112053989517_01_cf3807e033f22510ededf2443748723e7d686d8d98f3e111bd91096a1ccc0fdc.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2105542112053989517_01.mp4",
+              "message_id": 491
             }
-          }
+          },
+          "message_id": 491
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        491
+      ],
+      "completed": true
     },
     "2104913014029979689": {
       "media": {
         "a904c3704b098c2320864c99333468f684a52848462692cc3f2f2795a18e78a0": {
           "kind": "video",
-          "filename": "2104913014029979689_01_a904c3704b098c2320864c99333468f684a52848462692cc3f2f2795a18e78a0.mp4",
+          "filename": "2104913014029979689_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45596,12 +45674,20 @@
               "filename": "2104913014029979689_01_a904c3704b098c2320864c99333468f684a52848462692cc3f2f2795a18e78a0.mp4",
               "dropbox_path": "/X2Telegram/2104913014029979689_01_a904c3704b098c2320864c99333468f684a52848462692cc3f2f2795a18e78a0.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2104913014029979689_01.mp4",
+              "message_id": 492
             }
-          }
+          },
+          "message_id": 492
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        492
+      ],
+      "completed": true
     },
     "2104621439433543952": {
       "media": {
@@ -45638,7 +45724,7 @@
       "media": {
         "ea998ff2c587f54d90ec15d87f55eb1d5ac797ca5e6c5984f20b2e96f2b9e105": {
           "kind": "video",
-          "filename": "2104614769521213477_01_ea998ff2c587f54d90ec15d87f55eb1d5ac797ca5e6c5984f20b2e96f2b9e105.mp4",
+          "filename": "2104614769521213477_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45650,18 +45736,26 @@
               "filename": "2104614769521213477_01_ea998ff2c587f54d90ec15d87f55eb1d5ac797ca5e6c5984f20b2e96f2b9e105.mp4",
               "dropbox_path": "/X2Telegram/2104614769521213477_01_ea998ff2c587f54d90ec15d87f55eb1d5ac797ca5e6c5984f20b2e96f2b9e105.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2104614769521213477_01.mp4",
+              "message_id": 493
             }
-          }
+          },
+          "message_id": 493
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        493
+      ],
+      "completed": true
     },
     "2104205433208819913": {
       "media": {
         "84c5d500553b46dce7d80a3d2e4dd47939a53b8354a5a45b7352cbb78b217110": {
           "kind": "video",
-          "filename": "2104205433208819913_01_84c5d500553b46dce7d80a3d2e4dd47939a53b8354a5a45b7352cbb78b217110.mp4",
+          "filename": "2104205433208819913_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45673,18 +45767,26 @@
               "filename": "2104205433208819913_01_84c5d500553b46dce7d80a3d2e4dd47939a53b8354a5a45b7352cbb78b217110.mp4",
               "dropbox_path": "/X2Telegram/2104205433208819913_01_84c5d500553b46dce7d80a3d2e4dd47939a53b8354a5a45b7352cbb78b217110.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2104205433208819913_01.mp4",
+              "message_id": 494
             }
-          }
+          },
+          "message_id": 494
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        494
+      ],
+      "completed": true
     },
     "2104205399532675231": {
       "media": {
         "981092da4fbbf0cf9bc11076a9654dd60d49a652ae61e8023026baf030cdc0ed": {
           "kind": "video",
-          "filename": "2104205399532675231_01_981092da4fbbf0cf9bc11076a9654dd60d49a652ae61e8023026baf030cdc0ed.mp4",
+          "filename": "2104205399532675231_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45696,18 +45798,26 @@
               "filename": "2104205399532675231_01_981092da4fbbf0cf9bc11076a9654dd60d49a652ae61e8023026baf030cdc0ed.mp4",
               "dropbox_path": "/X2Telegram/2104205399532675231_01_981092da4fbbf0cf9bc11076a9654dd60d49a652ae61e8023026baf030cdc0ed.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2104205399532675231_01.mp4",
+              "message_id": 495
             }
-          }
+          },
+          "message_id": 495
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        495
+      ],
+      "completed": true
     },
     "2103406881515635187": {
       "media": {
         "cd0763fc2902981d6e0e1e53b7dcff6fd28f365026b3f4d5ad92d09d55750e85": {
           "kind": "video",
-          "filename": "2103406881515635187_01_cd0763fc2902981d6e0e1e53b7dcff6fd28f365026b3f4d5ad92d09d55750e85.mp4",
+          "filename": "2103406881515635187_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45719,18 +45829,26 @@
               "filename": "2103406881515635187_01_cd0763fc2902981d6e0e1e53b7dcff6fd28f365026b3f4d5ad92d09d55750e85.mp4",
               "dropbox_path": "/X2Telegram/2103406881515635187_01_cd0763fc2902981d6e0e1e53b7dcff6fd28f365026b3f4d5ad92d09d55750e85.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2103406881515635187_01.mp4",
+              "message_id": 496
             }
-          }
+          },
+          "message_id": 496
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        496
+      ],
+      "completed": true
     },
     "2102927420622078419": {
       "media": {
         "4cf0a889df2c33952ba674dac522e4bd38b7bab09d0a6aef84227965edb8ac61": {
           "kind": "video",
-          "filename": "2102927420622078419_01_4cf0a889df2c33952ba674dac522e4bd38b7bab09d0a6aef84227965edb8ac61.mp4",
+          "filename": "2102927420622078419_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45742,12 +45860,20 @@
               "filename": "2102927420622078419_01_4cf0a889df2c33952ba674dac522e4bd38b7bab09d0a6aef84227965edb8ac61.mp4",
               "dropbox_path": "/X2Telegram/2102927420622078419_01_4cf0a889df2c33952ba674dac522e4bd38b7bab09d0a6aef84227965edb8ac61.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2102927420622078419_01.mp4",
+              "message_id": 497
             }
-          }
+          },
+          "message_id": 497
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        497
+      ],
+      "completed": true
     },
     "2102922481908830379": {
       "media": {
@@ -45877,7 +46003,7 @@
       "media": {
         "0b57271dea392906f54508b19a9b2e2d9e1d4ad659cdecc5ce2f23a9f9b13a03": {
           "kind": "video",
-          "filename": "2098816583452000348_01_0b57271dea392906f54508b19a9b2e2d9e1d4ad659cdecc5ce2f23a9f9b13a03.mp4",
+          "filename": "2098816583452000348_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45889,18 +46015,26 @@
               "filename": "2098816583452000348_01_0b57271dea392906f54508b19a9b2e2d9e1d4ad659cdecc5ce2f23a9f9b13a03.mp4",
               "dropbox_path": "/X2Telegram/2098816583452000348_01_0b57271dea392906f54508b19a9b2e2d9e1d4ad659cdecc5ce2f23a9f9b13a03.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2098816583452000348_01.mp4",
+              "message_id": 498
             }
-          }
+          },
+          "message_id": 498
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        498
+      ],
+      "completed": true
     },
     "2097985117805551800": {
       "media": {
         "1b425f40f85134fe36a1414b03f184f6d2ad8c96d29e9be17343c8a5e6f04837": {
           "kind": "video",
-          "filename": "2097985117805551800_01_1b425f40f85134fe36a1414b03f184f6d2ad8c96d29e9be17343c8a5e6f04837.mp4",
+          "filename": "2097985117805551800_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45912,12 +46046,20 @@
               "filename": "2097985117805551800_01_1b425f40f85134fe36a1414b03f184f6d2ad8c96d29e9be17343c8a5e6f04837.mp4",
               "dropbox_path": "/X2Telegram/2097985117805551800_01_1b425f40f85134fe36a1414b03f184f6d2ad8c96d29e9be17343c8a5e6f04837.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2097985117805551800_01.mp4",
+              "message_id": 499
             }
-          }
+          },
+          "message_id": 499
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        499
+      ],
+      "completed": true
     },
     "2097661645753319815": {
       "media": {
@@ -45954,7 +46096,7 @@
       "media": {
         "704232da0f4846967b87534096daae4e1d30c74e89ee53267b39200cd3320f37": {
           "kind": "video",
-          "filename": "2097658965329080486_01_704232da0f4846967b87534096daae4e1d30c74e89ee53267b39200cd3320f37.mp4",
+          "filename": "2097658965329080486_01.mp4",
           "destinations": {
             "mega": {
               "status": "success",
@@ -45966,12 +46108,20 @@
               "filename": "2097658965329080486_01_704232da0f4846967b87534096daae4e1d30c74e89ee53267b39200cd3320f37.mp4",
               "dropbox_path": "/X2Telegram/2097658965329080486_01_704232da0f4846967b87534096daae4e1d30c74e89ee53267b39200cd3320f37.mp4",
               "already_exists": false
+            },
+            "telegram": {
+              "status": "success",
+              "filename": "2097658965329080486_01.mp4",
+              "message_id": 500
             }
-          }
+          },
+          "message_id": 500
         }
       },
-      "message_ids": [],
-      "completed": false
+      "message_ids": [
+        500
+      ],
+      "completed": true
     },
     "2097489263541760225": {
       "media": {
