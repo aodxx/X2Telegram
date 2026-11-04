@@ -32,7 +32,7 @@ function fakeElement(id = "") {
   };
 }
 
-function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResponses = [] }) {
+function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResponses = [], submitError = null }) {
   const elements = new Map();
   const getElement = (id) => {
     if (!elements.has(id)) elements.set(id, fakeElement(id));
@@ -51,12 +51,15 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResp
     requests.push({ path: parsed.pathname, method, body: options.body ? JSON.parse(options.body) : null });
     if (parsed.pathname === "/auth/check") return Response.json({ authenticated: true });
     if (parsed.pathname === "/jobs/recover") return Response.json(recoveryResponse.body, { status: recoveryResponse.status });
-    if (parsed.pathname === "/jobs" && method === "POST") return Response.json({
-      job_id: retryJobId,
-      request_id: requests.at(-1).body.request_id,
-      state: "accepted",
-      destinations: requests.at(-1).body.destinations,
-    }, { status: 202 });
+    if (parsed.pathname === "/jobs" && method === "POST") {
+      if (submitError) throw submitError;
+      return Response.json({
+        job_id: retryJobId,
+        request_id: requests.at(-1).body.request_id,
+        state: "accepted",
+        destinations: requests.at(-1).body.destinations,
+      }, { status: 202 });
+    }
     if (parsed.pathname === `/jobs/${retryJobId}`) return Response.json({ job_id: retryJobId, state: "completed", result: { summary: {}, results: [] } });
     if (parsed.pathname === `/jobs/${jobId}`) {
       const next = statusResponses.shift();
@@ -116,6 +119,7 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResp
       await next[1].callback();
       await settle();
     },
+    async focus() { listeners["window:focus"]?.(); await settle(); },
     pendingTimerCount() { return timers.size; },
   };
 }
@@ -217,10 +221,54 @@ test("repeated status failures keep next batch locked until explicit status reco
   assert.equal(browser.elements.get("recoveryActions").hidden, false);
   assert.equal(browser.elements.get("runBtn").disabled, true);
   assert.match(browser.elements.get("resultList").innerHTML, /งานเดิมอาจยังทำงานอยู่/);
+  assert.match(browser.elements.get("resultList").innerHTML, /Cloudflare Access/);
   await browser.elements.get("recoverBtn").listeners.click();
   await settle();
   assert.equal(browser.elements.get("progressText").textContent, "งานเสร็จแล้ว");
   assert.equal(browser.elements.get("runBtn").disabled, false);
+});
+
+test("returning to the dashboard rechecks an unconfirmed job without dispatching a new one", async () => {
+  const browser = makeBrowser({
+    savedJob: { request_id: "focus-recovery", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
+    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "unused" } } },
+    statusResponses: [
+      { job_id: jobId, state: "processing", destinations: ["telegram"] },
+      ...Array.from({ length: 5 }, () => new Error("temporary status outage")),
+    ],
+  });
+  await settle();
+  for (let attempt = 0; attempt < 4; attempt += 1) await browser.runNextTimer();
+  assert.equal(browser.elements.get("progressText").textContent, "สถานะงานยังยืนยันไม่ได้");
+  const statusReadsBeforeFocus = browser.requests.filter((request) => request.path === `/jobs/${jobId}` && request.method === "GET").length;
+
+  await browser.focus();
+
+  assert.ok(browser.requests.filter((request) => request.path === `/jobs/${jobId}` && request.method === "GET").length > statusReadsBeforeFocus);
+  assert.equal(browser.elements.get("progressText").textContent, "งานเสร็จแล้ว");
+  assert.equal(browser.elements.get("runBtn").disabled, false);
+  assert.equal(browser.elements.get("recoveryActions").hidden, true);
+  assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
+});
+
+test("ambiguous submission rechecks Access and explains how to recover without resending", async () => {
+  const browser = makeBrowser({
+    savedJob: { request_id: "previous-completed", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
+    recoveryResponse: { status: 502, body: { error: { code: "github_read_failed", message: "unavailable" } } },
+    submitError: new Error("temporary network interruption"),
+  });
+  await settle();
+  const authChecksBeforeSubmit = browser.requests.filter((request) => request.path === "/auth/check").length;
+  const input = browser.elements.get("urls");
+  input.value = "https://x.com/person/status/456";
+  input.listeners.input();
+  await browser.elements.get("runBtn").listeners.click();
+  await settle();
+
+  assert.ok(browser.requests.filter((request) => request.path === "/auth/check").length > authChecksBeforeSubmit);
+  assert.equal(browser.requests.filter((request) => request.path === "/jobs" && request.method === "POST").length, 1);
+  assert.match(browser.elements.get("resultList").innerHTML, /Cloudflare Access/);
+  assert.equal(browser.elements.get("runBtn").disabled, true);
 });
 
 test("retry UI sends only confirmed failed targets and excludes success or unconfirmed targets", async () => {
