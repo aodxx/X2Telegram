@@ -1,9 +1,16 @@
 # X2Telegram — Project Status
 
-**อัปเดต:** 2026-11-02
-**สถานะ:** P1/P2 ผ่านหลักฐานตามขอบเขตเดิม. P3 ถูก squash-merge จาก PR [#24](https://github.com/aodxx/X2Telegram/pull/24) เป็น main commit `9e9e9f8` และยัง partial ตามข้อจำกัด exactly-once. Access second-email support อยู่ใน main จาก PR [#25](https://github.com/aodxx/X2Telegram/pull/25), commit `f5372e5`; Worker deploy [#38295769200](https://github.com/aodxx/X2Telegram/actions/runs/38295769200) ผ่านด้วย version `649353cf-fd9a-498b-9415-14bae01de486`. ล่าสุด Worker deploy [#41484652322](https://github.com/aodxx/X2Telegram/actions/runs/41484652322) ผ่านบน commit `bca84e6` ด้วย version `4d749419-96de-402f-803a-ebc69ca875e2`; commit นั้นเปลี่ยนเอกสารเท่านั้นและไม่ได้เปลี่ยน Worker source/config. หลัง deploy `/health` ตอบ HTTP 302 จาก Cloudflare Access ตามนโยบายปัจจุบัน. Dashboard batch-status fix ถูก merge จาก PR [#27](https://github.com/aodxx/X2Telegram/pull/27) และปรับ mobile/accessibility เพิ่มใน commit `f08c0aa`; Automated Tests [#38923942624](https://github.com/aodxx/X2Telegram/actions/runs/38923942624) และ Pages deploy [#38923942619](https://github.com/aodxx/X2Telegram/actions/runs/38923942619) ผ่าน. แก้ workflow persist-state ให้ commit state ก่อน rebase และเพิ่ม regression test แล้ว. PR [#29](https://github.com/aodxx/X2Telegram/pull/29) ถูก squash-merge เป็น main commit `359041e`; Python 156 และ Worker/Dashboard 45 tests ผ่าน และ main CI [#39618902135](https://github.com/aodxx/X2Telegram/actions/runs/39618902135) ผ่าน. การเปิด ruleset protection ยัง blocked เพราะ GitHub ปฏิเสธการกำหนด GitHub Actions integration เป็น bypass actor ใน repository owner แบบ user; ยังไม่เปิดกฎที่อาจทำให้ state-writer หยุดทำงาน. ผู้ใช้รองยังไม่ได้ทำ OTP sign-in จึงยังไม่ยืนยัน session จริง. P4 ยังคง partial เพราะไม่มี live destination invocation ที่ได้รับอนุญาต และ P5 ยังรอ real-mobile smoke test.
+**อัปเดต:** 2026-11-05
+**สถานะ:** P1/P2 ผ่าน acceptance ตามหลักฐานเดิม; P3 ยัง partial ตามข้อจำกัด exactly-once/cross-isolate. Dashboard recovery hotfix PR [#31](https://github.com/aodxx/X2Telegram/pull/31) merged เป็น `8fae5ac` และ deploy ผ่าน run [#41919996688](https://github.com/aodxx/X2Telegram/actions/runs/41919996688), Worker version `d07ab6a9-b130-4ada-a510-97aa3e8989e3`. Main CI [#41919883724](https://github.com/aodxx/X2Telegram/actions/runs/41919883724) ผ่านด้วย Python 164 และ Worker/Dashboard 47 tests; Pages deploy [#41919883762](https://github.com/aodxx/X2Telegram/actions/runs/41919883762) ผ่าน. Unauthenticated `/` และ `/health` ยังคงถูก Cloudflare Access ป้องกันด้วย HTTP 302; authenticated interactive smoke test ของ recovery flow ยังรอยืนยัน. Ruleset protection ยัง blocked ตามเหตุผลใน audit; P4 ยัง partial และ P5 ยังรอ mobile smoke test.
 
 สำหรับ agent ที่เข้ามาทำงานต่อ ให้เริ่มจาก [`AGENT_HANDOFF.md`](AGENT_HANDOFF.md) ซึ่งมีลำดับ backlog, acceptance criteria และ deploy protocol ปัจจุบัน
+
+### Dashboard recovery hotfix — 2026-11-05
+
+- PR [#31](https://github.com/aodxx/X2Telegram/pull/31) merged เป็น `8fae5ac`; main CI [#41919883724](https://github.com/aodxx/X2Telegram/actions/runs/41919883724) และ Pages deploy [#41919883762](https://github.com/aodxx/X2Telegram/actions/runs/41919883762) ผ่าน
+- Worker deploy [#41919996688](https://github.com/aodxx/X2Telegram/actions/runs/41919996688) ผ่านบน commit เดียวกัน; version `d07ab6a9-b130-4ada-a510-97aa3e8989e3`; Worker tests และ Wrangler dry-run ผ่าน
+- Dashboard จะตรวจคำขอเดิมใหม่แบบ lookup-only หลัง Access/session กลับมา; ไม่มี `POST /jobs` ซ้ำ. ปุ่มตรวจลิงก์ระบุชัดว่าเป็น validation เท่านั้น และ ZIP ต้องเลือกเอง
+- Validation ล่าสุด: Python **164 passed**, Worker/Dashboard **47 passed**; no live URL/destination send เกิดใน regression run. HTTP `/` และ `/health` แบบไม่ล็อกอินตอบ 302 ตาม Cloudflare Access; authenticated interactive smoke test ยังรอยืนยัน
 
 ### Release note — ขั้นที่ 2–4
 
@@ -13,7 +20,7 @@
 - Dashboard นับ `no_media` และผลที่ยังยืนยันไม่ได้เป็นรายการที่ต้องตรวจสอบ พร้อมแสดง “เสร็จบางส่วน” เมื่อมีทั้งรายการที่จัดการแล้วและรายการที่ต้องแก้ไข
 - PR #29 merged เป็น `359041e` พร้อม guard ของ state-writer: ตรวจ repository/ref/event และยอมให้ state writer เปลี่ยนเฉพาะ `state/dedupe.json`
 - ตรวจ GitHub repository ruleset แล้ว; การสร้าง ruleset ที่ bypass GitHub Actions integration ถูก GitHub API ปฏิเสธสำหรับ repository owner แบบ user จึงยังไม่เปิด protection ที่จะบล็อกการ persist state
-- Validation ล่าสุด: Python **156 passed**, Worker/Dashboard **45 passed**; ยังไม่ได้ทำ live upload ซ้ำตามขอบเขตที่ผู้ใช้กำหนด
+- Validation สำหรับ release ขั้นที่ 2–4 ในเวลานั้น: Python **156 passed**, Worker/Dashboard **45 passed**; ไม่ได้ทำ live upload ซ้ำตามขอบเขตที่ผู้ใช้กำหนด
 
 ### MEGA incident review — 2026-10-22
 
@@ -30,14 +37,15 @@ Dashboard เดิมอยู่ที่ [X2Telegram Dashboard](https://aodxx
 ## Deployment ปัจจุบัน
 
 - Worker `x2telegram-control-plane` deploy แล้วที่ `https://x2telegram-control-plane.pantipa3826.workers.dev`
-- Latest application code commit on main: `4bd1abf` (metadata diagnostics, media quality reporting และรวมการปรับ batch/mobile/accessibility ก่อนหน้า; หลังจากนี้มี state-persistence commits จาก GitHub Actions)
-- Current Worker version ID: `4d749419-96de-402f-803a-ebc69ca875e2`
-- Latest deploy commit: `bca84e6fe4cc3f2545a07489a8cc4f4362497a82` (documentation-only; Worker code/config unchanged)
-- Latest deploy workflow: [#41484652322](https://github.com/aodxx/X2Telegram/actions/runs/41484652322) — success; Worker tests, Wrangler validation และ deploy ผ่าน. `/health` returned HTTP 302 (Cloudflare Access redirect).
+- Latest application code commit on main: `8fae5ac` (Dashboard status recovery after network/Access interruption)
+- Current Worker version ID: `d07ab6a9-b130-4ada-a510-97aa3e8989e3`
+- Latest deploy commit: `8fae5ac7c80138dac68000353eb34410189e2127`
+- Latest deploy workflow: [#41919996688](https://github.com/aodxx/X2Telegram/actions/runs/41919996688) — success; Worker tests, Wrangler validation และ deploy ผ่าน
 - `JOB_DISPATCH_RATE_LIMITER`: 20 requests/60 seconds per Access identity
-- GitHub Pages deploy run [#38968970271](https://github.com/aodxx/X2Telegram/actions/runs/38968970271) ผ่านบน application commit `4bd1abf`; Dashboard includes lookup-only recovery, failed-target-only retry, resilient polling/clear labeling between URL batches, mobile full-width actions, accessible busy/result announcements และคำอธิบาย metadata/media quality ล่าสุด
+- Prior feature-baseline Pages deploy [#38968970271](https://github.com/aodxx/X2Telegram/actions/runs/38968970271) ผ่านบน application commit `4bd1abf`; Dashboard ใน release นั้นมี lookup-only recovery, failed-target-only retry, resilient polling/clear labeling between URL batches, mobile full-width actions, accessible busy/result announcements และคำอธิบาย metadata/media quality
 - Cloudflare Access policy ปัจจุบันมีสอง exact email rules; Worker `ACCESS_ADDITIONAL_EMAIL` ตั้งแล้ว ขณะที่ `ACCESS_ALLOWED_EMAIL` เดิมยังคงอยู่. ไม่มี `Everyone` หรือ domain-wide allow
-- Production smoke check หลัง deploy: unauthenticated `/` ตอบ HTTP 302 (Cloudflare Access redirect; ไม่ติดตามหรือบันทึก redirect URL); เนื้อหา API/Dashboard ต้องมี Access session จึงจะเปิดได้
+- GitHub Pages deploy สำหรับ Dashboard recovery: [#41919883762](https://github.com/aodxx/X2Telegram/actions/runs/41919883762) — success on `8fae5ac`
+- Production smoke check หลัง deploy: unauthenticated `/` และ `/health` ตอบ HTTP 302 ตาม Cloudflare Access; authenticated interactive smoke test สำหรับ recovery flow ยังรอยืนยัน
 
 ## ปลายทาง
 
@@ -64,8 +72,8 @@ MEGA live version-retention test ใช้ synthetic media fixtures ไม่ใ
 
 ## Validation ล่าสุด
 
-- Python: **156 passed** in local validation; latest corresponding main CI on application commit `4bd1abf` ผ่าน [#38968970038](https://github.com/aodxx/X2Telegram/actions/runs/38968970038)
-- Cloudflare Worker/Dashboard: `npm test --prefix control-worker` — **45 passed** in local validation and main CI [#38968970038](https://github.com/aodxx/X2Telegram/actions/runs/38968970038)
+- Python: **164 passed** in local validation and main CI [#41919883724](https://github.com/aodxx/X2Telegram/actions/runs/41919883724)
+- Cloudflare Worker/Dashboard: `npm test --prefix control-worker` — **47 passed** in local validation and main CI [#41919883724](https://github.com/aodxx/X2Telegram/actions/runs/41919883724)
 - `node --check control-worker/src/index.js`, Dashboard inline JavaScript syntax, `python -m compileall -q src tests`, workflow YAML parse, `git diff --check`, `npm ci` และ Wrangler dry-run ผ่าน
 - Live Actions run #37843359593 ผ่าน automated tests, process, report upload และ browser media artifact upload
 - P2 merge commit `a5711e1`: main CI [#38288698022](https://github.com/aodxx/X2Telegram/actions/runs/38288698022) and MEGA multi-item/version-retention integration [#38288698061](https://github.com/aodxx/X2Telegram/actions/runs/38288698061) both succeeded. The integration verified 3 remote objects by listing/download-back bytes/SHA-256 and cleaned the run-isolated folder.
