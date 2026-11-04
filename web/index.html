@@ -196,6 +196,7 @@
         <p class="destination-help">เลือกได้มากกว่าหนึ่งปลายทาง · ไฟล์ ZIP ดาวน์โหลดได้ภายใน 7 วัน</p>
         <p class="destination-help" id="megaConnectionHint"><strong>สถานะ MEGA:</strong> ระบบจะตรวจการเข้าสู่ระบบเมื่อเริ่มงาน หากบัญชีหรือการยืนยันตัวตนมีปัญหา จะแจ้งสาเหตุในผลลัพธ์ด้านล่าง</p>
         <div class="actions"><button class="btn btn-secondary" id="reviewBtn" type="button">ตรวจสอบลิงก์</button><button class="btn btn-primary" id="runBtn" type="button" aria-busy="false" disabled>เริ่มงาน</button></div>
+        <p class="destination-help">ตรวจสอบลิงก์เป็นการตรวจรูปแบบ URL เท่านั้น ไม่ได้เริ่มส่งงาน · หากต้องการเริ่มงานให้เลือกปลายทางแล้วกดปุ่ม “เริ่มงาน” · ดาวน์โหลด ZIP ต้องเลือกเอง</p>
       </div>
 
       <div class="card">
@@ -247,6 +248,7 @@
     let backendReady = false;
     let runBusy = false;
     let recoveryUnconfirmed = false;
+    let recoveryLookupInFlight = false;
     let pollMisses = 0;
     let pollFailures = 0;
     let pollGeneration = 0;
@@ -430,6 +432,7 @@
         $('accessLogin').hidden = backendReady;
         pill.title = backendReady ? 'ยืนยัน Cloudflare Access และ Control Worker แล้ว' : 'เปิดลิงก์ลงชื่อเข้าใช้ แล้วกลับมาตรวจอีกครั้ง';
         syncRunButton();
+        if (backendReady && recoveryUnconfirmed) resumePendingRecovery();
         return backendReady;
       } catch (error) {
         backendReady = false;
@@ -666,9 +669,12 @@
       $('recoverBtn').textContent = statusOnly ? 'ตรวจสถานะงานอีกครั้ง' : 'ตรวจสอบคำขอเดิมอีกครั้ง';
       $('retryActions').hidden = true;
       $('reportActions').hidden = true;
+      const connectionHint = ['unauthorized', 'network_error', 'invalid_response'].includes(error?.code) || Number(error?.status) >= 500
+        ? ' · ตรวจการเชื่อมต่อหรือกด “ลงชื่อเข้าใช้” สำหรับ Cloudflare Access แล้วกลับมาที่ Dashboard; ระบบจะตรวจคำขอเดิมให้อัตโนมัติ'
+        : '';
       const note = statusOnly
-        ? `ยังอ่านสถานะงานเดิมไม่ได้${error?.code === 'unauthorized' ? ' · ตรวจการลงชื่อเข้าใช้ Cloudflare Access ก่อน' : ''} · งานเดิมอาจยังทำงานอยู่; กด “ตรวจสถานะงานอีกครั้ง” เพื่อค้นหาโดยไม่ส่งซ้ำ`
-        : `ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}`;
+        ? `ยังอ่านสถานะงานเดิมไม่ได้${connectionHint} · งานเดิมอาจยังทำงานอยู่; กด “ตรวจสถานะงานอีกครั้ง” เพื่อค้นหาโดยไม่ส่งซ้ำ`
+        : `ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${connectionHint}${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}`;
       $('resultList').innerHTML = `<div class="notice">${note}</div>`;
       showToast(statusOnly ? 'ตรวจสถานะงานไม่สำเร็จ — ยังติดตามงานเดิมไว้และไม่เริ่มชุดใหม่' : 'ยังยืนยันคำขอเดิมไม่ได้ — ระบบไม่ส่งซ้ำอัตโนมัติ');
     }
@@ -706,6 +712,16 @@
       setBusy(!terminal);
       if (terminal) { clearTimeout(pollTimer); pollTimer = null; } else pollRun(generation);
       return data;
+    }
+    async function resumePendingRecovery() {
+      if (!backendReady || !recoveryUnconfirmed || !activeRun || recoveryLookupInFlight) return;
+      const saved = activeRun;
+      recoveryLookupInFlight = true;
+      try { await lookupCurrentJob(); }
+      catch (error) {
+        if (activeRun === saved && recoveryUnconfirmed) showRecoveryUnconfirmed(saved, error, { statusOnly: Boolean(saved.job_id) });
+      }
+      finally { recoveryLookupInFlight = false; }
     }
     async function pollRun(generation = pollGeneration) {
       const jobId = activeRun?.job_id;
@@ -771,7 +787,13 @@
             renderRun(recovered); if (recovered.result) renderReport(recovered.result); setBusy(!isTerminalRunState(recovered.state));
             if (isTerminalRunState(recovered.state)) { clearTimeout(pollTimer); pollTimer = null; } else pollRun(generation);
             showToast('กู้คืนการติดตามงานเดิมแล้ว โดยไม่ส่งคำขอซ้ำ'); return;
-          } catch (recoveryError) { if (generation === pollGeneration) showRecoveryUnconfirmed(payload, recoveryError, { statusOnly: false }); return; }
+          } catch {
+            if (generation === pollGeneration) {
+              showRecoveryUnconfirmed(payload, error, { statusOnly: false });
+              checkBackend();
+            }
+            return;
+          }
         }
         localStorage.removeItem(CURRENT_KEY); activeRun = null; setBusy(false);
         $('progressText').textContent = 'เริ่มงานไม่สำเร็จ'; $('runDescription').textContent = 'คำขอถูกปฏิเสธก่อน dispatch; ตรวจข้อความแล้วแก้ไขได้'; $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressTrack').setAttribute('aria-valuetext', 'เริ่มงานไม่สำเร็จ'); $('progressBar').style.width = '0%'; $('runStateBadge').textContent = 'ต้องตรวจสอบ'; $('runStateBadge').dataset.state = 'failed'; showToast(error.message || 'เริ่มงานไม่สำเร็จ');

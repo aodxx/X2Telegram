@@ -17,6 +17,12 @@ def test_dashboard_checks_authenticated_access_session_before_enabling_submit():
     assert "window.addEventListener('focus'" in HTML
 
 
+def test_dashboard_explains_review_is_not_job_submission_and_zip_must_be_selected():
+    assert "ตรวจสอบลิงก์เป็นการตรวจรูปแบบ URL เท่านั้น" in HTML
+    assert "เริ่มงานให้เลือกปลายทางแล้วกดปุ่ม “เริ่มงาน”" in HTML
+    assert "ดาวน์โหลด ZIP ต้องเลือกเอง" in HTML
+
+
 def test_dashboard_accepts_batches_with_a_200_url_ceiling():
     assert "const MAX_BATCH_URLS = 200" in HTML
     assert "function makeJobPayload(urlList, largeFileMode, requestId, destinations = selectedDestinations())" in HTML
