@@ -110,3 +110,5 @@ Python dedupe state v4 จดผลสำเร็จและ outcome-unconfirm
 ## Compatibility
 
 `url` เดี่ยว, `urls` batch และ Telegram default ยังคงรองรับ; Dashboard ส่ง `destinations` เมื่อมีการเลือก target และ Worker ส่งต่อเป็น workflow input JSON. Workflow หลักเดียวรับ inputs `url`, `urls`, `destinations`, `large_file_mode`, `request_id`, `job_id`; Python CLI อ่าน `INPUT_URL`/`INPUT_URLS` และ `DESTINATIONS_JSON`. Manual GitHub Actions เดิมใช้ได้โดยไม่ส่ง `destinations` ซึ่ง default เป็น Telegram
+
+หลัง `404` หรือผล recovery ที่ยังไม่ยืนยัน ผู้ใช้ยังเริ่มส่งจากปุ่มหลักได้โดยไม่ต้องล้าง local storage. ถ้า URL batch, destinations และ `large_file_mode` ยังเหมือนคำขอเดิม Dashboard ใช้ `request_id` เดิมแล้วเรียก `POST /jobs`; Worker จะตรวจ run/reservation เดิมก่อน dispatch. หากผู้ใช้เปลี่ยน payload จะสร้าง request ID ใหม่. การ retry ต้องเกิดจากการกดปุ่มของผู้ใช้เท่านั้น; ไม่มี automatic redispatch.

@@ -217,14 +217,6 @@
         <div class="result-list" id="resultList" aria-live="polite" aria-atomic="false"></div>
         <div class="actions" id="recoveryActions" hidden>
           <button class="btn btn-secondary" id="recoverBtn" type="button">ตรวจสอบคำขอเดิมอีกครั้ง</button>
-          <button class="ghost" id="clearPendingBtn" type="button">ล้างเฉพาะการติดตามที่ค้าง</button>
-        </div>
-        <div class="notice" id="clearPendingConfirm" hidden role="alert">
-          <p>ยืนยันล้างเฉพาะสถานะที่บันทึกในเบราว์เซอร์หรือไม่? การล้างนี้ไม่ยกเลิกงานเดิมใน GitHub Actions งานเดิมอาจยังทำงานอยู่ และการเริ่มงานใหม่อาจส่งซ้ำ</p>
-          <div class="actions">
-            <button class="btn btn-secondary" id="confirmClearPendingBtn" type="button">ยืนยันล้างสถานะติดตาม</button>
-            <button class="ghost" id="cancelClearPendingBtn" type="button">ยกเลิก</button>
-          </div>
         </div>
         <div class="actions" id="retryActions" hidden>
           <button class="btn btn-secondary" id="retryFailuresBtn" type="button">ลองใหม่เฉพาะปลายทางที่ยืนยันว่าล้มเหลว</button>
@@ -292,7 +284,7 @@
       $('destDownload').checked = selected.includes('download');
       syncRunButton();
     }
-    function setBusy(value) { runBusy = Boolean(value) || recoveryUnconfirmed; $('runBtn').setAttribute('aria-busy', String(runBusy)); syncRunButton(); }
+    function setBusy(value) { runBusy = Boolean(value); $('runBtn').setAttribute('aria-busy', String(runBusy)); syncRunButton(); }
     function review() {
       const lines = getLines(); const seen = new Set(); const validLines = []; let valid = 0; let invalid = 0;
       const overLimit = lines.length > MAX_BATCH_URLS;
@@ -329,7 +321,9 @@
             step.removeAttribute('aria-current');
           });
         } else {
-          $('runDescription').textContent = 'กำลังติดตามงานก่อนหน้า; URL ในช่องเป็นชุดใหม่ที่ยังไม่ได้ส่ง และจะเริ่มได้เมื่องานเดิมจบ';
+          $('runDescription').textContent = recoveryUnconfirmed
+            ? 'คำขอก่อนหน้ายังยืนยันไม่ได้; URL ในช่องเป็นชุดใหม่และส่งได้จากปุ่ม “เริ่มส่ง”'
+            : 'กำลังติดตามงานก่อนหน้า; URL ในช่องเป็นชุดใหม่ที่ยังไม่ได้ส่ง และจะเริ่มได้เมื่องานเดิมจบ';
         }
       }
       lastReview = { lines, validLines, valid, invalid, overLimit };
@@ -457,7 +451,6 @@
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
       recoveryUnconfirmed = false;
       $('recoveryActions').hidden = true;
-      $('clearPendingConfirm').hidden = true;
       const status = data.state || 'accepted';
       const urlCount = data.url_count || activeRun.url_count || (Array.isArray(activeRun.urls) ? activeRun.urls.length : activeRun.url ? 1 : 0);
       const destinationNames = { telegram: 'Telegram', mega: 'MEGA', dropbox: 'Dropbox', download: 'ดาวน์โหลด ZIP' };
@@ -666,14 +659,13 @@
       setBusy(true);
       $('progressText').textContent = statusOnly ? 'สถานะงานยังยืนยันไม่ได้' : 'รอยืนยันคำขอเดิม';
       $('runDescription').textContent = statusOnly
-        ? 'ยังอ่านสถานะงานเดิมไม่ได้ งานอาจยังทำงานอยู่; URL ชุดใหม่ยังไม่ถูกส่ง กรุณาตรวจสถานะก่อนเริ่มงานใหม่'
-        : 'ยังยืนยันไม่ได้ว่างานเข้าคิวหรือไม่ ระบบจะไม่ส่งคำขอซ้ำอัตโนมัติ';
+        ? 'ยังอ่านสถานะงานเดิมไม่ได้; กด “เริ่มส่ง” เพื่อให้ระบบค้นหาคำขอเดิมด้วยรหัสเดิมก่อน'
+        : 'ยังยืนยันไม่ได้ว่าคำขอเดิมเข้าคิวหรือไม่; กด “เริ่มส่ง” อีกครั้งได้ ระบบจะใช้รหัสเดิมเมื่อ URL และปลายทางเหมือนเดิม';
       $('runStateBadge').textContent = statusOnly ? 'ตรวจสถานะอีกครั้ง' : 'ยังไม่ยืนยัน';
       $('runStateBadge').dataset.state = 'uncertain';
       $('progressStepCount').textContent = statusOnly ? 'สถานะยังไม่พร้อม' : 'รอตรวจสอบ';
       $('progressTrack').setAttribute('aria-valuetext', statusOnly ? 'สถานะงานยังไม่ยืนยัน' : 'ยังไม่ยืนยันคำขอเดิม');
       $('recoveryActions').hidden = false;
-      $('clearPendingConfirm').hidden = true;
       $('recoverBtn').disabled = false;
       $('recoverBtn').textContent = statusOnly ? 'ตรวจสถานะงานอีกครั้ง' : 'ตรวจสอบคำขอเดิมอีกครั้ง';
       $('retryActions').hidden = true;
@@ -682,31 +674,11 @@
         ? ' · ตรวจการเชื่อมต่อหรือกด “ลงชื่อเข้าใช้” สำหรับ Cloudflare Access แล้วกลับมาที่ Dashboard; ระบบจะตรวจคำขอเดิมให้อัตโนมัติ'
         : '';
       const note = statusOnly
-        ? `ยังอ่านสถานะงานเดิมไม่ได้${connectionHint} · งานเดิมอาจยังทำงานอยู่; กด “ตรวจสถานะงานอีกครั้ง” เพื่อค้นหาโดยไม่ส่งซ้ำ`
-        : `ระบบยังไม่พบงานหรือไม่ได้รับคำตอบครบถ้วน จึงไม่ส่งงานใหม่เอง${connectionHint}${error?.code === 'job_not_found' ? ' · กด “ตรวจสอบคำขอเดิมอีกครั้ง” ภายหลังเพื่อค้นหาโดยไม่ dispatch' : ''}`;
+        ? `ยังอ่านสถานะงานเดิมไม่ได้${connectionHint} · กด “ตรวจสถานะงานอีกครั้ง” หรือ “เริ่มส่ง” เพื่อค้นหาด้วยรหัสคำขอเดิม`
+        : `ยังไม่ยืนยันว่าคำขอเดิมเข้าคิวหรือไม่${connectionHint} · กด “เริ่มส่ง” ได้ ระบบจะตรวจงานเดิมด้วยรหัสเดิมก่อนและส่งต่อหากไม่พบ`;
       $('resultList').innerHTML = `<div class="notice">${note}</div>`;
-      showToast(statusOnly ? 'ตรวจสถานะงานไม่สำเร็จ — ยังติดตามงานเดิมไว้และไม่เริ่มชุดใหม่' : 'ยังยืนยันคำขอเดิมไม่ได้ — ระบบไม่ส่งซ้ำอัตโนมัติ');
-    }
-    function showClearPendingConfirmation() {
-      if (!recoveryUnconfirmed) return;
-      $('clearPendingConfirm').hidden = false;
-      $('confirmClearPendingBtn').focus();
-    }
-    function cancelClearPendingConfirmation() {
-      $('clearPendingConfirm').hidden = true;
-      $('clearPendingBtn').focus();
-    }
-    function clearPendingTracking() {
-      if (!recoveryUnconfirmed) return;
-      pollGeneration += 1; clearTimeout(pollTimer); pollTimer = null;
-      localStorage.removeItem(CURRENT_KEY);
-      activeRun = null; recoveryUnconfirmed = false; pollMisses = 0; pollFailures = 0;
-      $('recoveryActions').hidden = true; $('clearPendingConfirm').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
-      $('resultList').innerHTML = ''; $('runStateBadge').textContent = 'ยังไม่มีงาน'; $('runStateBadge').dataset.state = 'idle';
-      setBusy(false); review();
-      $('progressText').textContent = 'พร้อมเริ่ม'; $('runDescription').textContent = 'การล้างนี้ไม่ยกเลิกงานเดิมใน GitHub Actions';
-      $('progressStepCount').textContent = '0 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '0'); $('progressBar').style.width = '0%';
-      showToast('ล้างเฉพาะการติดตามในเบราว์เซอร์แล้ว');
+      setBusy(false);
+      showToast(statusOnly ? 'อ่านสถานะไม่สำเร็จ — กดเริ่มส่งเพื่อค้นหาคำขอเดิมด้วยรหัสเดิมได้' : 'ตรวจไม่พบคำยืนยัน — กดเริ่มส่งอีกครั้งได้');
     }
     async function lookupCurrentJob() {
       if (!activeRun) return;
@@ -783,7 +755,7 @@
       clearTimeout(pollTimer); pollTimer = null;
       const generation = ++pollGeneration;
       setBusy(true); recoveryUnconfirmed = false; pollMisses = 0; pollFailures = 0;
-      $('recoveryActions').hidden = true; $('clearPendingConfirm').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
+      $('recoveryActions').hidden = true; $('retryActions').hidden = true; $('reportActions').hidden = true;
       $('progressText').textContent = 'กำลังเริ่มงาน'; $('runDescription').textContent = 'กำลังส่งรายการเพื่อตรวจสอบและเข้าคิว'; $('progressStepCount').textContent = '1 จาก 4 ขั้น'; $('progressTrack').setAttribute('aria-valuenow', '1'); $('progressTrack').setAttribute('aria-valuetext', 'ขั้นตอน 1 จาก 4: กำลังเริ่มงาน'); $('progressBar').style.width = '25%'; $('runStateBadge').textContent = 'กำลังส่งคำขอ'; $('runStateBadge').dataset.state = 'accepted'; document.querySelectorAll('#jobStepper li').forEach((step) => { const current = Number(step.dataset.stage) === 1; step.classList.remove('is-done', 'is-error', 'is-uncertain'); step.classList.toggle('is-current', current); if (current) step.setAttribute('aria-current', 'step'); else step.removeAttribute('aria-current'); }); $('resultList').innerHTML = '';
       activeRun = { ...payload };
       localStorage.setItem(CURRENT_KEY, JSON.stringify(activeRun));
@@ -817,13 +789,19 @@
     }
     async function startJob() {
       const r = review();
-      if (recoveryUnconfirmed) { showToast('ตรวจสถานะหรือล้างการติดตามงานก่อนหน้าก่อนเริ่มชุดใหม่'); return; }
       if (!backendReady) { showToast('ยังไม่ได้ลงชื่อเข้าใช้ Cloudflare Access — กดลิงก์ด้านบนแล้วกลับมาตรวจอีกครั้ง'); checkBackend(); return; }
       if (r.overLimit) { showToast(`หนึ่งชุดส่งได้สูงสุด ${MAX_BATCH_URLS} ลิงก์`); return; }
       if (!r.valid) { showToast('กรุณาใส่ X URL ที่ถูกต้องอย่างน้อย 1 รายการ'); return; }
       if (r.invalid) { showToast('แก้หรือลบ URL ที่ผิดหรือซ้ำก่อนเริ่มส่ง'); return; }
       if (!selectedDestinations().length) { showToast('เลือกปลายทางอย่างน้อยหนึ่งรายการ'); return; }
-      const payload = makeJobPayload(r.validLines, $('largeMode').checked, makeId('dashboard'), selectedDestinations());
+      const destinations = selectedDestinations();
+      const priorDestinations = Array.isArray(activeRun?.destinations) && activeRun.destinations.length ? activeRun.destinations : ['telegram'];
+      const samePendingPayload = recoveryUnconfirmed && activeRun?.request_id
+        && sameUrlBatch(r.validLines, jobUrls(activeRun))
+        && Boolean($('largeMode').checked) === Boolean(activeRun.large_file_mode)
+        && JSON.stringify(destinations) === JSON.stringify(priorDestinations);
+      const requestId = samePendingPayload ? activeRun.request_id : makeId('dashboard');
+      const payload = makeJobPayload(r.validLines, $('largeMode').checked, requestId, destinations);
       await submitJobPayload(payload);
     }
     async function retryConfirmedFailures() {
@@ -865,9 +843,6 @@
       try { await lookupCurrentJob(); }
       catch (error) { showRecoveryUnconfirmed(activeRun, error); }
     });
-    $('clearPendingBtn').addEventListener('click', showClearPendingConfirmation);
-    $('confirmClearPendingBtn').addEventListener('click', clearPendingTracking);
-    $('cancelClearPendingBtn').addEventListener('click', cancelClearPendingConfirmation);
     $('retryFailuresBtn').addEventListener('click', retryConfirmedFailures);
     $('refreshReportBtn').addEventListener('click', async () => {
       try { await lookupCurrentJob(); }

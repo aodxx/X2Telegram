@@ -150,7 +150,7 @@ test("reload uses recovery-only lookup and resumes the existing job without POST
   assert.equal(browser.elements.get("progressText").textContent, "งานเสร็จแล้ว");
 });
 
-test("reload with no matching run stays locked for explicit recovery and never dispatches", async () => {
+test("reload with no matching run unlocks primary action and retries with the same request ID", async () => {
   const browser = makeBrowser({
     savedJob: {
       request_id: "dashboard-pending-456",
@@ -162,48 +162,19 @@ test("reload with no matching run stays locked for explicit recovery and never d
   });
   await settle();
   assert.ok(browser.requests.some((request) => request.path === "/jobs/recover" && request.method === "POST"));
-  assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
   assert.equal(browser.elements.get("recoveryActions").hidden, false);
-  assert.equal(browser.elements.get("runBtn").disabled, true);
+  assert.equal(browser.elements.get("runBtn").disabled, false);
   assert.equal(browser.elements.get("runStateBadge").textContent, "ยังไม่ยืนยัน");
-  assert.match(browser.elements.get("resultList").innerHTML, /ไม่ส่งงานใหม่เอง/);
-});
+  assert.match(browser.elements.get("resultList").innerHTML, /กด “เริ่มส่ง” ได้/);
 
-test("clear-pending uses a visible in-page confirmation and removes only local tracking", async () => {
-  const currentKey = "x2telegram.currentJob.v1";
-  const recentKey = "x2telegram.recentJobs.v1";
-  const browser = makeBrowser({
-    savedJob: {
-      request_id: "dashboard-pending-clear",
-      url: "https://x.com/person/status/789",
-      destinations: ["telegram"],
-      large_file_mode: false,
-    },
-    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "No matching workflow run is visible" } } },
-  });
+  await browser.elements.get("runBtn").listeners.click();
   await settle();
-  browser.store.set(recentKey, "keep-recent-history");
-  const requestCount = browser.requests.length;
-
-  await browser.elements.get("clearPendingBtn").listeners.click();
-  assert.equal(browser.elements.get("clearPendingConfirm").hidden, false);
-  assert.equal(browser.store.has(currentKey), true);
-  assert.match(html, /id="clearPendingConfirm"[\s\S]*?ไม่ยกเลิกงานเดิม/);
-  assert.equal(browser.requests.length, requestCount);
-
-  await browser.elements.get("cancelClearPendingBtn").listeners.click();
-  assert.equal(browser.elements.get("clearPendingConfirm").hidden, true);
-  assert.equal(browser.store.has(currentKey), true);
-
-  await browser.elements.get("clearPendingBtn").listeners.click();
-  await browser.elements.get("confirmClearPendingBtn").listeners.click();
-  assert.equal(browser.store.has(currentKey), false);
-  assert.equal(browser.store.get(recentKey), "keep-recent-history");
-  assert.equal(browser.elements.get("clearPendingConfirm").hidden, true);
+  const retry = browser.requests.find((request) => request.path === "/jobs" && request.method === "POST");
+  assert.ok(retry);
+  assert.equal(retry.body.request_id, "dashboard-pending-456");
+  assert.deepEqual(retry.body.destinations, ["telegram"]);
   assert.equal(browser.elements.get("recoveryActions").hidden, true);
-  assert.equal(browser.elements.get("progressText").textContent, "พร้อมเริ่ม");
-  assert.equal(browser.requests.length, requestCount);
-  assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
+  assert.equal(browser.store.has("x2telegram.currentJob.v1"), true);
 });
 
 test("new URL batch is clearly marked unsent while previous job results remain visible", async () => {
@@ -242,7 +213,7 @@ test("temporary status lookup failure retries polling and completes the same job
   assert.equal(browser.elements.get("recoveryActions").hidden, true);
 });
 
-test("repeated status failures keep next batch locked until explicit status recovery", async () => {
+test("repeated status failures keep retry and next-batch action available", async () => {
   const browser = makeBrowser({
     savedJob: { request_id: "poll-lock", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
     recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "unused" } } },
@@ -256,8 +227,8 @@ test("repeated status failures keep next batch locked until explicit status reco
   assert.equal(browser.elements.get("progressText").textContent, "สถานะงานยังยืนยันไม่ได้");
   assert.equal(browser.elements.get("recoverBtn").textContent, "ตรวจสถานะงานอีกครั้ง");
   assert.equal(browser.elements.get("recoveryActions").hidden, false);
-  assert.equal(browser.elements.get("runBtn").disabled, true);
-  assert.match(browser.elements.get("resultList").innerHTML, /งานเดิมอาจยังทำงานอยู่/);
+  assert.equal(browser.elements.get("runBtn").disabled, false);
+  assert.match(browser.elements.get("resultList").innerHTML, /เริ่มส่ง/);
   assert.match(browser.elements.get("resultList").innerHTML, /Cloudflare Access/);
   await browser.elements.get("recoverBtn").listeners.click();
   await settle();
@@ -288,7 +259,7 @@ test("returning to the dashboard rechecks an unconfirmed job without dispatching
   assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
 });
 
-test("ambiguous submission rechecks Access and explains how to recover without resending", async () => {
+test("ambiguous submission rechecks Access and leaves the primary start action available", async () => {
   const browser = makeBrowser({
     savedJob: { request_id: "previous-completed", job_id: jobId, url: "https://x.com/person/status/123", destinations: ["telegram"], large_file_mode: false },
     recoveryResponse: { status: 502, body: { error: { code: "github_read_failed", message: "unavailable" } } },
@@ -305,7 +276,7 @@ test("ambiguous submission rechecks Access and explains how to recover without r
   assert.ok(browser.requests.filter((request) => request.path === "/auth/check").length > authChecksBeforeSubmit);
   assert.equal(browser.requests.filter((request) => request.path === "/jobs" && request.method === "POST").length, 1);
   assert.match(browser.elements.get("resultList").innerHTML, /Cloudflare Access/);
-  assert.equal(browser.elements.get("runBtn").disabled, true);
+  assert.equal(browser.elements.get("runBtn").disabled, false);
 });
 
 test("retry UI sends only confirmed failed targets and excludes success or unconfirmed targets", async () => {
