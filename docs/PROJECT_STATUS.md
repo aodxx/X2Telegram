@@ -28,6 +28,12 @@
 - เพิ่มทางเลือก `MEGA_SESSION` แบบ GitHub Actions Secret เพื่อ resume session โดยไม่ต้องส่ง email/password และเพิ่มการแยกกรณีบัญชีเปิด MFA แต่ไม่มี TOTP/session เป็น `mega_mfa_required`
 - หากยังใช้ email/password ให้ตรวจหรือบันทึก `MEGA_EMAIL`, `MEGA_PASSWORD` ใหม่ใน GitHub Actions Secrets; ระบบไม่สามารถอ่านหรือแก้ค่า secret ที่ซ่อนอยู่ได้
 
+### MEGA authentication follow-up — 2026-11-06
+
+- ผู้ใช้ส่ง 99 URLs เข้า MEGA ผ่าน run [#42100323436](https://github.com/aodxx/X2Telegram/actions/runs/42100323436). Sanitized report ยืนยัน `mega_authentication_failed` ทั้ง 99 รายการ และไม่มีไฟล์ใดอัปโหลดสำเร็จ; raw MEGAcmd output ไม่อยู่ใน report จึงระบุไม่ได้ว่าเป็น password, MFA seed หรือ session ที่ถูกปฏิเสธ
+- ปรับ MEGA login ให้ลอง credentials/TOTP หนึ่งครั้งเมื่อ `MEGA_SESSION` resume ไม่ผ่าน, แยก `mega_session_invalid`, `mega_totp_invalid`, `mega_mfa_required` และ `mega_login_unavailable`, และ cache login failure/timeout เพื่อไม่ลองซ้ำต่อทุก URL
+- Regression tests ใช้ fake MEGAcmd เท่านั้น; ไม่มีการส่ง media จริงซ้ำระหว่างการแก้ไข และยังต้องรอการแก้ credential โดยเจ้าของบัญชีก่อน live verification
+
 ## ภาพรวม
 
 ระบบรับ X post URL จาก Dashboard ส่วนตัว, ตรวจ Cloudflare Access, dispatch GitHub Actions แล้วประมวลผล media **หนึ่งครั้งต่อ media item** ก่อนส่งไปยังปลายทางที่เลือกได้: Telegram, MEGA, Dropbox และ Browser ZIP. ยังคงใช้ workflow หลักเพียง workflow เดียว และไม่เพิ่ม database/Redis/queue/Google Drive ใน production path

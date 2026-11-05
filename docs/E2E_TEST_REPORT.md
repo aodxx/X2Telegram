@@ -1,7 +1,13 @@
 # X2Telegram — E2E Test Report
 
-**วันที่:** 2026-11-05
+**วันที่:** 2026-11-06
 **สรุป:** Telegram, Browser ZIP, MEGA และ Dropbox มีหลักฐาน live success ใน historical runs ตามรายละเอียดด้านล่าง. Dashboard recovery PR [#31](https://github.com/aodxx/X2Telegram/pull/31) merged เป็น `8fae5ac`; CI ผ่านด้วย Python 164 และ Worker/Dashboard 47 tests และ Worker deploy [#41919996688](https://github.com/aodxx/X2Telegram/actions/runs/41919996688) ผ่านเป็น version `d07ab6a9-b130-4ada-a510-97aa3e8989e3`. ไม่มี URL จริงถูก dispatch เพื่อทดสอบ fix นี้; unauthenticated `/` และ `/health` ตอบ HTTP 302 ตาม Cloudflare Access แต่ authenticated interactive recovery smoke test ยังรอยืนยัน. P3 remains partial; ruleset protection ยัง blocked ตาม bypass limitation ที่บันทึกไว้.
+
+## MEGA authentication follow-up — 2026-11-06
+
+- User-authorized MEGA-only run [#42100323436](https://github.com/aodxx/X2Telegram/actions/runs/42100323436) accepted 99 unique URLs and installed MEGAcmd, but the sanitized report recorded `mega_authentication_failed` for all 99; **0 media items were uploaded**. This establishes an authentication failure at login, not a source-download or upload-path failure. Sanitized output cannot distinguish rejected account credentials from MFA/session configuration.
+- MEGA auth handling was hardened to fall back from an unusable stored session to configured email/password plus optional TOTP once, classify session/TOTP/MFA/transient failures with safe codes, and memoize login failures/timeouts for the rest of the batch. Dashboard now gives Thai recovery hints for the new codes.
+- Automated mock tests are used for this change; no live upload was repeated. Live verification remains blocked until the account owner confirms the MEGA authentication settings are corrected.
 
 ## Dashboard recovery follow-up — 2026-11-05 (automated/deployment evidence)
 

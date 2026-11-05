@@ -40,13 +40,13 @@ Dashboard → Access-protected Worker → GitHub Actions → Python processor
 | `DROPBOX_ACCESS_TOKEN` | ไม่บังคับ | short-lived access token; ใช้ร่วมกับ refresh token เพื่อรองรับการ refresh |
 | `ALERT_WEBHOOK_URL` | แจ้งเตือนเสริม | HTTPS webhook; optional |
 
-`TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**. หากใช้ `MEGA_SESSION` ระบบจะใช้ session ก่อน email/password และไม่ส่ง password ไปกับคำสั่ง login.
+`TELEGRAM_CHAT_ID` ถูกล็อกไว้ใน workflow และไม่รับจาก browser. Download-only ไม่ต้องเพิ่ม Telegram หรือ MEGA credential. **อย่าใส่ค่า credential ใน code, workflow inputs, Dashboard หรือข้อความแชต**. หากใช้ `MEGA_SESSION` ระบบจะลอง resume session ก่อน; หากถูกปฏิเสธและตั้ง `MEGA_EMAIL`/`MEGA_PASSWORD` ด้วย จะ fallback ไปลอง login ด้วยข้อมูลเหล่านั้นหนึ่งครั้ง รวม TOTP หากตั้ง seed ไว้. กรณี rate limit/บริการชั่วคราวไม่พร้อมจะไม่ fallback และ cache failure เพื่อไม่ส่ง login ซ้ำทุก URL ใน job เดียว
 
 MEGAcmd จะติดตั้งใน runner เฉพาะเมื่อเลือก MEGA; workflow pin SHA-256 ของ package และตรวจ GPG signature ด้วย MEGA signing-key fingerprint ที่ pin ไว้ก่อนติดตั้ง. Current verified pin (2026-11-02): `megacmd 2.7.0-1.1` for Ubuntu 24.04 amd64, SHA-256 `fbaa233f4507fdf7e80d672558c5254540d9a9bf1a9da44aa73ff479b7797610`, fingerprint `B01C811880480C854C73EC7E1A664B787094A482`; ตรวจวิธีติดตั้ง/ลายเซ็นจาก [คู่มือ Linux ทางการของ MEGA](https://help.mega.io/desktop-app/desktop-installation/linux). Login uses official `mega-login` command and optional `--auth-code` when TOTP is configured. Output ของ login/upload command ไม่ถูกคัดลง dashboard report. เมื่อ job จบจะสั่ง `mega-logout` และ Actions runner เป็นชั่วคราว
 
 โฟลเดอร์รากเริ่มต้นคือ `X2Telegram`; เปลี่ยนได้โดยสร้าง **Repository variable** ชื่อ `MEGA_REMOTE_FOLDER` ใน **Settings → Secrets and variables → Actions → Variables**. สำหรับ manual GitHub Actions run สามารถระบุ input `mega_remote_folder` เพื่อ override โฟลเดอร์เฉพาะ run ได้; ลำดับคือ input ของ run → repository variable → `X2Telegram`. Input นี้ไม่เปลี่ยนการ dispatch จาก Dashboard. ใช้ path แบบ `Archive/X2Telegram` ได้; uploader จะเพิ่ม subfolder วันที่ UTC `YYYY-MM-DD` ต่อท้ายและ validate path ก่อน upload. Python ต่อ SHA-256 เต็มของเนื้อหาเข้ากับ basename สำหรับ MEGA/Dropbox; media ต่างเวอร์ชันจึงไม่ชนชื่อเดิม และ uploader ตรวจไฟล์ remote หลังอัปโหลด.
 
-เอกสารการใช้งาน MEGAcmd: [คำสั่ง login/MFA ทางการ](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md). คำแนะนำการใช้งานผู้ใช้: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
+เอกสารการใช้งาน MEGAcmd: [คำสั่ง login/MFA ทางการ](https://github.com/meganz/MEGAcmd/blob/master/contrib/docs/commands/login.md) ระบุว่า `login session` ใช้ resume session ที่สร้างจากการ login ก่อนหน้า และ `--auth-code=XXXXXX` ใช้ร่วมกับ email/password เมื่อบัญชีเปิด MFA. คำแนะนำการใช้งานผู้ใช้: [`MULTI_DESTINATION.md`](MULTI_DESTINATION.md)
 
 ## 3. Cloudflare Worker และ Access
 
@@ -132,6 +132,9 @@ Job `persist-state` จะ `git add` และ commit `state/dedupe.json` ก่
 | `mega_credentials_missing` | เพิ่ม `MEGA_EMAIL`, `MEGA_PASSWORD` ใน repository Actions Secrets |
 | `mega_authentication_failed` | ตรวจข้อมูล MEGA/TOTP ใน Secrets; หาก password login ถูกปฏิเสธ ให้ใช้ `MEGA_SESSION`; report ไม่แสดงรหัสผ่าน/command output |
 | `mega_mfa_required` | บัญชีเปิด MFA แต่ไม่มี TOTP/session ที่ใช้ได้ ให้ตั้ง `MEGA_TOTP_SECRET` หรือ `MEGA_SESSION` |
+| `mega_session_invalid` | MEGA_SESSION ใช้ไม่ได้; หากตั้ง credentials ไว้ระบบลอง fallback หนึ่งครั้ง มิฉะนั้นให้แทน session ด้วยค่าที่ใช้ได้ |
+| `mega_totp_invalid` | ตรวจว่า MEGA_TOTP_SECRET เป็น seed Base32 ของบัญชีนี้ ไม่ใช่รหัส 6 หลัก; ถ้ายังไม่ผ่านให้ใช้ MEGA_SESSION |
+| `mega_login_unavailable` | MEGA ปฏิเสธชั่วคราว/จำกัดความถี่; รอก่อน retry เพื่อไม่เพิ่มความถี่ login |
 | `mega_client_unavailable` | ตรวจขั้นติดตั้ง MEGAcmd ใน Actions log; target อื่นยังทำงานต่อได้ |
 | `telegram_file_too_large` | ใช้ Telegram Large-file mode ที่ตั้งค่า Local Bot API แล้ว หรือเลือก MEGA/Dropbox/Download เพิ่ม |
 | `download_artifact_size_limit` | แบ่งรายการเป็นหลาย jobs; ZIP limit คือ 8 GiB/job |

@@ -1,3 +1,5 @@
+import pytest
+
 from src.cli import build_summary
 from src.cli import main
 from src.dashboard_report import sanitize_report
@@ -133,6 +135,20 @@ def test_sanitizer_keeps_destination_statuses_but_drops_remote_paths_and_secrets
     assert "[url]" in item["destinations"]["mega"]["items"][0]["error"]
     assert "remote_folder" not in item["destinations"]["mega"]
     assert "unknown" not in item["destinations"]
+
+
+@pytest.mark.parametrize("code", ["mega_session_invalid", "mega_totp_invalid", "mega_login_unavailable"])
+def test_sanitizer_preserves_only_safe_mega_auth_edge_codes(code):
+    clean = sanitize_report({
+        "results": [{"destinations": {"mega": {
+            "status": "failed",
+            "items": [{"status": "failed", "error_code": code, "error": "MEGA login failed; password=private"}],
+        }}}],
+    })
+    item = clean["results"][0]["destinations"]["mega"]["items"][0]
+    assert item["error_code"] == code
+    assert "private" not in item["error"]
+    assert "[secret]" in item["error"]
 
 
 def test_sanitizer_preserves_outcome_unconfirmed_without_remote_details():

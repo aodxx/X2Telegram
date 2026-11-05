@@ -90,7 +90,7 @@ Report แยก `destinations[telegram|mega|dropbox|download]` และผล 
 
 Destination status ใน manifest หมายถึง adapter outcome (`success`, `ready`, `duplicate`, `failed`, `not_attempted`) ไม่ใช่หลักฐาน remote read-back โดยตัวมันเอง. การอ้าง remote integrity ต้องมี integration evidence เช่น remote listing และ download-back bytes/hash แยกต่างหาก. Dashboard sanitizer allowlists เฉพาะ fields ข้างต้นและไม่ส่ง media URL, signed query, local path หรือ remote folder.
 
-`mega_credentials_missing`, `mega_authentication_failed`, `mega_client_unavailable`, `mega_upload_failed`, `download_artifact_size_limit`, `download_artifact_missing`, `download_expired` เป็น safe error codes; report ไม่รวม MEGA command output/password/TOTP seed หรือ media signed URL
+`mega_credentials_missing`, `mega_authentication_failed`, `mega_mfa_required`, `mega_session_invalid`, `mega_totp_invalid`, `mega_login_unavailable`, `mega_client_unavailable`, `mega_upload_failed`, `download_artifact_size_limit`, `download_artifact_missing`, `download_expired` เป็น safe error codes; report ไม่รวม MEGA command output/password/TOTP seed หรือ media signed URL. เมื่อ session ล้มเหลวและมี email/password ระบบลอง credentials สำรองหนึ่งครั้ง; หาก MEGA ตอบว่า rate-limited/บริการชั่วคราวไม่พร้อม จะไม่ลอง fallback ซ้ำและ cache login failure ไว้ตลอด job
 
 ## Authentication/security boundary
 

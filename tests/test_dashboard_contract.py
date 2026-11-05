@@ -92,6 +92,12 @@ def test_dashboard_translates_actionable_source_errors_into_thai_guidance():
     assert "ส่งไป Dropbox ไม่สำเร็จ ลองใหม่อีกครั้ง" in HTML
 
 
+def test_dashboard_translates_mega_authentication_edge_cases_into_thai_guidance():
+    assert "mega_session_invalid:" in HTML and "อัปเดต session หรือ credentials" in HTML
+    assert "mega_totp_invalid:" in HTML and "seed MEGA_TOTP_SECRET" in HTML
+    assert "mega_login_unavailable:" in HTML and "MEGA จำกัดคำขอหรือขัดข้องชั่วคราว" in HTML
+
+
 def test_dashboard_distinguishes_partial_completion_from_total_failure():
     assert "function reportOutcome(report)" in HTML
     assert "เสร็จบางส่วน" in HTML

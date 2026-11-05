@@ -71,6 +71,9 @@ Python ดาวน์โหลด media หนึ่งครั้งแล้
 - **MEGA `mega_credentials_missing`**: ตรวจว่ามี GitHub secrets ชื่อ `MEGA_EMAIL` และ `MEGA_PASSWORD`
 - **MEGA `mega_authentication_failed`**: ตรวจอีเมล/รหัสผ่าน หรือใช้ `MEGA_SESSION`; หากบัญชีปิด 2FA ให้ลบ Secret `MEGA_TOTP_SECRET` ที่ไม่จำเป็นออก แต่ถ้าเปิด TOTP ให้เก็บ seed แบบ Base32 (ไม่ใช่รหัส 6 หลัก) ใน Secret นี้. ห้ามใส่ค่า credential ใน report
 - **MEGA `mega_mfa_required`**: บัญชีเปิด MFA แต่ยังไม่มี TOTP/session ที่ใช้ได้ ให้ตั้ง `MEGA_TOTP_SECRET` หรือ `MEGA_SESSION`
+- **MEGA `mega_session_invalid`**: session ใช้ต่อไม่ได้; ถ้าตั้งอีเมล/รหัสผ่านไว้ระบบจะ fallback ไปลองหนึ่งครั้ง มิฉะนั้นให้อัปเดต `MEGA_SESSION`
+- **MEGA `mega_totp_invalid`**: ตรวจว่า `MEGA_TOTP_SECRET` เป็น seed Base32 ของบัญชีนี้ ไม่ใช่รหัส 6 หลัก และตรวจเวลาในอุปกรณ์ authenticator ให้ถูกต้อง
+- **MEGA `mega_login_unavailable`**: MEGA login ตอบ rate limit หรือปัญหาชั่วคราว ระบบไม่ยิง login ซ้ำทุก URL; รอสักครู่แล้วลอง job ใหม่
 - **ไฟล์เก่าถูกเขียนทับก่อนแก้ไข**: ใน MEGA ตรวจเมนูสามจุด → **Previous versions** (ไอคอนรูปนาฬิกา) หากเปิด File versioning ไว้; [คู่มือ MEGA เรื่อง file version history](https://help.mega.io/files-folders/data-restoration/file-version-history). การกู้คืนขึ้นกับการตั้งค่าและข้อมูลที่บัญชียังเก็บอยู่
 - **Download `download_expired`**: artifact หมดอายุหลัง 7 วัน ให้เริ่ม job ใหม่
 - **Download `download_artifact_size_limit`**: รวมไฟล์เกิน 8 GiB ต่อ job; แบ่ง URL เป็นหลายชุด

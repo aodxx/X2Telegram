@@ -38,7 +38,7 @@ def totp_code(secret: str, timestamp: float | None = None) -> str:
     try:
         key = base64.b32decode(normalized + "=" * ((8 - len(normalized) % 8) % 8), casefold=True)
     except Exception as exc:
-        raise DestinationError("mega_authentication_failed", "MEGA MFA secret is not valid base32.") from exc
+        raise DestinationError("mega_totp_invalid", "MEGA_TOTP_SECRET is not a valid Base32 authenticator seed.") from exc
     counter = int((timestamp if timestamp is not None else time.time()) // 30)
     digest = hmac.new(key, counter.to_bytes(8, "big"), hashlib.sha1).digest()
     offset = digest[-1] & 0x0F
@@ -95,12 +95,104 @@ class MegaUploader:
         except OSError as exc:
             raise DestinationError("mega_client_unavailable", "MEGA upload client could not be started.") from exc
 
+    @staticmethod
+    def _login_output(result) -> str:
+        return f"{result.stdout or ''}\n{result.stderr or ''}".lower()
+
+    @staticmethod
+    def _is_transient_login_failure(output: str) -> bool:
+        markers = (
+            "too many requests", "rate limit", "temporarily unavailable", "try again later",
+            "server busy", "connection refused", "connection failed", "could not connect",
+            "connection reset", "network error", "timed out", "timeout", "service unavailable",
+            "internal server error", "server error", "api returned error 5", "http 5", "http 429", "error 429",
+        )
+        return any(marker in output for marker in markers)
+
+    @staticmethod
+    def _is_mfa_failure(output: str) -> bool:
+        markers = (
+            "two-factor", "two factor", "two-step", "two step", "2-step", "2fa", "mfa",
+            "multi-factor", "multifactor", "second factor", "second-factor", "security code",
+            "auth code", "authentication code", "verification code", "one-time password", "otp",
+        )
+        return any(marker in output for marker in markers)
+
+    @staticmethod
+    def _is_invalid_totp(output: str) -> bool:
+        markers = (
+            "invalid auth code", "incorrect auth code", "invalid authentication code",
+            "incorrect authentication code", "invalid verification code", "incorrect verification code",
+            "invalid 2fa", "incorrect 2fa", "wrong 2fa", "invalid totp", "incorrect totp",
+            "wrong totp", "wrong verification code", "expired auth code", "expired code",
+            "invalid code", "incorrect code", "wrong code",
+        )
+        return any(marker in output for marker in markers)
+
+    def _login_failure(self, output: str, method: str) -> DestinationError:
+        if self._is_transient_login_failure(output):
+            return DestinationError(
+                "mega_login_unavailable",
+                "MEGA login was temporarily unavailable or rate-limited. Wait and retry the job.",
+            )
+        if method == "session":
+            return DestinationError(
+                "mega_session_invalid",
+                "MEGA_SESSION could not be resumed. Replace it, or use current MEGA_EMAIL/MEGA_PASSWORD and the optional MEGA_TOTP_SECRET.",
+            )
+        if self.totp_secret and self._is_invalid_totp(output):
+            return DestinationError(
+                "mega_totp_invalid",
+                "MEGA rejected the TOTP code. Check that MEGA_TOTP_SECRET is the authenticator seed for this account and its system clock is correct.",
+            )
+        if not self.totp_secret and self._is_mfa_failure(output):
+            return DestinationError(
+                "mega_mfa_required",
+                "MEGA requires MFA. Configure a valid MEGA_TOTP_SECRET or MEGA_SESSION for this account.",
+            )
+        if self.totp_secret and self._is_mfa_failure(output):
+            return DestinationError(
+                "mega_totp_invalid",
+                "MEGA did not accept the MFA code. Check the TOTP seed and system clock, or use a valid MEGA_SESSION.",
+            )
+        return DestinationError(
+            "mega_authentication_failed",
+            "MEGA login failed. Check the account credentials, MFA setting, or use a valid MEGA_SESSION.",
+        )
+
+    def _run_login(self, args: list[str], method: str) -> bool:
+        try:
+            result = self._run(args, timeout=90)
+        except DestinationError as exc:
+            self._login_error = exc
+            raise
+        if result.returncode == 0:
+            self._logged_in = True
+            return True
+        self._login_error = self._login_failure(self._login_output(result), method)
+        return False
+
+    def _login_with_credentials(self) -> None:
+        args = ["mega-login"]
+        if self.totp_secret:
+            try:
+                args.append(f"--auth-code={totp_code(self.totp_secret)}")
+            except DestinationError as exc:
+                self._login_error = exc
+                raise
+        args.extend([self.email, self.password])
+        if self._run_login(args, "password"):
+            return
+        assert self._login_error is not None
+        raise self._login_error
+
     def _ensure_login(self) -> None:
         if self._logged_in:
             return
         if self._login_error:
             raise self._login_error
-        if not self.session and (not self.email or not self.password):
+        has_credentials = bool(self.email and self.password)
+        if not self.session and not has_credentials:
             self._login_error = DestinationError(
                 "mega_credentials_missing", "MEGA credentials are not configured in GitHub Actions Secrets."
             )
@@ -111,23 +203,16 @@ class MegaUploader:
             )
             raise self._login_error
         if self.session:
-            args = ["mega-login", self.session]
-        else:
-            args = ["mega-login"]
-            if self.totp_secret:
-                args.append(f"--auth-code={totp_code(self.totp_secret)}")
-            args.extend([self.email, self.password])
-        result = self._run(args, timeout=90)
-        if result.returncode != 0:
-            # Never surface MEGAcmd output; it can contain account or session details.
-            output = f"{result.stdout or ''}\n{result.stderr or ''}".lower()
-            code = "mega_mfa_required" if ("two-factor" in output or "2fa" in output or "mfa" in output) and not self.totp_secret and not self.session else "mega_authentication_failed"
-            self._login_error = DestinationError(
-                code,
-                "MEGA login failed. Check the MEGA credentials, MFA setting, or use a valid MEGA_SESSION."
-            )
-            raise self._login_error
-        self._logged_in = True
+            # A stored session may have expired or been revoked. If so, fall back
+            # once to configured credentials; never print the client output.
+            if self._run_login(["mega-login", self.session], "session"):
+                return
+            assert self._login_error is not None
+            if self._login_error.code == "mega_login_unavailable" or not has_credentials:
+                raise self._login_error
+            self._login_error = None
+
+        self._login_with_credentials()
 
     def upload(self, path: str | Path, filename: str, *, timestamp: datetime | None = None) -> str:
         root_folder = self._clean_remote_folder(self.remote_folder)

@@ -599,6 +599,118 @@ def test_mega_login_reports_missing_mfa_without_exposing_client_output(tmp_path)
     assert "Two-factor" not in str(raised.value)
 
 
+def test_mega_expired_session_falls_back_to_credentials_and_totp(tmp_path):
+    calls = []
+
+    def runner(args, **kwargs):
+        calls.append(args)
+        if args[0] == "mega-login" and len(args) == 2:
+            return SimpleNamespace(returncode=1, stdout="", stderr="Session expired")
+        if args[0] == "mega-ls":
+            return SimpleNamespace(returncode=0, stdout="safe_name.mp4", stderr="")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    media_path = tmp_path / "safe_name.mp4"
+    media_path.write_bytes(b"video")
+    uploader = MegaUploader(
+        email="owner@example.com", password="private-password", session="stale-session",
+        totp_secret="GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", runner=runner, which=lambda _name: True,
+    )
+    assert uploader.upload(media_path, "safe_name.mp4", timestamp=datetime(2026, 10, 9, tzinfo=timezone.utc)) == "/X2Telegram/2026-10-09"
+    assert calls[0] == ["mega-login", "stale-session"]
+    assert calls[1][0] == "mega-login"
+    assert calls[1][1].startswith("--auth-code=")
+    assert calls[1][2:] == ["owner@example.com", "private-password"]
+
+
+def test_mega_invalid_session_without_fallback_credentials_is_actionable(tmp_path):
+    uploader = MegaUploader(
+        email="", password="", session="stale-session",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="session=private", stderr=""),
+        which=lambda _name: True,
+    )
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+    assert raised.value.code == "mega_session_invalid"
+    assert "private" not in str(raised.value)
+
+
+@pytest.mark.parametrize("message", [
+    "MFA verification code required",
+    "Please enter your one-time password",
+    "Two factor authentication is enabled",
+    "Second factor code required",
+    "2-step verification required",
+])
+def test_mega_login_classifies_mfa_prompt_variants(message, tmp_path):
+    uploader = MegaUploader(
+        email="owner@example.com", password="p",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="", stderr=message),
+        which=lambda _name: True,
+    )
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+    assert raised.value.code == "mega_mfa_required"
+    assert message not in str(raised.value)
+
+
+@pytest.mark.parametrize("message", ["Invalid 2FA code", "Incorrect authentication code", "Expired code"])
+def test_mega_login_distinguishes_rejected_totp_code(message, tmp_path):
+    uploader = MegaUploader(
+        email="owner@example.com", password="p", totp_secret="GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout="", stderr=message),
+        which=lambda _name: True,
+    )
+    with pytest.raises(DestinationError) as raised:
+        uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+    assert raised.value.code == "mega_totp_invalid"
+    assert message not in str(raised.value)
+
+
+@pytest.mark.parametrize("message", [
+    "Too many requests; try again later",
+    "API returned error 500",
+    "Connection reset by peer",
+])
+def test_mega_transient_login_failure_does_not_fallback_from_session_to_password(message, tmp_path):
+    calls = []
+
+    def runner(args, **kwargs):
+        calls.append(args)
+        return SimpleNamespace(returncode=1, stdout="", stderr=message)
+
+    uploader = MegaUploader(
+        email="owner@example.com", password="p", session="stale-session",
+        runner=runner, which=lambda _name: True,
+    )
+    for _ in range(2):
+        with pytest.raises(DestinationError) as raised:
+            uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+        assert raised.value.code == "mega_login_unavailable"
+    assert calls == [["mega-login", "stale-session"]]
+
+
+def test_mega_login_timeout_is_cached_for_the_rest_of_the_job(tmp_path):
+    calls = []
+
+    def runner(args, **kwargs):
+        calls.append(args)
+        raise subprocess.TimeoutExpired(args, 90)
+
+    uploader = MegaUploader(email="owner@example.com", password="p", runner=runner, which=lambda _name: True)
+    for _ in range(2):
+        with pytest.raises(DestinationError) as raised:
+            uploader.upload(tmp_path / "missing.mp4", "safe.mp4")
+        assert raised.value.code == "mega_timeout"
+    assert len(calls) == 1
+
+
+def test_totp_rejects_non_base32_seed_with_specific_safe_code():
+    with pytest.raises(DestinationError) as raised:
+        totp_code("not-a-totp-seed!")
+    assert raised.value.code == "mega_totp_invalid"
+
+
 def test_totp_uses_rfc6238_six_digit_vector():
     # RFC 6238 test secret; the six-digit truncation of the 8-digit reference is 287082 at t=59.
     assert totp_code("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", timestamp=59) == "287082"
