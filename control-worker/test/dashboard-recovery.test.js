@@ -80,7 +80,7 @@ function makeBrowser({ savedJob, recoveryResponse, statusBody = null, statusResp
     window: {
       X2TELEGRAM_CONFIG: { apiBase: "https://worker.test" },
       addEventListener(name, callback) { listeners[`window:${name}`] = callback; },
-      confirm() { return true; },
+      confirm() { throw new Error("native confirm should not be required"); },
     },
     document: {
       hidden: false,
@@ -167,6 +167,43 @@ test("reload with no matching run stays locked for explicit recovery and never d
   assert.equal(browser.elements.get("runBtn").disabled, true);
   assert.equal(browser.elements.get("runStateBadge").textContent, "ยังไม่ยืนยัน");
   assert.match(browser.elements.get("resultList").innerHTML, /ไม่ส่งงานใหม่เอง/);
+});
+
+test("clear-pending uses a visible in-page confirmation and removes only local tracking", async () => {
+  const currentKey = "x2telegram.currentJob.v1";
+  const recentKey = "x2telegram.recentJobs.v1";
+  const browser = makeBrowser({
+    savedJob: {
+      request_id: "dashboard-pending-clear",
+      url: "https://x.com/person/status/789",
+      destinations: ["telegram"],
+      large_file_mode: false,
+    },
+    recoveryResponse: { status: 404, body: { error: { code: "job_not_found", message: "No matching workflow run is visible" } } },
+  });
+  await settle();
+  browser.store.set(recentKey, "keep-recent-history");
+  const requestCount = browser.requests.length;
+
+  await browser.elements.get("clearPendingBtn").listeners.click();
+  assert.equal(browser.elements.get("clearPendingConfirm").hidden, false);
+  assert.equal(browser.store.has(currentKey), true);
+  assert.match(html, /id="clearPendingConfirm"[\s\S]*?ไม่ยกเลิกงานเดิม/);
+  assert.equal(browser.requests.length, requestCount);
+
+  await browser.elements.get("cancelClearPendingBtn").listeners.click();
+  assert.equal(browser.elements.get("clearPendingConfirm").hidden, true);
+  assert.equal(browser.store.has(currentKey), true);
+
+  await browser.elements.get("clearPendingBtn").listeners.click();
+  await browser.elements.get("confirmClearPendingBtn").listeners.click();
+  assert.equal(browser.store.has(currentKey), false);
+  assert.equal(browser.store.get(recentKey), "keep-recent-history");
+  assert.equal(browser.elements.get("clearPendingConfirm").hidden, true);
+  assert.equal(browser.elements.get("recoveryActions").hidden, true);
+  assert.equal(browser.elements.get("progressText").textContent, "พร้อมเริ่ม");
+  assert.equal(browser.requests.length, requestCount);
+  assert.equal(browser.requests.some((request) => request.path === "/jobs" && request.method === "POST"), false);
 });
 
 test("new URL batch is clearly marked unsent while previous job results remain visible", async () => {

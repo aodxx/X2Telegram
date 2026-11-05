@@ -63,3 +63,10 @@ Report viewport/device or browser, tested flow, screenshots/logs if available wi
 - Ensure status and error meaning is not conveyed by color alone; controls have accessible labels/focus states, and primary actions fit narrow viewports without horizontal scrolling.
 - Include a user-visible summary/export or copyable sanitized report where practical, but do not add a new backend endpoint if the existing report contains the needed information. ZIP expiration must include the actual recovery path, not just an expired badge.
 - Acceptance evidence should cover at least narrow mobile width, partial failure, stale connection, reload mid-job, retry, and ZIP expired/unavailable states using existing test tooling; one real-device smoke test is enough unless the relevant flow changes.
+
+### Pending-tracking clear control — 2026-11-06
+
+- User-reported repeated taps appeared to do nothing. The previous control relied on `window.confirm`, so the confirmation step was not visible within the Dashboard UI; the issue was not evidence of a stuck media file.
+- The control now opens an inline warning and a separate confirm/cancel choice. Confirm removes only `x2telegram.currentJob.v1` from the browser's local storage; it does not cancel a GitHub Actions run or delete destination files/artifacts. The warning states that an old job may still run and a new submission could duplicate it.
+- Regression coverage verifies the in-page confirmation, cancel path, removal of only current-job tracking, preservation of recent history, and no new `/jobs` request. Automated suites passed locally; deployment and run evidence are recorded in `PROJECT_STATUS.md` after release.
+- This does not complete P5's real-device acceptance. Android/mobile Access login, submission, polling, and ZIP download still need one focused smoke test on a real device.
