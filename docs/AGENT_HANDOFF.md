@@ -1,8 +1,8 @@
 # X2Telegram — Agent Handoff และแผนพัฒนาต่อ
 
 **อัปเดต:** 2026-11-06
-**จุดอ้างอิง:** latest application commit `5d2b632` (mobile-safe pending-tracking clear); Cloudflare Worker version `4996051f-70b1-4dfd-89ad-ebcc72b3d895`; deploy run #42082903895; state-writer guard commit `359041e` (PR #29)
-**สถานะสั้น:** Dashboard pending-tracking clear fix `5d2b632` merged/deployed แล้ว: Main CI [#42082774851](https://github.com/aodxx/X2Telegram/actions/runs/42082774851), Pages [#42082774868](https://github.com/aodxx/X2Telegram/actions/runs/42082774868), Worker [#42082903895](https://github.com/aodxx/X2Telegram/actions/runs/42082903895) ผ่าน; Python 164 และ Worker/Dashboard 48 tests. ปุ่มยืนยันล้างเฉพาะ browser tracking ไม่ยกเลิกงานเดิมหรือแตะไฟล์ปลายทาง. Unauthenticated Worker `/` ยังคงถูก Access redirect (HTTP 302); authenticated interactive/mobile smoke test ยังรอยืนยัน. P1/P2 ผ่าน acceptance ตามหลักฐานเดิม; P3 ยัง partial ตามข้อจำกัด exactly-once/cross-isolate. P4 ยัง PARTIAL เพราะ live Telegram/Dropbox tests ต้องมีปลายทางทดสอบที่ได้รับอนุญาต; ผู้ใช้รองยังไม่มีหลักฐาน OTP session และ P5 ยังรอ real-mobile smoke test. Ruleset protection ยัง blocked ตามข้อจำกัด GitHub Actions bypass actor ที่บันทึกไว้ด้านล่าง.
+**จุดอ้างอิง:** latest application commit `0943983` (MEGA authentication edge-case hardening); Cloudflare Worker version `6c8819b6-f9ed-4fd4-8b72-21f13557a21f`; deploy run #42102540417; state-writer guard commit `359041e` (PR #29)
+**สถานะสั้น:** MEGA auth hardening บน `0943983` merged/deployed แล้ว: Main CI [#42102315080](https://github.com/aodxx/X2Telegram/actions/runs/42102315080), Pages [#42102314959](https://github.com/aodxx/X2Telegram/actions/runs/42102314959), Worker [#42102540417](https://github.com/aodxx/X2Telegram/actions/runs/42102540417) ผ่าน; Python 183 และ Worker/Dashboard 47 tests. MEGA fallback/session/MFA error cases มี mock regression ครบ แต่ยังไม่มี live verification; run ล่าสุดจากผู้ใช้ #42100323436 ล้ม authentication 99 รายการ/0 upload. Synthetic integration ที่เกิดจาก source push #42102315328 หยุดก่อน login เพราะ MEGAcmd package checksum pin mismatch. Unauthenticated Worker `/` ยังคงถูก Access redirect (HTTP 302); authenticated interactive/mobile smoke test ยังรอยืนยัน. P1/P2 ผ่าน acceptance ตามหลักฐานเดิม; P3 ยัง partial ตามข้อจำกัด exactly-once/cross-isolate. P4 ยัง PARTIAL และ P5 ยังรอ real-mobile smoke test. Ruleset protection ยัง blocked ตามข้อจำกัด GitHub Actions bypass actor ที่บันทึกไว้ด้านล่าง.
 
 **Dashboard pending-tracking clear fix (2026-11-06):** เปลี่ยนจาก native `window.confirm` เป็น inline warning/confirm/cancel เพื่อให้มี feedback ชัดบนมือถือ. ยืนยันแล้วลบเฉพาะ `x2telegram.currentJob.v1` ใน browser local storage; ไม่ยกเลิก GitHub Actions หรือไฟล์ปลายทาง. Automated tests ผ่าน; ยังต้องทำ authenticated smoke test บนอุปกรณ์จริง.
 
@@ -45,15 +45,15 @@ Dashboard → Cloudflare Access → Cloudflare Worker
 | Branch | `main` |
 | P2 merge commit in main | `a5711e1` (media manifest/identity) |
 | P3 merge commit in main | `9e9e9f8` (safe retry/job recovery; PR #24) |
-| Latest application code commit in main | `5d2b632` (mobile-safe pending-tracking clear confirmation) |
-| Dashboard Pages deploy | [#42082774868](https://github.com/aodxx/X2Telegram/actions/runs/42082774868) — success on `5d2b632` |
+| Latest application code commit in main | `0943983` (MEGA authentication edge-case hardening) |
+| Dashboard Pages deploy | [#42102314959](https://github.com/aodxx/X2Telegram/actions/runs/42102314959) — success on `0943983` |
 | Worker | `x2telegram-control-plane` |
 | Worker URL | `https://x2telegram-control-plane.pantipa3826.workers.dev` |
-| Worker version | `4996051f-70b1-4dfd-89ad-ebcc72b3d895` |
-| Deploy commit | `5d2b63264f6b200dc70f6cf6c05fe5771ee01f06` |
-| Deploy run | [#42082903895](https://github.com/aodxx/X2Telegram/actions/runs/42082903895) — success; tests and Wrangler dry-run passed |
-| Python tests | 164 passed (local validation and main CI [#42082774851](https://github.com/aodxx/X2Telegram/actions/runs/42082774851)) |
-| Worker/Dashboard tests | 48 passed (local validation and main CI [#42082774851](https://github.com/aodxx/X2Telegram/actions/runs/42082774851)) |
+| Worker version | `6c8819b6-f9ed-4fd4-8b72-21f13557a21f` |
+| Deploy commit | `094398359e10c661e3ce3827a293de1bf59ae973` |
+| Deploy run | [#42102540417](https://github.com/aodxx/X2Telegram/actions/runs/42102540417) — success; tests and Wrangler dry-run passed |
+| Python tests | 183 passed (local validation and main CI [#42102315080](https://github.com/aodxx/X2Telegram/actions/runs/42102315080)) |
+| Worker/Dashboard tests | 47 passed (local validation and main CI [#42102315080](https://github.com/aodxx/X2Telegram/actions/runs/42102315080)) |
 | Rate limit | `JOB_DISPATCH_RATE_LIMITER`: 20/60s per Access identity |
 | Access | Cloudflare Access allows two exact email identities; no `Everyone`/domain-wide rule; unauthenticated `GET /` returns HTTP 302 |
 
