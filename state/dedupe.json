@@ -47207,6 +47207,23 @@
         481
       ],
       "completed": true
+    },
+    "2118428661523357910": {
+      "media": {
+        "cdd6cc03f90faa1f54bca9352850361f13c5dc627d4c75a88c67b9cba27208bb": {
+          "kind": "video",
+          "filename": "2118428661523357910_01_cdd6cc03f90faa1f54bca9352850361f13c5dc627d4c75a88c67b9cba27208bb.mp4",
+          "destinations": {
+            "mega": {
+              "status": "success",
+              "filename": "2118428661523357910_01_cdd6cc03f90faa1f54bca9352850361f13c5dc627d4c75a88c67b9cba27208bb.mp4",
+              "remote_folder": "/X2Telegram/2026-11-06"
+            }
+          }
+        }
+      },
+      "message_ids": [],
+      "completed": true
     }
   }
 }
